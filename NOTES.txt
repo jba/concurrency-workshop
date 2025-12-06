@@ -1,0 +1,3 @@
+waitgroup:
+
+After doing it with a mutex, redo with atomics and see how we get stuck.
