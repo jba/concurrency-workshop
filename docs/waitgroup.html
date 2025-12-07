@@ -7,6 +7,16 @@
 </head>
 <body>
 <h1>Implementing WaitGroup: Add and Done</h1>
+<p>Let&#39;s try to implement sync.WaitGroup ourselves.
+It has three methods: Add, Done and Wait.
+We&#39;ll start with Add and Done.
+All we need to support them is a simple counter, holding
+the number of started but not finished goroutines.
+
+What do you think about this solution?
+
+Problem: no synchronization.
+</p>
 <code><pre>type WaitGroup struct {
 	count int // number of active goroutines
 }
@@ -21,6 +31,9 @@ func (g *WaitGroup) Done() {
 
 </pre></code>
 <h1>Let&#39;s use atomics!</h1>
+<p>This looks like a good place to use atomics, because we&#39;re just
+incrementing and decrementing a counter. So let&#39;s do that.
+</p>
 <code><pre>type WaitGroup struct {
 	count atomic.Int64 // number of active goroutines
 }
@@ -35,6 +48,10 @@ func (g *WaitGroup) Done() {
 
 </pre></code>
 <h1>Atomic bomb</h1>
+<p>We should check that Done isn&#39;t called when the count is zero.
+Let&#39;s add that check.
+WDYT about this code?
+</p>
 <code><pre>type WaitGroup struct {
 	count atomic.Int64 // number of active goroutines
 }
@@ -51,7 +68,12 @@ func (g *WaitGroup) Done() {
 }
 
 </pre></code>
+<p>Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
+That&#39;s a pitfall of using atomics.
+</p>
 <h1>WaitGroup with Mutex</h1>
+<p>Let&#39;s use a mutex.
+</p>
 <code><pre>type WaitGroup struct {
 	mu    sync.Mutex
 	count int // number of active goroutines

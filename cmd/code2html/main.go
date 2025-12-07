@@ -13,8 +13,13 @@ import (
 )
 
 type Slide struct {
-	heading      string
-	codeSections []string
+	heading  string
+	sections []section
+}
+
+type section struct {
+	isCode  bool
+	content string
 }
 
 func main() {
@@ -80,31 +85,60 @@ func scanFile(filename string) (*Slide, error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	var currentCode strings.Builder
+	var current strings.Builder
 	inCode := false
+	inNote := false
+	lineNum := 0
 
 	for scanner.Scan() {
+		lineNum++
 		line := scanner.Text()
 		switch line {
 		case "// code":
-			inCode = true
-			currentCode.Reset()
-		case "// !code":
-			if inCode {
-				slide.codeSections = append(slide.codeSections, currentCode.String())
-				inCode = false
+			if inNote {
+				return nil, fmt.Errorf("%s:%d: code inside note", filename, lineNum)
 			}
+			inCode = true
+			current.Reset()
+		case "// !code":
+			if !inCode {
+				return nil, fmt.Errorf("%s:%d: !code without matching code", filename, lineNum)
+			}
+			slide.sections = append(slide.sections, section{isCode: true, content: current.String()})
+			inCode = false
+		case "// note":
+			if inCode {
+				return nil, fmt.Errorf("%s:%d: note inside code", filename, lineNum)
+			}
+			inNote = true
+			current.Reset()
+		case "// !note":
+			if !inNote {
+				return nil, fmt.Errorf("%s:%d: !note without matching note", filename, lineNum)
+			}
+			slide.sections = append(slide.sections, section{isCode: false, content: current.String()})
+			inNote = false
 		default:
 			if h, ok := strings.CutPrefix(line, "// heading "); ok {
 				slide.heading = h
 			} else if inCode {
-				currentCode.WriteString(line)
-				currentCode.WriteByte('\n')
+				current.WriteString(line)
+				current.WriteByte('\n')
+			} else if inNote {
+				text, _ := strings.CutPrefix(line, "// ")
+				current.WriteString(text)
+				current.WriteByte('\n')
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+	if inCode {
+		return nil, fmt.Errorf("%s:%d: unclosed code section", filename, lineNum)
+	}
+	if inNote {
+		return nil, fmt.Errorf("%s:%d: unclosed note section", filename, lineNum)
 	}
 
 	return slide, nil
@@ -112,7 +146,11 @@ func scanFile(filename string) (*Slide, error) {
 
 func writeSlideHTML(w io.Writer, slide *Slide) {
 	fmt.Fprintf(w, "<h1>%s</h1>\n", html.EscapeString(slide.heading))
-	for _, code := range slide.codeSections {
-		fmt.Fprintf(w, "<code><pre>%s</pre></code>\n", html.EscapeString(code))
+	for _, sec := range slide.sections {
+		if sec.isCode {
+			fmt.Fprintf(w, "<code><pre>%s</pre></code>\n", html.EscapeString(sec.content))
+		} else {
+			fmt.Fprintf(w, "<p>%s</p>\n", html.EscapeString(sec.content))
+		}
 	}
 }

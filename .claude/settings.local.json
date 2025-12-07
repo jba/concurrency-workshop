@@ -4,7 +4,8 @@
       "Bash(mkdir:*)",
       "Bash(go build:*)",
       "Bash(./code2html:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(go test:*)"
     ],
     "deny": [],
     "ask": []
