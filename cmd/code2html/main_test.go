@@ -17,6 +17,9 @@ func TestScanFileErrors(t *testing.T) {
 		{"testdata/note_inside_code.go", "note inside code"},
 		{"testdata/unclosed_code.go", "unclosed code section"},
 		{"testdata/unclosed_note.go", "unclosed note section"},
+		{"testdata/unclosed_question.go", "unclosed answer section"},
+		{"testdata/unmatched_endquestion.go", "!question without matching question"},
+		{"testdata/question_without_answer.go", "!question without answer"},
 	}
 
 	for _, tt := range tests {
@@ -43,10 +46,15 @@ func TestScanFile(t *testing.T) {
 	}
 
 	wantSections := []section{
-		{isCode: false, content: "First note.\n"},
-		{isCode: true, content: "func foo() {}\n"},
-		{isCode: false, content: "Second note.\n"},
-		{isCode: true, content: "func bar() {}\n"},
+		{kind: sectionNote, content: "First note.\n"},
+		{kind: sectionCode, content: "func foo() {}\n"},
+		{kind: sectionNote, content: "Second note.\n"},
+		{kind: sectionNote, content: "Third note after blank comment.\n"},
+		{kind: sectionNote, content: "Fourth note after blank line.\n"},
+		{kind: sectionCode, content: "func bar() {}\n"},
+		{kind: sectionQuestion, content: "What is the answer?\n"},
+		{kind: sectionAnswer, content: "The answer is 42.\n"},
+		{kind: sectionNote, content: "Use `fmt.Println` to print.\n"},
 	}
 
 	if !slices.Equal(slide.sections, wantSections) {

@@ -5,27 +5,40 @@ import (
 	"time"
 )
 
-// heading WaitGroup with Mutex
+// heading WaitGroup with mutex
 
 // note
-// Let's use a mutex.
+// We better switch to a mutex.
+
+// It's marginally clumsier, but if you defer the unlock,
+// you're probably fine.
+
+// It's a bit slower, but you probably won't care.
+
+// And it's much safer!
 // !note
 
 // code
 type WaitGroup struct {
-	mu    sync.Mutex
+	// em
+	mu sync.Mutex
+	// !em
 	count int // number of active goroutines
 }
 
 func (g *WaitGroup) Add(n int) {
+	// em
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	// !em
 	g.count += n
 }
 
 func (g *WaitGroup) Done() {
+	// em
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	// !em
 	if g.count <= 0 {
 		panic("WaitGroup.Done called without a matching Add")
 	}
@@ -41,5 +54,3 @@ func (g *WaitGroup) Wait() {
 		time.Sleep(time.Millisecond)
 	}
 }
-
-// locking during Wait deadlocks if anyone adds something.

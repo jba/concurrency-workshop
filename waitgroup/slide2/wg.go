@@ -13,25 +13,21 @@ import (
 
 // code
 type WaitGroup struct {
+	// em
 	count atomic.Int64 // number of active goroutines
+	// !em
 }
 
 func (g *WaitGroup) Add(n int) {
+	// em
 	g.count.Add(int64(n))
+	// !em
 }
 
 func (g *WaitGroup) Done() {
+	// em
 	g.count.Add(-1)
+	// !em
 }
 
 // !code
-
-// func (g *WaitGroup) Wait() {
-// 	g.mu.Lock()
-// 	defer g.mu.Unlock()
-// 	for g.count > 0 {
-// 		time.Sleep(time.Millisecond)
-// 	}
-// }
-
-// locking during Wait deadlocks if anyone adds something.

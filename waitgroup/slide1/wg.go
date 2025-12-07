@@ -5,15 +5,13 @@ import "time"
 // heading Implementing WaitGroup: Add and Done
 
 // note
-// Let's try to implement sync.WaitGroup ourselves.
-// It has three methods: Add, Done and Wait.
-// We'll start with Add and Done.
+// Let's try to implement `sync.WaitGroup` ourselves.
+// It has three methods: `Add`, `Done` and `Wait`.
+// We'll start with `Add` and `Done`.
+
 // All we need to support them is a simple counter, holding
 // the number of started but not finished goroutines.
 
-// What do you think about this solution?
-
-// Problem: no synchronization.
 // !note
 
 // code
@@ -30,6 +28,13 @@ func (g *WaitGroup) Done() {
 }
 
 // !code
+
+// question
+// What do you think about this solution?
+// answer
+// The problem is that there is no synchronization.
+// `Add` and `Done` should be goroutine-safe.
+// !question
 
 func (g *WaitGroup) Wait() {
 	for g.count > 0 {

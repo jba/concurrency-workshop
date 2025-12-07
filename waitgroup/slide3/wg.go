@@ -7,9 +7,8 @@ import (
 // heading Atomic bomb
 
 // note
-// We should check that Done isn't called when the count is zero.
+// We should check that `Done` isn't called when the count is zero.
 // Let's add that check.
-// WDYT about this code?
 // !note
 
 // code
@@ -22,15 +21,26 @@ func (g *WaitGroup) Add(n int) {
 }
 
 func (g *WaitGroup) Done() {
+	// em
 	if g.count.Load() <= 0 {
 		panic("WaitGroup.Done called without a matching Add")
 	}
+	// !em
 	g.count.Add(-1)
 }
 
 // !code
 
-// note
+// question
+// What do you think about this code?
+// Find the bug (if any).
+// answer
 // Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
-// That's a pitfall of using atomics.
-// !note
+
+// Explain how (that is, provide an interleaving where)
+// `g.count` can become negative.
+
+// That's a pitfall of using atomics: when you need to make the code more
+// complicated, you may be tempted to make the smallest change.
+
+// !question

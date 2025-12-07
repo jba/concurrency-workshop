@@ -17,8 +17,17 @@ type Slide struct {
 	sections []section
 }
 
+type sectionKind int
+
+const (
+	sectionNote sectionKind = iota
+	sectionCode
+	sectionQuestion
+	sectionAnswer
+)
+
 type section struct {
-	isCode  bool
+	kind    sectionKind
 	content string
 }
 
@@ -50,6 +59,9 @@ func run(outputFile string, files []string) (err error) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Code</title>
+    <style>
+        p, summary, pre { font-size: larger; }
+    </style>
 </head>
 <body>`)
 
@@ -86,8 +98,8 @@ func scanFile(filename string) (*Slide, error) {
 
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	var current strings.Builder
-	inCode := false
-	inNote := false
+	var currentKind sectionKind
+	inSection := false
 	lineNum := 0
 
 	for scanner.Scan() {
@@ -95,36 +107,79 @@ func scanFile(filename string) (*Slide, error) {
 		line := scanner.Text()
 		switch line {
 		case "// code":
-			if inNote {
-				return nil, fmt.Errorf("%s:%d: code inside note", filename, lineNum)
+			if inSection {
+				return nil, fmt.Errorf("%s:%d: code inside %s", filename, lineNum, kindName(currentKind))
 			}
-			inCode = true
+			currentKind = sectionCode
+			inSection = true
 			current.Reset()
 		case "// !code":
-			if !inCode {
+			if !inSection || currentKind != sectionCode {
 				return nil, fmt.Errorf("%s:%d: !code without matching code", filename, lineNum)
 			}
-			slide.sections = append(slide.sections, section{isCode: true, content: current.String()})
-			inCode = false
+			slide.sections = append(slide.sections, section{kind: sectionCode, content: current.String()})
+			inSection = false
 		case "// note":
-			if inCode {
-				return nil, fmt.Errorf("%s:%d: note inside code", filename, lineNum)
+			if inSection {
+				return nil, fmt.Errorf("%s:%d: note inside %s", filename, lineNum, kindName(currentKind))
 			}
-			inNote = true
+			currentKind = sectionNote
+			inSection = true
 			current.Reset()
 		case "// !note":
-			if !inNote {
+			if !inSection || currentKind != sectionNote {
 				return nil, fmt.Errorf("%s:%d: !note without matching note", filename, lineNum)
 			}
-			slide.sections = append(slide.sections, section{isCode: false, content: current.String()})
-			inNote = false
+			if current.Len() > 0 {
+				slide.sections = append(slide.sections, section{kind: sectionNote, content: current.String()})
+			}
+			inSection = false
+		case "// question":
+			if inSection {
+				return nil, fmt.Errorf("%s:%d: question inside %s", filename, lineNum, kindName(currentKind))
+			}
+			currentKind = sectionQuestion
+			inSection = true
+			current.Reset()
+		case "// answer":
+			if !inSection || currentKind != sectionQuestion {
+				return nil, fmt.Errorf("%s:%d: answer without matching question", filename, lineNum)
+			}
+			if current.Len() > 0 {
+				slide.sections = append(slide.sections, section{kind: sectionQuestion, content: current.String()})
+			}
+			currentKind = sectionAnswer
+			current.Reset()
+		case "// !question":
+			if !inSection || (currentKind != sectionQuestion && currentKind != sectionAnswer) {
+				return nil, fmt.Errorf("%s:%d: !question without matching question", filename, lineNum)
+			}
+			if currentKind == sectionQuestion {
+				return nil, fmt.Errorf("%s:%d: !question without answer", filename, lineNum)
+			}
+			if current.Len() > 0 {
+				slide.sections = append(slide.sections, section{kind: sectionAnswer, content: current.String()})
+			}
+			inSection = false
+		case "//", "":
+			if inSection && currentKind != sectionCode && current.Len() > 0 {
+				slide.sections = append(slide.sections, section{kind: currentKind, content: current.String()})
+				current.Reset()
+			}
 		default:
 			if h, ok := strings.CutPrefix(line, "// heading "); ok {
 				slide.heading = h
-			} else if inCode {
-				current.WriteString(line)
-				current.WriteByte('\n')
-			} else if inNote {
+			} else if inSection && currentKind == sectionCode {
+				trimmed := strings.TrimLeft(line, " \t")
+				if trimmed == "// em" {
+					current.WriteString("\x00em\x00")
+				} else if trimmed == "// !em" {
+					current.WriteString("\x00/em\x00")
+				} else {
+					current.WriteString(line)
+					current.WriteByte('\n')
+				}
+			} else if inSection {
 				text, _ := strings.CutPrefix(line, "// ")
 				current.WriteString(text)
 				current.WriteByte('\n')
@@ -134,23 +189,75 @@ func scanFile(filename string) (*Slide, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	if inCode {
-		return nil, fmt.Errorf("%s:%d: unclosed code section", filename, lineNum)
-	}
-	if inNote {
-		return nil, fmt.Errorf("%s:%d: unclosed note section", filename, lineNum)
+	if inSection {
+		return nil, fmt.Errorf("%s:%d: unclosed %s section", filename, lineNum, kindName(currentKind))
 	}
 
 	return slide, nil
 }
 
+func kindName(k sectionKind) string {
+	switch k {
+	case sectionNote:
+		return "note"
+	case sectionCode:
+		return "code"
+	case sectionQuestion:
+		return "question"
+	case sectionAnswer:
+		return "answer"
+	}
+	return "unknown"
+}
+
 func writeSlideHTML(w io.Writer, slide *Slide) {
 	fmt.Fprintf(w, "<h1>%s</h1>\n", html.EscapeString(slide.heading))
+	inAnswer := false
 	for _, sec := range slide.sections {
-		if sec.isCode {
-			fmt.Fprintf(w, "<code><pre>%s</pre></code>\n", html.EscapeString(sec.content))
-		} else {
-			fmt.Fprintf(w, "<p>%s</p>\n", html.EscapeString(sec.content))
+		if sec.kind == sectionAnswer && !inAnswer {
+			fmt.Fprintln(w, "<details>")
+			fmt.Fprintln(w, "<summary>Answer</summary>")
+			inAnswer = true
+		} else if sec.kind != sectionAnswer && inAnswer {
+			fmt.Fprintln(w, "</details>")
+			inAnswer = false
+		}
+
+		switch sec.kind {
+		case sectionCode:
+			fmt.Fprintf(w, "<code><pre>%s</pre></code>\n", renderCode(sec.content))
+		case sectionNote, sectionQuestion, sectionAnswer:
+			fmt.Fprintf(w, "<p>%s</p>\n", renderInlineCode(sec.content))
 		}
 	}
+	if inAnswer {
+		fmt.Fprintln(w, "</details>")
+	}
+}
+
+func renderCode(s string) string {
+	s = html.EscapeString(s)
+	s = strings.ReplaceAll(s, "\x00em\x00", "<b>")
+	s = strings.ReplaceAll(s, "\x00/em\x00", "</b>")
+	return s
+}
+
+func renderInlineCode(s string) string {
+	var result strings.Builder
+	inCode := false
+	for _, r := range s {
+		if r == '`' {
+			if inCode {
+				result.WriteString("</code>")
+			} else {
+				result.WriteString("<code>")
+			}
+			inCode = !inCode
+		} else if inCode {
+			result.WriteString(html.EscapeString(string(r)))
+		} else {
+			result.WriteString(html.EscapeString(string(r)))
+		}
+	}
+	return result.String()
 }

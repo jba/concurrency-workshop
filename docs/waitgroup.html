@@ -4,87 +4,131 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Code</title>
+    <style>
+        p, summary, pre { font-size: larger; }
+    </style>
 </head>
 <body>
 <h1>Implementing WaitGroup: Add and Done</h1>
-<p>Let&#39;s try to implement sync.WaitGroup ourselves.
-It has three methods: Add, Done and Wait.
-We&#39;ll start with Add and Done.
-All we need to support them is a simple counter, holding
+<p>Let&#39;s try to implement <code>sync.WaitGroup</code> ourselves.
+It has three methods: <code>Add</code>, <code>Done</code> and <code>Wait</code>.
+We&#39;ll start with <code>Add</code> and <code>Done</code>.
+</p>
+<p>All we need to support them is a simple counter, holding
 the number of started but not finished goroutines.
-
-What do you think about this solution?
-
-Problem: no synchronization.
 </p>
 <code><pre>type WaitGroup struct {
 	count int // number of active goroutines
 }
-
 func (g *WaitGroup) Add(n int) {
 	g.count += n
 }
-
 func (g *WaitGroup) Done() {
 	g.count--
 }
-
 </pre></code>
+<p>What do you think about this solution?
+</p>
+<details>
+<summary>Answer</summary>
+<p>The problem is that there is no synchronization.
+<code>Add</code> and <code>Done</code> should be goroutine-safe.
+</p>
+</details>
 <h1>Let&#39;s use atomics!</h1>
 <p>This looks like a good place to use atomics, because we&#39;re just
 incrementing and decrementing a counter. So let&#39;s do that.
 </p>
 <code><pre>type WaitGroup struct {
-	count atomic.Int64 // number of active goroutines
-}
-
+<b>	count atomic.Int64 // number of active goroutines
+</b>}
 func (g *WaitGroup) Add(n int) {
-	g.count.Add(int64(n))
-}
-
+<b>	g.count.Add(int64(n))
+</b>}
 func (g *WaitGroup) Done() {
-	g.count.Add(-1)
-}
-
+<b>	g.count.Add(-1)
+</b>}
 </pre></code>
 <h1>Atomic bomb</h1>
-<p>We should check that Done isn&#39;t called when the count is zero.
+<p>We should check that <code>Done</code> isn&#39;t called when the count is zero.
 Let&#39;s add that check.
-WDYT about this code?
 </p>
 <code><pre>type WaitGroup struct {
 	count atomic.Int64 // number of active goroutines
 }
-
 func (g *WaitGroup) Add(n int) {
 	g.count.Add(int64(n))
 }
-
 func (g *WaitGroup) Done() {
-	if g.count.Load() &lt;= 0 {
+<b>	if g.count.Load() &lt;= 0 {
 		panic(&#34;WaitGroup.Done called without a matching Add&#34;)
 	}
-	g.count.Add(-1)
+</b>	g.count.Add(-1)
 }
-
 </pre></code>
-<p>Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
-That&#39;s a pitfall of using atomics.
+<p>What do you think about this code?
+Find the bug (if any).
 </p>
-<h1>WaitGroup with Mutex</h1>
-<p>Let&#39;s use a mutex.
+<details>
+<summary>Answer</summary>
+<p>Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
+</p>
+<p>Explain how (that is, provide an interleaving where)
+<code>g.count</code> can become negative.
+</p>
+<p>That&#39;s a pitfall of using atomics: when you need to make the code more
+complicated, you may be tempted to make the smallest change.
+</p>
+</details>
+<h1>WaitGroup with mutex</h1>
+<p>We better switch to a mutex.
+</p>
+<p>It&#39;s marginally clumsier, but if you defer the unlock,
+you&#39;re probably fine.
+</p>
+<p>It&#39;s a bit slower, but you probably won&#39;t care.
+</p>
+<p>And it&#39;s much safer!
+</p>
+<code><pre>type WaitGroup struct {
+<b>	mu sync.Mutex
+</b>	count int // number of active goroutines
+}
+func (g *WaitGroup) Add(n int) {
+<b>	g.mu.Lock()
+	defer g.mu.Unlock()
+</b>	g.count += n
+}
+func (g *WaitGroup) Done() {
+<b>	g.mu.Lock()
+	defer g.mu.Unlock()
+</b>	if g.count &lt;= 0 {
+		panic(&#34;WaitGroup.Done called without a matching Add&#34;)
+	}
+	g.count--
+}
+</pre></code>
+<h1>The Wait method</h1>
+<p>Let&#39;s turn our attention to the <code>Wait</code> method.
+It should block until the count is zero.
+</p>
+<p>We&#39;re going to assume throughout the rest of this section
+that once <code>Wait</code> is called, <code>Add</code> will never be called again.
+The real <code>WaitGroup</code> handles that case, but for simplicity, we will not.
+</p>
+<p>However, <code>Wait</code> may be called more than once, perhaps concurrently.
+</p>
+<p>Here is one possible implementation.
 </p>
 <code><pre>type WaitGroup struct {
 	mu    sync.Mutex
 	count int // number of active goroutines
 }
-
 func (g *WaitGroup) Add(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.count += n
 }
-
 func (g *WaitGroup) Done() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -93,7 +137,78 @@ func (g *WaitGroup) Done() {
 	}
 	g.count--
 }
-
+<b>func (g *WaitGroup) Wait() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for g.count &gt; 0 {
+		time.Sleep(time.Millisecond)
+	}
+}
+</b></pre></code>
+<p>What do you think of this?
+Find the bug (if any).
+</p>
+<details>
+<summary>Answer</summary>
+<p>Since <code>Wait</code> holds the mutex for the entire time it&#39;s running, <code>Done</code> can
+never run. If <code>g.count</code> is already zero, <code>Wait</code> exits immediately. But if
+it is positive, <code>Wait</code> will run forever.
+</p>
+</details>
+<h1>Fixing busy-waiting Wait</h1>
+<p>Here is a fix: hold the lock only to get the count.
+</p>
+<code><pre>func (g *WaitGroup) Wait() {
+	for {
+		g.mu.Lock()
+		c := g.count
+		g.mu.Unlock()
+		if c &lt;= 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
 </pre></code>
+<p>It&#39;s fine to omit the <code>defer</code> here. The locked section is tiny.
+</p>
+<p>This is busy-waiting. Why is it bad?
+</p>
+<details>
+<summary>Answer</summary>
+<p>There&#39;s no perfect time to sleep. You may sleep too long, wasting time,
+or too short, wasting CPU.
+</p>
+</details>
+<h1>Exercise: implementing Wait</h1>
+<p>As an exercise, implement Wait correctly.
+Remember, it may be called more than once, and concurrently.
+</p>
+<p>You can assume that when the count reaches zero, it will
+stay there.
+</p>
+<p>You can also add a <code>NewWaitGroup</code> constructor to simplify initialization.
+</p>
+<p>For an extra challenge, try this exercise without those assumptions.
+</p>
+<p>Here&#39;s a hint:
+</p>
+<p>A correct implementation will block the goroutine that calls <code>Wait</code>.
+We&#39;ve only learned about one feature that blocks goroutines.
+What is it?
+</p>
+<details>
+<summary>Answer</summary>
+<p>A channel.
+</p>
+</details>
+<p>You&#39;re going to want to store one of those in the WaitGroup struct.
+</p>
+<p>Use it in <code>Wait</code>.
+</p>
+<p>You have to do something in <code>Done</code> too.
+</p>
+<p>You&#39;ll find the answer in waitgroup/slide7/wg.go in the workshop repo.
+</p>
 </body>
 </html>
