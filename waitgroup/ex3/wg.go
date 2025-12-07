@@ -4,14 +4,13 @@ import (
 	"sync/atomic"
 )
 
+// heading Atomic bomb
+
 // note
 // We should check that Done isn't called when the count is zero.
 // Let's add that check.
 // WDYT about this code?
-
-// Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
-// That's a pitfall of using atomics.
-// end note
+// !note
 
 // code
 type WaitGroup struct {
@@ -29,14 +28,9 @@ func (g *WaitGroup) Done() {
 	g.count.Add(-1)
 }
 
-// end code
+// !code
 
-// func (g *WaitGroup) Wait() {
-// 	g.mu.Lock()
-// 	defer g.mu.Unlock()
-// 	for g.count > 0 {
-// 		time.Sleep(time.Millisecond)
-// 	}
-// }
-
-// locking during Wait deadlocks if anyone adds something.
+// note
+// Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
+// That's a pitfall of using atomics.
+// !note

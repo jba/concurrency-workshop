@@ -4,10 +4,12 @@ import (
 	"sync/atomic"
 )
 
+// heading Let's use atomics!
+
 // note
 // This looks like a good place to use atomics, because we're just
 // incrementing and decrementing a counter. So let's do that.
-// end note
+// !note
 
 // code
 type WaitGroup struct {
@@ -22,7 +24,7 @@ func (g *WaitGroup) Done() {
 	g.count.Add(-1)
 }
 
-// end code
+// !code
 
 // func (g *WaitGroup) Wait() {
 // 	g.mu.Lock()

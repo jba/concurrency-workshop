@@ -5,9 +5,11 @@ import (
 	"time"
 )
 
+// heading WaitGroup with Mutex
+
 // note
 // Let's use a mutex.
-// end note
+// !note
 
 // code
 type WaitGroup struct {
@@ -30,7 +32,7 @@ func (g *WaitGroup) Done() {
 	g.count--
 }
 
-// end code
+// !code
 
 func (g *WaitGroup) Wait() {
 	g.mu.Lock()

@@ -14,7 +14,7 @@ import "time"
 // What do you think about this solution?
 
 // Problem: no synchronization.
-// end note
+// !note
 
 // code
 type WaitGroup struct {
@@ -29,7 +29,7 @@ func (g *WaitGroup) Done() {
 	g.count--
 }
 
-// end code
+// !code
 
 func (g *WaitGroup) Wait() {
 	for g.count > 0 {
