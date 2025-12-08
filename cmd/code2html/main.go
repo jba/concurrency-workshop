@@ -61,6 +61,7 @@ func run(outputFile string, files []string) (err error) {
     <title>Code</title>
     <style>
         p, summary, pre { font-size: larger; }
+        .answer { border: 1px solid lightgray; padding: 0.5em; margin: 0.5em 0; }
     </style>
 </head>
 <body>`)
@@ -217,8 +218,10 @@ func writeSlideHTML(w io.Writer, slide *Slide) {
 		if sec.kind == sectionAnswer && !inAnswer {
 			fmt.Fprintln(w, "<details>")
 			fmt.Fprintln(w, "<summary>Answer</summary>")
+			fmt.Fprintln(w, `<div class="answer">`)
 			inAnswer = true
 		} else if sec.kind != sectionAnswer && inAnswer {
+			fmt.Fprintln(w, "</div>")
 			fmt.Fprintln(w, "</details>")
 			inAnswer = false
 		}
@@ -231,6 +234,7 @@ func writeSlideHTML(w io.Writer, slide *Slide) {
 		}
 	}
 	if inAnswer {
+		fmt.Fprintln(w, "</div>")
 		fmt.Fprintln(w, "</details>")
 	}
 }

@@ -48,7 +48,16 @@ func (g *WaitGroup) Wait() {
 
 // note
 // It's fine to omit the `defer` here. The locked section is tiny.
+
+// In fact, if you defer the unlock, you'll be in trouble.
 // !note
+// question
+// What will go wrong and why?
+// answer
+// Since defers don't happen until the function returns, the unlock
+// won't happen, and when the lock is hit at the top of the loop,
+// you'll deadlock.
+// !question
 
 // question
 // This is busy-waiting. Why is it bad?

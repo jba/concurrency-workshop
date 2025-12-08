@@ -6,6 +6,7 @@
     <title>Code</title>
     <style>
         p, summary, pre { font-size: larger; }
+        .answer { border: 1px solid lightgray; padding: 0.5em; margin: 0.5em 0; }
     </style>
 </head>
 <body>
@@ -31,9 +32,11 @@ func (g *WaitGroup) Done() {
 </p>
 <details>
 <summary>Answer</summary>
+<div class="answer">
 <p>The problem is that there is no synchronization.
 <code>Add</code> and <code>Done</code> should be goroutine-safe.
 </p>
+</div>
 </details>
 <h1>Let&#39;s use atomics!</h1>
 <p>This looks like a good place to use atomics, because we&#39;re just
@@ -71,6 +74,7 @@ Find the bug (if any).
 </p>
 <details>
 <summary>Answer</summary>
+<div class="answer">
 <p>Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
 </p>
 <p>Explain how (that is, provide an interleaving where)
@@ -79,6 +83,7 @@ Find the bug (if any).
 <p>That&#39;s a pitfall of using atomics: when you need to make the code more
 complicated, you may be tempted to make the smallest change.
 </p>
+</div>
 </details>
 <h1>WaitGroup with mutex</h1>
 <p>We better switch to a mutex.
@@ -150,10 +155,12 @@ Find the bug (if any).
 </p>
 <details>
 <summary>Answer</summary>
+<div class="answer">
 <p>Since <code>Wait</code> holds the mutex for the entire time it&#39;s running, <code>Done</code> can
 never run. If <code>g.count</code> is already zero, <code>Wait</code> exits immediately. But if
 it is positive, <code>Wait</code> will run forever.
 </p>
+</div>
 </details>
 <h1>Fixing busy-waiting Wait</h1>
 <p>Here is a fix: hold the lock only to get the count.
@@ -172,13 +179,28 @@ it is positive, <code>Wait</code> will run forever.
 </pre></code>
 <p>It&#39;s fine to omit the <code>defer</code> here. The locked section is tiny.
 </p>
+<p>In fact, if you defer the unlock, you&#39;ll be in trouble.
+</p>
+<p>What will go wrong and why?
+</p>
+<details>
+<summary>Answer</summary>
+<div class="answer">
+<p>Since defers don&#39;t happen until the function returns, the unlock
+won&#39;t happen, and when the lock is hit at the top of the loop,
+you&#39;ll deadlock.
+</p>
+</div>
+</details>
 <p>This is busy-waiting. Why is it bad?
 </p>
 <details>
 <summary>Answer</summary>
+<div class="answer">
 <p>There&#39;s no perfect time to sleep. You may sleep too long, wasting time,
 or too short, wasting CPU.
 </p>
+</div>
 </details>
 <h1>Exercise: implementing Wait</h1>
 <p>As an exercise, implement Wait correctly.
@@ -199,8 +221,10 @@ What is it?
 </p>
 <details>
 <summary>Answer</summary>
+<div class="answer">
 <p>A channel.
 </p>
+</div>
 </details>
 <p>You&#39;re going to want to store one of those in the WaitGroup struct.
 </p>
