@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>The State of Go</title>
+    <meta charset='utf-8'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='/static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+
+    <section class='slides'>
+
+      <article>
+        <h1>The State of Go</h1>
+        <h3>Where we are in February 2016</h3>
+        
+        
+          <div class="presenter">
+Jba  and Ronna
+          </div>
+        
+      </article>
+
+  
+      <article >
+    
+        <h3>Time flies</h3>
+        
+  
+  <p>
+    Go 1.4 is one year old (happy birthday!)
+  </p>
+  
+
+  
+  <p>
+    Go 1.5 is already 6 months old!
+  </p>
+  
+
+  
+  <p>
+    Go 1.6 to be released sometime in February.
+  </p>
+  
+
+  
+  <p>
+    Go 1.6 Candidate Release 1 was released on January 28th
+  </p>
+  
+
+      
+      <span class="pagenumber">2</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Notes</h3>
+        
+  
+  <p>
+    The slides are available on <a href="/talks/2016/state-of-go.slide" target="_self">/talks/2016/state-of-go.slide</a>
+  </p>
+  
+
+  
+  <p>
+    Most of the code examples won&#39;t run except locally and using Go 1.6.
+  </p>
+  
+
+  
+  <p>
+    The playground still runs Go 1.5.
+  </p>
+
+
+      
+      <span class="pagenumber">3</span>
+</article>
+
+<article>
+      
+        <h3>Agenda</h3>
+        
+  
+  <p>
+    Changes since Go 1.5:
+  </p>
+  
+
+  <ul>
+  
+    <li>the language</li>
+  
+    <li>the standard library</li>
+  
+    <li>the runtime</li>
+  
+    <li>the tooling</li>
+  
+    <li>the community</li>
+  
+  </ul>
+
+      
+      <span class="pagenumber">4</span>
+</article>
+  
+  
+  
+      <article >
+      
+        <h2>Changes to the language</h2>
+      
+      <span class="pagenumber">5</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Changes to the language</h3>
+        
+  
+  <p>
+    None.
+  </p>
+  
+
+  
+  <p>
+    This is a feature.
+  </p>
+  
+
+      
+      <span class="pagenumber">6</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h2>Changes to the standard library</h2>
+      
+      <span class="pagenumber">7</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Changes to the standard library</h3>
+        
+  
+  <p>
+    A couple of new things, in order of excitement.
+  </p>
+  
+
+  <ul>
+  
+    <li>net/http</li>
+  
+  </ul>
+
+  <ul>
+  
+    <li>{text,html}/template</li>
+  
+  </ul>
+
+  <ul>
+  
+    <li>sort</li>
+  
+  </ul>
+
+  
+  <p>
+    Also more speed and fewer bugs.
+  </p>
+  
+
+      
+      <span class="pagenumber">8</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>net/http</h3>
+        
+  
+  <p>
+    If:
+  </p>
+  
+
+  <ul>
+  
+    <li>you&#39;re using HTTPS</li>
+  
+  </ul>
+
+  <ul>
+  
+    <li>and Go 1.6</li>
+  
+  </ul>
+
+  
+  <p>
+    you&#39;re using HTTP/2!
+  </p>
+  
+
+      
+      <span class="pagenumber">9</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>HTTP/2</h3>
+        
+  
+  <p>
+    At a high level, HTTP/2:
+  </p>
+  
+
+  <ul>
+  
+    <li>is binary, instead of textual</li>
+  
+    <li>is fully multiplexed, instead of ordered and blocking</li>
+  
+    <li>can therefore use one connection for parallelism</li>
+  
+    <li>uses header compression to reduce overhead</li>
+  
+    <li>allows servers to “push” responses proactively into client caches</li>
+  
+  </ul>
+<p class="link"><a href="https://http2.golang.org/gophertiles" target="_blank">http2.golang.org/gophertiles</a></p>
+      
+      <span class="pagenumber">10</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>text/template</h3>
+        
+  
+  <p>
+    Imagine that given a slice of strings:
+  </p>
+  
+
+  
+  <div class="code"><pre>[]string{&#34;one&#34;, &#34;two&#34;, &#34;three&#34;}</pre></div>
+  
+
+  
+  <p>
+    We want to write a template that will generate:
+  </p>
+  
+
+  
+  <div class="code"><pre>&lt;ul&gt;
+&lt;li&gt;one&lt;/li&gt;
+&lt;li&gt;two&lt;/li&gt;
+&lt;li&gt;three&lt;/li&gt;
+&lt;/ul&gt;</pre></div>
+  
+
+  
+  <p>
+    What template would you write?
+  </p>
+  
+
+      
+      <span class="pagenumber">11</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>text/template: first try</h3>
+        
+  
+  <p>
+    Naturally, I write this:
+  </p>
+  
+
+  <div class="code playground" >
+<pre style="display: none"><span>// &#43;build ignore,OMIT
+
+package main
+
+import (
+	&#34;html/template&#34;
+	&#34;log&#34;
+	&#34;os&#34;
+)
+
+</span></pre><pre><span num="11">var tmpl = template.Must(template.New(&#34;tmpl&#34;).Parse(`</span>
+<span num="12">&lt;ul&gt;</span>
+<span num="13">{{range .}}</span>
+<span num="14">    &lt;li&gt;{{.}}&lt;/li&gt;</span>
+<span num="15">{{end}}</span>
+<span num="16">&lt;/ul&gt;</span>
+<span num="17">`))</span>
+</pre>
+<pre style="display: none"><span>
+func main() {
+	err := tmpl.Execute(os.Stdout, []string{&#34;one&#34;, &#34;two&#34;, &#34;three&#34;})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+</span></pre></div>
+
+  
+  <p>
+    But unfortunately it&#39;s not exactly what I want!
+  </p>
+  
+
+      
+      <span class="pagenumber">12</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>text/template: let&#39;s fix it</h3>
+        
+  
+  <p>
+    We need to be careful with the line breaks.
+  </p>
+  
+
+  <div class="code playground" >
+<pre style="display: none"><span>// &#43;build ignore,OMIT
+
+package main
+
+import (
+	&#34;html/template&#34;
+	&#34;log&#34;
+	&#34;os&#34;
+)
+
+</span></pre><pre><span num="11">var tmpl = template.Must(template.New(&#34;tmpl&#34;).Parse(`</span>
+<span num="12">&lt;ul&gt;</span>
+<span num="13">{{range .}}&lt;li&gt;{{.}}&lt;/li&gt;</span>
+<span num="14">{{end}}&lt;/ul&gt;</span>
+<span num="15">`))</span>
+</pre>
+<pre style="display: none"><span>
+func main() {
+	err := tmpl.Execute(os.Stdout, []string{&#34;one&#34;, &#34;two&#34;, &#34;three&#34;})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+</span></pre></div>
+
+  
+  <p>
+    This works now, but ... I don&#39;t really like my code!
+  </p>
+  
+
+      
+      <span class="pagenumber">13</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>text/template: meet {{- and -}}</h3>
+        
+  
+  <p>
+    Go 1.6 brings two new delimiters:
+  </p>
+  
+
+  <ul>
+  
+    <li><code>{{-</code></li>
+  
+    <li><code>-}}</code></li>
+  
+  </ul>
+
+  
+  <p>
+    Similar to <code>{{</code> and <code>}}</code>, but <i>all</i> white space on the <code>-</code> side will be trimmed.
+  </p>
+  
+
+  
+  <p>
+    The template:
+  </p>
+  
+
+  
+  <div class="code"><pre>{{23 -}}
+&lt;
+{{- 45}}</pre></div>
+  
+
+  
+  <p>
+    generates:
+  </p>
+  
+
+  
+  <div class="code"><pre>23&lt;45</pre></div>
+  
+
+      
+      <span class="pagenumber">14</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>text/template: back to our problem</h3>
+        
+  
+  <p>
+    We can now have:
+  </p>
+  
+
+  <ul>
+  
+    <li>the result we expected</li>
+  
+    <li>without sacrificing the readability of our templates.</li>
+  
+  </ul>
+
+  <div class="code playground" >
+<pre style="display: none"><span>// &#43;build ignore,OMIT
+
+package main
+
+import (
+	&#34;html/template&#34;
+	&#34;log&#34;
+	&#34;os&#34;
+)
+
+</span></pre><pre><span num="11">var tmpl = template.Must(template.New(&#34;tmpl&#34;).Parse(`</span>
+<span num="12">&lt;ul&gt;</span>
+<span num="13">{{range . -}}</span>
+<span num="14">    &lt;li&gt;{{.}}&lt;/li&gt;</span>
+<span num="15">{{end -}}</span>
+<span num="16">&lt;/ul&gt;</span>
+<span num="17">`))</span>
+</pre>
+<pre style="display: none"><span>
+func main() {
+	err := tmpl.Execute(os.Stdout, []string{&#34;one&#34;, &#34;two&#34;, &#34;three&#34;})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+</span></pre></div>
+
+      
+      <span class="pagenumber">15</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>text/template: the block action</h3>
+        
+  
+  <p>
+    Go 1.6 brings also a new action named <code>block</code>.
+  </p>
+  
+
+  
+  <p>
+    Let&#39;s see what it is useful for.
+  </p>
+  
+
+      
+      <span class="pagenumber">16</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Factoring out repetition in templates</h3>
+        
+  
+  <p>
+    Both <code>&lt;ul&gt;</code> share the same structure.
+  </p>
+  
+
+  
+  <div class="code"><pre>{{define &#34;presentation&#34;}}
+    Authors:
+    &lt;ul&gt;
+    {{range .Authors}}
+      &lt;li&gt;{{.}}&lt;<b>/li</b>&gt;
+    {{end}}
+    &lt;/ul&gt;
+
+    Topics:
+    &lt;ul&gt;
+    {{range .Topics}}
+        &lt;li&gt;{{.}}&lt;/li&gt;
+    {{end}}
+    &lt;/ul&gt;
+{{end}}</pre></div>
+  
+
+  
+  <p>
+    Templates can be used to avoid repetition.
+  </p>
+  
+
+      
+      <span class="pagenumber">17</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Factoring out repetition with templates (cont.)</h3>
+        
+  
+  <p>
+    We can define a new template:
+  </p>
+  
+
+  <div class="code" >
+<pre><span num="12">{{define &#34;list&#34;}}</span>
+<span num="13">    &lt;ul&gt;</span>
+<span num="14">    {{range .}}</span>
+<span num="15">        &lt;li&gt;{{.}}&lt;/li&gt;</span>
+<span num="16">    {{end}}</span>
+<span num="17">    &lt;/ul&gt;</span>
+<span num="18">{{end}}    </span>
+</pre>
+</div>
+
+  
+  <p>
+    And use it where needed:
+  </p>
+  
+
+  <div class="code" >
+<pre><span num="20">{{define &#34;presentation&#34;}}</span>
+<span num="21">    Authors:</span>
+<span num="22">    {{template &#34;list&#34; .Authors}}</span>
+<span num="23"></span>
+<span num="24">    Topics:</span>
+<span num="25">    {{template &#34;list&#34; .Topics}}</span>
+<span num="26">{{end}}</span>
+</pre>
+</div>
+
+      
+      <span class="pagenumber">18</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Factoring out repetition with templates (cont.)</h3>
+        
+  
+  <p>
+    We can parse that template and execute it.
+  </p>
+  
+
+  <div class="code playground" >
+<pre style="display: none"><span>// &#43;build ignore,OMIT
+
+package main
+
+import (
+	&#34;html/template&#34;
+	&#34;log&#34;
+	&#34;os&#34;
+)
+
+const tmplText = `
+{{define &#34;list&#34;}}
+	&lt;ul&gt;
+	{{range .}}
+		&lt;li&gt;{{.}}&lt;/li&gt;
+	{{end}}
+	&lt;/ul&gt;
+{{end}}	
+
+{{define &#34;presentation&#34;}}
+	Authors:
+	{{template &#34;list&#34; .Authors}}
+
+	Topics:
+	{{template &#34;list&#34; .Topics}}
+{{end}}
+`
+
+type Presentation struct {
+	Authors []string
+	Topics  []string
+}
+
+</span></pre><pre><span num="34">func main() {</span>
+<span num="35">    p := Presentation{</span>
+<span num="36">        Authors: []string{&#34;one&#34;, &#34;two&#34;, &#34;three&#34;},</span>
+<span num="37">        Topics:  []string{&#34;go&#34;, &#34;templates&#34;},</span>
+<span num="38">    }</span>
+<span num="39"></span>
+<span num="40">    <b>tmpl := template.Must(template.New(&#34;presentation&#34;).Parse(tmplText))</b></span>
+<span num="41"></span>
+<span num="42">    err := tmpl.Execute(os.Stdout, p)</span>
+<span num="43">    if err != nil {</span>
+<span num="44">        log.Fatal(err)</span>
+<span num="45">    }</span>
+<span num="46">}</span>
+</pre>
+</div>
+
+      
+      <span class="pagenumber">19</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Template redefinition</h3>
+        
+  
+  <p>
+    We made also our template easier to reuse, as we can redefine <code>list</code>.
+  </p>
+  
+
+  <div class="code playground" >
+<pre style="display: none"><span>// &#43;build ignore,OMIT
+
+package main
+
+import (
+	&#34;html/template&#34;
+	&#34;log&#34;
+	&#34;os&#34;
+	&#34;strings&#34;
+)
+
+const tmplText = `
+{{define &#34;list&#34;}}
+	&lt;ul&gt;
+	{{range .}}
+		&lt;li&gt;{{.}}&lt;/li&gt;
+	{{end}}
+	&lt;/ul&gt;
+{{end}}	
+
+{{define &#34;presentation&#34;}}
+	Authors:
+	{{template &#34;list&#34; .Authors}}
+
+	Topics:
+	{{template &#34;list&#34; .Topics}}
+{{end}}
+`
+
+type Presentation struct {
+	Authors []string
+	Topics  []string
+}
+
+</span></pre><pre><span num="35">func main() {</span>
+<span num="36">    p := Presentation{</span>
+<span num="37">        Authors: []string{&#34;one&#34;, &#34;two&#34;, &#34;three&#34;},</span>
+<span num="38">        Topics:  []string{&#34;go&#34;, &#34;templates&#34;},</span>
+<span num="39">    }</span>
+<span num="40"></span>
+<span num="41">    tmpl := template.Must(template.New(&#34;presentation&#34;).Parse(tmplText))</span>
+<span num="42"></span>
+<span num="43">    <b>tmpl = tmpl.Funcs(template.FuncMap{&#34;join&#34;: strings.Join})</b></span>
+<span num="44">    <b>tmpl = template.Must(tmpl.Parse(`{{define &#34;list&#34;}} {{join . &#34; | &#34;}} {{ end}}`))</b></span>
+<span num="45"></span>
+<span num="46">    err := tmpl.Execute(os.Stdout, p)</span>
+<span num="47">    if err != nil {</span>
+<span num="48">        log.Fatal(err)</span>
+<span num="49">    }</span>
+<span num="50">}</span>
+</pre>
+</div>
+
+      
+      <span class="pagenumber">20</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Meet the block action</h3>
+        
+  
+  <p>
+    The <code>block</code> action defines and executes a template in place.
+  </p>
+  
+
+  <div class="code" >
+<pre><span num="13">{{define &#34;presentation&#34;}}</span>
+<span num="14">    Authors:</span>
+<span num="15">    <b>{{block &#34;list&#34; .Authors}}</b></span>
+<span num="16">    &lt;ul&gt;</span>
+<span num="17">    {{- range .}}</span>
+<span num="18">        &lt;li&gt;{{.}}&lt;/li&gt;</span>
+<span num="19">    {{- end}}</span>
+<span num="20">    &lt;/ul&gt;</span>
+<span num="21">    <b>{{end}}</b></span>
+<span num="22"></span>
+<span num="23">    Topics:</span>
+<span num="24">    <b>{{template &#34;list&#34; .Topics}}</b></span>
+<span num="25">{{end}}</span>
+</pre>
+</div>
+
+  
+  <p>
+    That template defined by <code>block</code> can be:
+  </p>
+  
+
+  <ul>
+  
+    <li>referenced later by the same template,</li>
+  
+    <li>redefined with <code>define</code>.</li>
+  
+  </ul>
+
+      
+      <span class="pagenumber">21</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Why do we need it?</h3>
+        
+  
+  <p>
+    It is more compact when
+  </p>
+  
+
+  <ul>
+  
+    <li>we&#39;re not factoring out repetition,</li>
+  
+    <li>but we need to provide an extension point.</li>
+  
+  </ul>
+
+  
+  <p>
+    We can make the following template more compact with <code>block</code>.
+  </p>
+  
+
+  
+  <div class="code"><pre>{{define &#34;content&#34; .}}
+    &lt;h1&gt;{{.Heading}}&lt;h1&gt;
+    &lt;p&gt;{{.Content}}&lt;/p&gt;
+{{end}}
+
+{{define &#34;page&#34;}}
+    &lt;title&gt;{{.Title}}&lt;/title&gt;
+    &lt;body&gt;
+    {{template &#34;content&#34; .}}
+    &lt;/body&gt;
+{{end}}</pre></div>
+  
+
+      
+      <span class="pagenumber">22</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Why do we need it? (cont.)</h3>
+        
+  
+  <p>
+    We can make the following template more compact with <code>block</code>.
+  </p>
+  
+
+  
+  <div class="code"><pre>{{define &#34;page&#34;}}
+    &lt;title&gt;{{.Title}}&lt;/title&gt;
+    &lt;body&gt;
+    {{block &#34;content&#34; .}}
+        &lt;h1&gt;{{.Heading}}&lt;h1&gt;
+        &lt;p&gt;{{.Content}}&lt;/p&gt;
+    {{end}}
+    &lt;/body&gt;
+{{end}}</pre></div>
+  
+
+  
+  <p>
+    And still easily redefine <code>content</code>.
+  </p>
+  
+
+      
+      <span class="pagenumber">23</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>sort.Sort is faster</h3>
+        
+  
+  <p>
+    <code>Sort</code> sorts your data by calling <code>Less</code>, <code>Swap</code>, and <code>Len</code>.
+  </p>
+  
+
+  
+  <p>
+    We reduced the number of comparisons and swaps by about 10%.
+  </p>
+  
+
+  
+  <p>
+    Sort <code>[]int</code> with Go 1.5
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkSort_1-4       20000000              67.2 ns/op
+BenchmarkSort_10-4      10000000               227 ns/op
+BenchmarkSort_100-4       500000              3863 ns/op
+BenchmarkSort_1000-4       30000             52189 ns/op</pre></div>
+  
+
+  
+  <p>
+    Sort <code>[]int</code> with Go 1.6
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkSort_1-4       20000000              64.7 ns/op
+BenchmarkSort_10-4      10000000               137 ns/op
+BenchmarkSort_100-4       500000              2849 ns/op
+BenchmarkSort_1000-4       30000             46949 ns/op</pre></div>
+  
+
+      
+      <span class="pagenumber">24</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>sort.Sort is faster - plot</h3>
+        
+
+      
+      <span class="pagenumber">25</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Sort order and sort.Stable</h3>
+        
+  
+  <p>
+    Reminder: sort.Sort is not a <i>stable</i> sort.
+  </p>
+  
+
+  <div class="code playground" >
+<pre style="display: none"><span>// &#43;build ignore,OMIT
+
+package main
+
+import (
+	&#34;fmt&#34;
+	&#34;sort&#34;
+	&#34;strings&#34;
+)
+
+</span></pre><pre><span num="11">type byLength []string</span>
+<span num="12"></span>
+<span num="13">func (b byLength) Len() int           { return len(b) }</span>
+<span num="14">func (b byLength) Less(i, j int) bool { return len(b[i]) &lt; len(b[j]) }</span>
+<span num="15">func (b byLength) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }</span>
+<span num="16"></span>
+<span num="17">func main() {</span>
+<span num="18">    values := []string{&#34;ball&#34;, &#34;hell&#34;, &#34;one&#34;, &#34;joke&#34;, &#34;fool&#34;, &#34;moon&#34;, &#34;two&#34;}</span>
+<span num="19">    sort.Sort(byLength(values))</span>
+<span num="20">    fmt.Println(strings.Join(values, &#34;\n&#34;))</span>
+<span num="21">}</span>
+</pre>
+</div>
+
+  
+  <p>
+    Use <code>sort.Stable</code>:
+  </p>
+  
+
+  <div class="code playground" >
+<pre style="display: none"><span>// &#43;build ignore,OMIT
+
+package main
+
+import (
+	&#34;fmt&#34;
+	&#34;sort&#34;
+	&#34;strings&#34;
+)
+
+type byLength []string
+
+func (b byLength) Len() int           { return len(b) }
+func (b byLength) Less(i, j int) bool { return len(b[i]) &lt; len(b[j]) }
+func (b byLength) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+
+</span></pre><pre><span num="17">func main() {</span>
+<span num="18">    values := []string{&#34;ball&#34;, &#34;hell&#34;, &#34;one&#34;, &#34;joke&#34;, &#34;fool&#34;, &#34;moon&#34;, &#34;two&#34;}</span>
+<span num="19">    <b>sort.Stable(byLength(values))</b></span>
+<span num="20">    fmt.Println(strings.Join(values, &#34;\n&#34;))</span>
+<span num="21">}</span>
+</pre>
+</div>
+
+      
+      <span class="pagenumber">26</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Minor changes</h3>
+        
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Let&#39;s just discuss one</h3>
+        
+  
+  <p>
+    <code>time.Parse</code> is smarter!
+  </p>
+  
+
+
+      
+      <span class="pagenumber">28</span>
+</article>
+  
+  
+  
+      <article >
+      
+        <h3>Benchmark results</h3>
+        
+  
+  <p>
+    Go 1.4 - GOMAXPROCS = 4
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkCount_1         1000000              1862 ns/op
+BenchmarkCount_10         100000             21214 ns/op
+BenchmarkCount_100          1000           1602507 ns/op
+BenchmarkCount_1000           10         141712948 ns/op</pre></div>
+  
+
+  
+  <p>
+    Go 1.5 - GOMAXPROCS = 4
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkCount_1-4       2000000               867 ns/op
+BenchmarkCount_10-4       200000              6909 ns/op
+BenchmarkCount_100-4        1000           1025092 ns/op
+BenchmarkCount_1000-4         20          94093719 ns/op</pre></div>
+  
+
+  
+  <p>
+    Go 1.6 - GOMAXPROCS = 4
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkCount_1-4       2000000               750 ns/op
+BenchmarkCount_10-4       200000              6582 ns/op
+BenchmarkCount_100-4        2000           1113790 ns/op
+BenchmarkCount_1000-4         20          87998054 ns/op</pre></div>
+  
+
+      
+      <span class="pagenumber">32</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Benchmark results plot</h3>
+        
+
+      
+      <span class="pagenumber">33</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Benchmark results</h3>
+        
+  
+  <p>
+    Go 1.4 - GOMAXPROCS = 1
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkCount_1         100000               1370 ns/op
+BenchmarkCount_10         20000               8622 ns/op
+BenchmarkCount_100          500             362725 ns/op
+BenchmarkCount_1000          50           31378803 ns/op</pre></div>
+  
+
+  
+  <p>
+    Go 1.5 - GOMAXPROCS = 1
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkCount_1-4      2000000                776 ns/op
+BenchmarkCount_10-4      200000               6288 ns/op
+BenchmarkCount_100-4       3000             345037 ns/op
+BenchmarkCount_1000-4        50           31751625 ns/op</pre></div>
+  
+
+  
+  <p>
+    Go 1.6 - GOMAXPROCS = 1
+  </p>
+  
+
+  
+  <div class="code"><pre>BenchmarkCount_1-4       2000000               767 ns/op
+BenchmarkCount_10-4       200000              6041 ns/op
+BenchmarkCount_100-4        5000            329328 ns/op
+BenchmarkCount_1000-4         50          30176034 ns/op</pre></div>
+  
+
+      
+      <span class="pagenumber">34</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Benchmark results plot</h3>
+        
+
+      
+      <span class="pagenumber">35</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Garbage Collector in Go 1.5</h3>
+        
+  
+  <p>
+    At <a href="https://www.youtube.com/watch?v=aiv1JOfMjm0" target="_blank">GopherCon 2015 Rick Hudson gave a presentation</a> about the Go 1.5 low latency collector
+  </p>
+  
+
+
+      
+      <span class="pagenumber">36</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Garbage Collector in Go 1.6</h3>
+        
+  
+  <p>
+    At <a href="http://www.infoq.com/presentations/go-gc-performance" target="_blank">QCon SF in November Rick Hudson</a> gave an updated presentation which showed this comparison of Go 1.5 to the upcoming Go 1.6
+  </p>
+  
+
+
+      
+      <span class="pagenumber">38</span>
+      </article>
+  
+  
+  
+  
+  
+  
+  
+      
+  
+  
+  
+      <article >
+      
+        <h2>Changes to the tooling</h2>
+      
+      <span class="pagenumber">43</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>The cgo tool</h3>
+        
+  
+  <p>
+    Go is garbage collected, can C and Go share memory?
+  </p>
+  
+
+  
+  <p>
+    In short:
+  </p>
+  
+
+  <ul>
+  
+    <li>Go can pass a pointer to C</li>
+  
+    <li>the referenced memory can&#39;t have pointers to Go allocated memory</li>
+  
+    <li>C can&#39;t keep pointers to the memory after the call returns</li>
+  
+  </ul>
+
+  
+  <p>
+    In more detail:
+  </p>
+  
+
+  <ul>
+  
+    <li>the <code>cgo</code> <a href="https://tip.golang.org/cmd/cgo/#hdr-Passing_pointers" target="_blank">docs</a>.</li>
+  
+  </ul>
+
+  
+  <p>
+    This is checked by the runtime at execution.
+  </p>
+  
+
+  
+  <p>
+    You could disable the checks, but you probably shouldn&#39;t.
+  </p>
+  
+
+      
+      <span class="pagenumber">44</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Sharing pointers between Go and C</h3>
+        
+  <div class="code" >
+<pre><span num="3">package main</span>
+<span num="4"></span>
+<span num="5">/*</span>
+<span num="6">int fn(void* arg) { return arg == 0; }</span>
+<span num="7">*/</span>
+<span num="8">import &#34;C&#34;</span>
+<span num="9">import &#34;unsafe&#34;</span>
+<span num="10"></span>
+<span num="11">type T struct{ a, b int }</span>
+<span num="12">type X struct{ t *T }</span>
+<span num="13"></span>
+<span num="14">func main() {</span>
+<span num="15">    t := T{a: 1, b: 2}</span>
+<span num="16">    <b>C.fn(unsafe.Pointer(&amp;t)) // correct</b></span>
+<span num="17"></span>
+<span num="18">    x := X{t: &amp;t}</span>
+<span num="19">    <b>C.fn(unsafe.Pointer(&amp;x)) // incorrect</b></span>
+<span num="20">}</span>
+</pre>
+</div>
+
+  
+  <p>
+    Outputs:
+  </p>
+  
+
+  
+  <div class="code"><pre>panic: runtime error: cgo argument has Go pointer to Go pointer</pre></div>
+  
+
+      
+      <span class="pagenumber">45</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>The go tool</h3>
+        
+  
+  <p>
+    GO15VENDOREXPERIMENT is now enabled by default.
+  </p>
+  
+
+  
+  <p>
+    How does it work?
+  </p>
+  
+
+  
+  <div class="code"><pre>/home/user/gocode/
+    src/
+        server-one/
+            main.go            (import &#34;github.com/gorilla/mux&#34;)
+        server-two/
+            main.go            (import &#34;github.com/gorilla/mux&#34;)
+            vendor/
+                github.com/
+                    gorilla/
+                        mux/
+                            ...</pre></div>
+  
+
+  
+  <p>
+    <code>server-one</code> uses the <code>mux</code> package in <code>$GOPATH/src/github.com/gorilla/mux</code>.
+  </p>
+  
+
+  
+  <p>
+    <code>server-two</code> uses the <code>mux</code> package in <code>vendor</code>.
+  </p>
+  
+
+      
+      <span class="pagenumber">46</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h2>Vendoring demo</h2>
+      
+      <span class="pagenumber">47</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>go doc</h3>
+        
+  
+  <p>
+    Go 1.5 added the possibility of searching by name
+  </p>
+  
+
+  
+  <div class="code"><pre>go doc math Pi</pre></div>
+  
+
+  
+  <p>
+    Go 1.6 defines priority of packages with import paths with less elements.
+  </p>
+  
+
+  
+  <p>
+    Non vendored packages appear first.
+  </p>
+  
+
+      
+      <span class="pagenumber">48</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>go vet</h3>
+        
+  
+  <p>
+    Go vet warns if the code prints a function instead of its result.
+  </p>
+  
+
+  <div class="code playground" >
+<pre><span num="3">package main</span>
+<span num="4"></span>
+<span num="5">import &#34;fmt&#34;</span>
+<span num="6"></span>
+<span num="7">func foo() string { return &#34;bar&#34; }</span>
+<span num="8"></span>
+<span num="9">func main() {</span>
+<span num="10">    fmt.Printf(&#34;%v&#34;, foo)</span>
+<span num="11">}</span>
+</pre>
+</div>
+
+  
+  <p>
+    <code>go vet</code> output:
+  </p>
+  
+
+  
+  <div class="code"><pre>main.go:8: arg foo in Println call is a function value, not a function call</pre></div>
+  
+
+  
+  <p>
+    The warning can be removed using <code>%p</code> in the format string.
+  </p>
+  
+
+      
+      <span class="pagenumber">49</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h2>The community</h2>
+      
+      <span class="pagenumber">50</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>The community</h3>
+        
+  
+  <p>
+    Code of Conduct announced on November 24th 2015
+  </p>
+  
+
+  
+  <p>
+    Go meetups:
+  </p>
+  
+
+  <ul>
+  
+    <li><a href="http://go-meetups.appspot.com" target="_blank">go-meetups.appspot.com</a></li>
+  
+  </ul>
+
+  
+  <p>
+    Women Who Go - 7 chapters already!
+  </p>
+  
+
+  <ul>
+  
+    <li><a href="http://www.womenwhogo.org" target="_blank">www.womenwhogo.org</a></li>
+  
+  </ul>
+
+      
+      <span class="pagenumber">51</span>
+      </article>
+  
+  
+  
+      <article >
+      
+        <h3>Conferences:</h3>
+        
+  <ul>
+  
+    <li><a href="http://gophergala.com/" target="_blank">GopherGala</a> Jan 22-24th (judging proposals now)</li>
+  
+    <li><a href="https://fosdem.org/2016/" target="_blank">FOSDEM</a> Right here, right now. Hello!</li>
+  
+    <li><a href="http://gophercon.ae" target="_blank">GopherCon Dubai</a>, Feb 23rd</li>
+  
+    <li><a href="http://www.gophercon.in/" target="_blank">GopherCon India</a>, Feb 19-20th</li>
+  
+    <li><a href="https://gophercon.com/" target="_blank">Gophercon Denver</a>, Jul 11-13th</li>
+  
+    <li><a href="http://2016.dotgo.eu/" target="_blank">dotGo</a>, Nov 9th</li>
+  
+  </ul>
+
+      
+      <span class="pagenumber">52</span>
+      </article>
+  
+  
+  
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+
+    
+    <script type="application/javascript" src='static/play.js'></script>
+    
+
+  </body>
+</html>

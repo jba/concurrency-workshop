@@ -37,10 +37,14 @@ import (
 // You have to do something in `Done` too.
 // !note
 
+// question
+// Solution
+// answer
 type WaitGroup struct {
 	mu    sync.Mutex
 	count int // number of active goroutines
-	done  chan struct{}
+	// This channel will be closed when all Adds have been matched by Dones.
+	done chan struct{}
 }
 
 func NewWaitGroup() *WaitGroup {
@@ -61,13 +65,17 @@ func (g *WaitGroup) Done() {
 	}
 	g.count--
 	if g.count == 0 {
+		// Closing the channel signals all goroutines blocked in Wait.
 		close(g.done)
 	}
 }
 
 func (g *WaitGroup) Wait() {
+	// Wait for something to be written to the channel, or for it to be closed.
 	<-g.done
 }
+
+// !question
 
 // note
 // You'll find the answer in waitgroup/slide7/wg.go in the workshop repo.

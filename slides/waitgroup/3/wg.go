@@ -37,8 +37,8 @@ func (g *WaitGroup) Done() {
 // answer
 // Uh-oh! we have a TOCTOU race (Time Of Check-Time Of Use).
 
-// Explain how (that is, provide an interleaving where)
-// `g.count` can become negative.
+// Explain how (that is, provide an interleaving where
+// `g.count` can become negative).
 
 // That's a pitfall of using atomics: when you need to make the code more
 // complicated, you may be tempted to make the smallest change.

@@ -33,57 +33,66 @@ type section struct {
 
 func main() {
 	outputFile := flag.String("o", "output.html", "output file name")
+	title := flag.String("title", "Title", "presentation title")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "usage: code2html [-o output.html] <file>...")
+		fmt.Fprintln(os.Stderr, "usage: code2slides [-o output.html] <file>...")
 		os.Exit(1)
 	}
 
-	if err := run(*outputFile, flag.Args()); err != nil {
+	if err := run(*outputFile, *title, flag.Args()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(outputFile string, files []string) (err error) {
+type errWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (w *errWriter) Write(data []byte) (int, error) {
+	if w.err != nil {
+		return 0, w.err
+	}
+	n, err := w.w.Write(data)
+	if err != nil {
+		w.err = err
+	}
+	return n, err
+}
+
+func (w *errWriter) Err() error { return w.err }
+
+func run(outputFile, title string, files []string) (err error) {
 	outFile, err := os.Create(outputFile)
 	if err != nil {
 		return fmt.Errorf("error creating output file: %w", err)
 	}
 	defer func() { err = errors.Join(err, outFile.Close()) }()
 
-	fmt.Fprintln(outFile, `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code</title>
-    <style>
-        p, summary, pre { font-size: larger; }
-        .answer { border: 1px solid lightgray; padding: 0.5em; margin: 0.5em 0; }
-    </style>
-</head>
-<body>`)
+	ew := &errWriter{w: outFile}
 
-	for _, filename := range files {
-		if err := processFile(outFile, filename); err != nil {
+	fmt.Fprintf(ew, top, title)
+
+	for i, filename := range files {
+		if err := processFile(ew, filename, i); err != nil {
 			return fmt.Errorf("error processing %s: %w", filename, err)
 		}
 	}
 
-	fmt.Fprintln(outFile, `</body>
-</html>`)
+	fmt.Fprintln(ew, bottom)
 
-	return nil
+	return ew.Err()
 }
 
-func processFile(out *os.File, filename string) error {
+func processFile(w io.Writer, filename string, pageNum int) error {
 	slide, err := scanFile(filename)
 	if err != nil {
 		return err
 	}
-	writeSlideHTML(out, slide)
+	writeSlideHTML(w, slide, pageNum)
 	return nil
 }
 
@@ -211,32 +220,36 @@ func kindName(k sectionKind) string {
 	return "unknown"
 }
 
-func writeSlideHTML(w io.Writer, slide *Slide) {
-	fmt.Fprintf(w, "<h1>%s</h1>\n", html.EscapeString(slide.heading))
+func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
+	fmt.Fprintln(w, "<article>")
+	fmt.Fprintf(w, "  <h1>%s</h1>\n", html.EscapeString(slide.heading))
 	inAnswer := false
 	for _, sec := range slide.sections {
 		if sec.kind == sectionAnswer && !inAnswer {
-			fmt.Fprintln(w, "<details>")
-			fmt.Fprintln(w, "<summary>Answer</summary>")
-			fmt.Fprintln(w, `<div class="answer">`)
+			fmt.Fprintln(w, "  <details>")
+			fmt.Fprintln(w, "    <summary>Answer</summary>")
+			fmt.Fprintln(w, `    <div class="answer">`)
 			inAnswer = true
 		} else if sec.kind != sectionAnswer && inAnswer {
-			fmt.Fprintln(w, "</div>")
-			fmt.Fprintln(w, "</details>")
+			fmt.Fprintln(w, "    </div>")
+			fmt.Fprintln(w, "  </details>")
 			inAnswer = false
 		}
 
 		switch sec.kind {
 		case sectionCode:
-			fmt.Fprintf(w, "<code><pre>%s</pre></code>\n", renderCode(sec.content))
+			fmt.Fprintf(w, "    <div class='code'><pre>%s</pre></div>\n", renderCode(sec.content))
 		case sectionNote, sectionQuestion, sectionAnswer:
 			fmt.Fprintf(w, "<p>%s</p>\n", renderInlineCode(sec.content))
 		}
 	}
 	if inAnswer {
-		fmt.Fprintln(w, "</div>")
-		fmt.Fprintln(w, "</details>")
+		fmt.Fprintln(w, "    </div>")
+		fmt.Fprintln(w, "  </details>")
 	}
+
+	fmt.Fprintf(w, "<span class='pagenumber'>%d</span>\n", pageNum)
+	fmt.Fprintln(w, "</article>")
 }
 
 func renderCode(s string) string {
@@ -265,3 +278,28 @@ func renderInlineCode(s string) string {
 	}
 	return result.String()
 }
+
+const top = `<!DOCTYPE html>
+<html>
+  <head>
+    <title>%s</title>
+    <meta charset='utf-8'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='/static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+`
+
+const bottom = `
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+  </body>
+</html>`
