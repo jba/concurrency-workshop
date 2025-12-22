@@ -1,4 +1,16 @@
 @media screen {
+  @property --slide-width {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 1600px;
+  }
+
+  @property --slide-height {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 900px;
+  }
+
   /* Framework */
   html {
     height: 100%;
@@ -49,14 +61,14 @@
     position: absolute;
     overflow: hidden;
 
-    width: 900px;
-    height: 700px;
+    width: var(--slide-width);
+    height: var(--slide-height);
 
     left: 50%;
     top: 50%;
 
-    margin-left: -450px;
-    margin-top: -350px;
+    margin-left: calc(var(--slide-width)/-2);
+    margin-top: calc(var(--slide-height)/-2);
 
     padding: 40px 60px;
 
@@ -139,11 +151,11 @@
   }
   .slides > article.far-past {
     display: block;
-    transform: translate(-2040px);
+    transform: translate(-3600px);
   }
   .slides > article.past {
     display: block;
-    transform: translate(-1020px);
+    transform: translate(-1800px);
   }
   .slides > article.current {
     display: block;
@@ -151,11 +163,11 @@
   }
   .slides > article.next {
     display: block;
-    transform: translate(1020px);
+    transform: translate(1800px);
   }
   .slides > article.far-next {
     display: block;
-    transform: translate(2040px);
+    transform: translate(3600px);
   }
 
   .slides.layout-widescreen > article.far-past,
