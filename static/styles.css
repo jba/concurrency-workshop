@@ -91,21 +91,6 @@
     -moz-transition: -moz-transform 0.3s ease-out;
     -webkit-transition: -webkit-transform 0.3s ease-out;
   }
-  .slides.layout-widescreen > article {
-    margin-left: -550px;
-    width: 1100px;
-  }
-  .slides.layout-faux-widescreen > article {
-    margin-left: -550px;
-    width: 1100px;
-
-    padding: 40px 160px;
-  }
-
-  .slides.layout-widescreen > article:not(.nobackground):not(.biglogo),
-  .slides.layout-faux-widescreen > article:not(.nobackground):not(.biglogo) {
-    background-position-x: 0, 840px;
-  }
 
   /* Clickable/tappable areas */
 
@@ -135,14 +120,6 @@
   #next-slide-area {
     margin-left: 400px;
   }
-  .slides.layout-widescreen #prev-slide-area,
-  .slides.layout-faux-widescreen #prev-slide-area {
-    margin-left: -650px;
-  }
-  .slides.layout-widescreen #next-slide-area,
-  .slides.layout-faux-widescreen #next-slide-area {
-    margin-left: 500px;
-  }
 
   /* Slides */
 
@@ -170,46 +147,6 @@
     transform: translate(3600px);
   }
 
-  .slides.layout-widescreen > article.far-past,
-  .slides.layout-faux-widescreen > article.far-past {
-    display: block;
-    transform: translate(-2260px);
-    -o-transform: translate(-2260px);
-    -moz-transform: translate(-2260px);
-    -webkit-transform: translate3d(-2260px, 0, 0);
-  }
-  .slides.layout-widescreen > article.past,
-  .slides.layout-faux-widescreen > article.past {
-    display: block;
-    transform: translate(-1130px);
-    -o-transform: translate(-1130px);
-    -moz-transform: translate(-1130px);
-    -webkit-transform: translate3d(-1130px, 0, 0);
-  }
-  .slides.layout-widescreen > article.current,
-  .slides.layout-faux-widescreen > article.current {
-    display: block;
-    transform: translate(0);
-    -o-transform: translate(0);
-    -moz-transform: translate(0);
-    -webkit-transform: translate3d(0, 0, 0);
-  }
-  .slides.layout-widescreen > article.next,
-  .slides.layout-faux-widescreen > article.next {
-    display: block;
-    transform: translate(1130px);
-    -o-transform: translate(1130px);
-    -moz-transform: translate(1130px);
-    -webkit-transform: translate3d(1130px, 0, 0);
-  }
-  .slides.layout-widescreen > article.far-next,
-  .slides.layout-faux-widescreen > article.far-next {
-    display: block;
-    transform: translate(2260px);
-    -o-transform: translate(2260px);
-    -moz-transform: translate(2260px);
-    -webkit-transform: translate3d(2260px, 0, 0);
-  }
 }
 
 
