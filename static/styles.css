@@ -128,11 +128,11 @@
   }
   .slides > article.far-past {
     display: block;
-    transform: translate(-3600px);
+    transform: translate(calc(-2*(var(--slide-width) + 200px)));
   }
   .slides > article.past {
     display: block;
-    transform: translate(-1800px);
+    transform: translate(calc(-1*(var(--slide-width) + 200px)));
   }
   .slides > article.current {
     display: block;
@@ -140,11 +140,11 @@
   }
   .slides > article.next {
     display: block;
-    transform: translate(1800px);
+    transform: translate(calc(var(--slide-width) + 200px));;
   }
   .slides > article.far-next {
     display: block;
-    transform: translate(3600px);
+    transform: translate(calc(2*(var(--slide-width) + 200px)));
   }
 
 }
