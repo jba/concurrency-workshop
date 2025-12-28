@@ -2,13 +2,13 @@
   @property --slide-width {
     syntax: "<length>";
     inherits: false;
-    initial-value: 1600px;
+    initial-value: 2100px;
   }
 
   @property --slide-height {
     syntax: "<length>";
     inherits: false;
-    initial-value: 900px;
+    initial-value: 1200px;
   }
 
   /* Framework */
@@ -27,20 +27,7 @@
 
     overflow: hidden;
 
-    background: rgb(215, 215, 215);
-    background: -o-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
-    background: -moz-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
-    background: -webkit-radial-gradient(rgb(240, 240, 240), rgb(190, 190, 190));
-    background: -webkit-gradient(
-      radial,
-      50% 50%,
-      0,
-      50% 50%,
-      500,
-      from(rgb(240, 240, 240)),
-      to(rgb(190, 190, 190))
-    );
-
+    background: rgb(19, 168, 192);
     -webkit-font-smoothing: antialiased;
   }
 

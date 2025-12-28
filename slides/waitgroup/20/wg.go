@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 )
 
-// heading Let's use atomics!
+// heading Atomics
 
 // note
 // This looks like a good place to use atomics, because we're just
@@ -18,16 +18,20 @@ type WaitGroup struct {
 	// !em
 }
 
-func (g *WaitGroup) Add(n int) {
+func (g *WaitGroup) Go(f func()) {
 	// em
-	g.count.Add(int64(n))
+	g.count.Add(1)
 	// !em
+	go func() {
+		// em
+		defer g.count.Add(-1)
+		// !em
+		f()
+	}()
 }
 
-func (g *WaitGroup) Done() {
-	// em
-	g.count.Add(-1)
-	// !em
+func (g *WaitGroup) Wait() {
+	// Wait for g.count to reach 0.
 }
 
 // !code
