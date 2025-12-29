@@ -4,7 +4,15 @@ import (
 	"sync/atomic"
 )
 
-// heading Atomics
+// heading Aside: Atomics
+
+/* text
+- Atomics work well here, for now
+
+- Trouble with `Wait`
+
+- Stdlib implementation uses them
+*/
 
 // note
 // This looks like a good place to use atomics, because we're just
@@ -19,16 +27,19 @@ type WaitGroup struct {
 }
 
 func (g *WaitGroup) Go(f func()) {
-	// em
-	g.count.Add(1)
-	// !em
+	g.add(1)
 	go func() {
-		// em
-		defer g.count.Add(-1)
-		// !em
+		defer g.add(-1)
 		f()
 	}()
 }
+
+// em
+func (g *WaitGroup) add(n int) {
+	g.count.Add(int64(n))
+}
+
+// !em
 
 func (g *WaitGroup) Wait() {
 	// Wait for g.count to reach 0.

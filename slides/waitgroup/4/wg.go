@@ -22,11 +22,15 @@ type WaitGroup struct {
 }
 
 func (g *WaitGroup) Go(f func()) {
-	g.count.Add(1)
+	g.add(1)
 	go func() {
-		defer g.count.Add(-1)
+		defer g.add(-1)
 		f()
 	}()
+}
+
+func (g *WaitGroup) add(n int) {
+	g.count.Add(int64(n))
 }
 
 // em
@@ -41,15 +45,15 @@ func (g *WaitGroup) Wait() {
 // !code
 
 // question
-// What do you think of this?
+// What's wrong with busy-waiting?
+// answer
+// There's no perfect time to sleep. You may sleep too long, wasting time,
+// or too short, wasting CPU.
+// !question
+
+// question
 // Find the bug (if any).
 // answer
 // The count can go to 0, then back up, and Wait won't notice.
 // !question
 //
-// question
-// And what's wrong with busy-waiting?
-// answer
-// There's no perfect time to sleep. You may sleep too long, wasting time,
-// or too short, wasting CPU.
-// !question

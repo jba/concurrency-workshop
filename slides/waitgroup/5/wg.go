@@ -17,18 +17,23 @@ type WaitGroup struct {
 	done  chan struct{} // closed when count reaches zero
 }
 
-func (g *WaitGroup) Go(f func()) {
-	g.count.Add(1)
-	go func() {
-		defer func() {
-			c := g.count.Add(-1)
-			if c == 0 {
-				close(g.done)
-			}
-		}()
+func NewWaitGroup() *WaitGroup {
+	return &WaitGroup{done: make(chan struct{})}
+}
 
+func (g *WaitGroup) Go(f func()) {
+	g.add(1)
+	go func() {
+		defer g.add(-1)
 		f()
 	}()
+}
+
+func (g *WaitGroup) add(n int) {
+	c := g.count.Add(int64(n))
+	if c == 0 {
+		close(g.done)
+	}
 }
 
 // code
@@ -46,7 +51,7 @@ func (g *WaitGroup) Wait() {
 // !question
 
 // question
-// There is a subtle bug in `Go`. Find it.
+// There is a subtle bug in `add`. Find it.
 // answer
 // Two goroutines may both end up on `if c == 0` with c == 0.
 // (How?)

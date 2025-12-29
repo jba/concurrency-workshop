@@ -1,8 +1,6 @@
 package wg
 
-import "time"
-
-// heading Implementing WaitGroup: Add and Done
+// heading Implementing WaitGroup: Go
 
 // note
 // Let's try to implement `sync.WaitGroup` ourselves.
@@ -20,11 +18,15 @@ type WaitGroup struct {
 }
 
 func (g *WaitGroup) Go(f func()) {
-	g.count++
+	g.add(1)
 	go func() {
-		defer func() { g.count-- }()
+		defer g.add(-1)
 		f()
 	}()
+}
+
+func (g *WaitGroup) add(n int) {
+	g.count += n
 }
 
 func (g *WaitGroup) Wait() {
@@ -39,9 +41,3 @@ func (g *WaitGroup) Wait() {
 // The problem is that there is no synchronization.
 // `Go` should be goroutine-safe.
 // !question
-
-// func (g *WaitGroup) Wait() {
-// 	for g.count > 0 {
-// 		time.Sleep(time.Millisecond)
-// 	}
-// }
