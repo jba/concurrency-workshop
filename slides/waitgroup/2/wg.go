@@ -38,5 +38,3 @@ func (g *WaitGroup) Wait() {
 }
 
 // !code
-
-// note

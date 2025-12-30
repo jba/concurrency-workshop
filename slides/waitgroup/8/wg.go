@@ -2,13 +2,14 @@ package wg
 
 import "sync"
 
-// heading
+// heading Fix to previous
 
 // text
 // - Channel _operations_ are concurrency-safe
 // - But _accessing a variable_ (even one holding a channel) is not
 // !text
 
+// code
 type WaitGroup struct {
 	mu    sync.Mutex
 	count int           // number of active goroutines
@@ -45,3 +46,5 @@ func (g *WaitGroup) Wait() {
 	// !em
 	<-d
 }
+
+// !code
