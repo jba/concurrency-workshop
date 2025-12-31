@@ -42,8 +42,7 @@ func (g *WaitGroup) <defn>Wait</defn>() {
 <span class='pagenumber'>0</span>
 </article>
 <article>
-  <h1>With a mutex</h1>
-<p>Use a mutex.</p>
+  <h1>WaitGroup with a mutex</h1>
     <div class='code'><pre>type <defn>WaitGroup</defn> struct {
 <b>    mu sync.Mutex
 </b>    count int <comment>// number of active goroutines</comment>
@@ -57,7 +56,7 @@ func (g *WaitGroup) <defn>Go</defn>(f func()) {
     }()
 }
 
-<b>func (g *WaitGroup) add(n int) {
+<b>func (g *WaitGroup) <defn>add</defn>(n int) {
     g.mu.Lock()
     defer g.mu.Unlock()
     g.count += n
@@ -85,7 +84,7 @@ func (g *WaitGroup) <defn>Go</defn>(f func()) {
     }()
 }
 
-<b>func (g *WaitGroup) add(n int) {
+<b>func (g *WaitGroup) <defn>add</defn>(n int) {
     g.count.Add(int64(n))
 }
 
@@ -115,7 +114,7 @@ func (g *WaitGroup) <defn>add</defn>(n int) {
     g.count.Add(int64(n))
 }
 
-<b>func (g *WaitGroup) Wait() {
+<b>func (g *WaitGroup) <defn>Wait</defn>() {
     for g.count.Load() &gt; 0 {
         time.Sleep(time.Millisecond)
     }

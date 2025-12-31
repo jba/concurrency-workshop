@@ -295,6 +295,16 @@ func renderCode(s string) string {
 }
 
 func renderCodeLine(line string) string {
+	// Handle emphasis markers that may prefix the line
+	prefix := ""
+	if strings.HasPrefix(line, "\x00em\x00") {
+		prefix = "\x00em\x00"
+		line = strings.TrimPrefix(line, "\x00em\x00")
+	} else if strings.HasPrefix(line, "\x00/em\x00") {
+		prefix = "\x00/em\x00"
+		line = strings.TrimPrefix(line, "\x00/em\x00")
+	}
+
 	trimmed := strings.TrimLeft(line, " \t")
 	indent := line[:len(line)-len(trimmed)]
 
@@ -305,7 +315,7 @@ func renderCodeLine(line string) string {
 		if len(parts) > 0 {
 			typeName := parts[0]
 			rest := strings.TrimPrefix(name, typeName)
-			return html.EscapeString(indent) + "type <defn>" + html.EscapeString(typeName) + "</defn>" + html.EscapeString(rest)
+			return prefix + html.EscapeString(indent) + "type <defn>" + html.EscapeString(typeName) + "</defn>" + html.EscapeString(rest)
 		}
 	}
 
@@ -321,7 +331,7 @@ func renderCodeLine(line string) string {
 				if parenIdx := strings.Index(afterReceiver, "("); parenIdx >= 0 {
 					methodName := afterReceiver[:parenIdx]
 					afterName := afterReceiver[parenIdx:]
-					return html.EscapeString(indent) + "func " + html.EscapeString(receiver+" ") + "<defn>" + html.EscapeString(methodName) + "</defn>" + html.EscapeString(afterName)
+					return prefix + html.EscapeString(indent) + "func " + html.EscapeString(receiver+" ") + "<defn>" + html.EscapeString(methodName) + "</defn>" + html.EscapeString(afterName)
 				}
 			}
 		} else {
@@ -329,12 +339,12 @@ func renderCodeLine(line string) string {
 			if parenIdx := strings.Index(rest, "("); parenIdx >= 0 {
 				funcName := rest[:parenIdx]
 				afterName := rest[parenIdx:]
-				return html.EscapeString(indent) + "func <defn>" + html.EscapeString(funcName) + "</defn>" + html.EscapeString(afterName)
+				return prefix + html.EscapeString(indent) + "func <defn>" + html.EscapeString(funcName) + "</defn>" + html.EscapeString(afterName)
 			}
 		}
 	}
 
-	return html.EscapeString(line)
+	return prefix + html.EscapeString(line)
 }
 
 func renderMarkdown(s string) string {
