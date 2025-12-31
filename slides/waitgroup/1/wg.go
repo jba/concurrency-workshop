@@ -11,6 +11,7 @@ package wg
 // the number of active goroutines.
 // !note
 
+// html <div class='flex'>
 // code
 type WaitGroup struct {
 	count int // number of active goroutines
@@ -33,6 +34,11 @@ func (g *WaitGroup) Wait() {
 }
 
 // !code
+// text
+// - Lots of interesting stuff here.
+// - More than you realize.
+// !text
+// html </div>
 
 // question
 // Thoughts?

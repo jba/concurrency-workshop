@@ -51,7 +51,7 @@ func (g *WaitGroup) Wait() {
 // !question
 
 // question
-// Find the bug (if any).
+// Find the bug.
 // answer
 // The count can go to 0, then back up, and Wait won't notice.
 // !question

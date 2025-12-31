@@ -8,6 +8,8 @@ import "sync"
 // Need a mutex to perform more than one operation atomically
 // !text
 
+// html <div class="flex">
+// code
 type WaitGroup struct {
 	mu    sync.Mutex
 	count int           // number of active goroutines
@@ -22,6 +24,8 @@ func (g *WaitGroup) Go(f func()) {
 	}()
 }
 
+// !code
+// code
 // em
 func (g *WaitGroup) add(n int) {
 	g.mu.Lock()
@@ -32,28 +36,28 @@ func (g *WaitGroup) add(n int) {
 	g.count += n
 	if g.count == 0 {
 		close(g.done)
-		g.done = nil // Make sure we only close this channel once.
+		g.done = nil // don't close channel twice
 	}
 }
 
 // !em
-
 func (g *WaitGroup) Wait() {
-	// Wait for something to be written to the channel, or for it to be closed.
+	// wait for close
 	<-g.done
 }
 
+// !code
+// html </div>
+
 // question
-// Find the bug.
+// Find the race condition.
 // answer
 // Wait reads `g.done` without the lock.
 // !question
 
 // question
 // This WaitGroup can't be used for a second wave of `Go` calls: once the first
-// group of goroutines completes, the channel is nil, and `Wait` will never return
-// (https://go.dev/ref/spec#Receive_operator:
-// "Receiving from a nil channel blocks forever.")
+// group of goroutines completes, the channel is nil, and `Wait` will never return.
 //
 // How can we fix that?
 // answer

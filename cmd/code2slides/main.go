@@ -27,7 +27,27 @@ const (
 	sectionQuestion
 	sectionAnswer
 	sectionText
+	sectionHTML
 )
+
+func kindName(k sectionKind) string {
+	switch k {
+	case sectionNote:
+		return "note"
+	case sectionCode:
+		return "code"
+	case sectionQuestion:
+		return "question"
+	case sectionAnswer:
+		return "answer"
+	case sectionText:
+		return "text"
+	case sectionHTML:
+		return "html"
+	default:
+		return "unknown"
+	}
+}
 
 type section struct {
 	kind    sectionKind
@@ -53,12 +73,39 @@ func main() {
 	}
 }
 
-type errWriter struct {
-	w   io.Writer
-	err error
+type indentWriter struct {
+	w     io.Writer
+	level int
+	err   error
 }
 
-func (w *errWriter) Write(data []byte) (int, error) {
+func (w *indentWriter) indent() {
+	for range w.level {
+		io.WriteString(w, "  ")
+	}
+}
+
+func (w *indentWriter) open(s string) {
+	w.indent()
+	io.WriteString(w, s)
+	fmt.Fprintln(w)
+	w.level++
+}
+
+func (w *indentWriter) close(s string) {
+	w.level--
+	w.indent()
+	io.WriteString(w, s)
+	fmt.Fprintln(w)
+}
+
+func (w *indentWriter) linef(format string, args ...any) {
+	w.indent()
+	fmt.Fprintf(w, format, args...)
+	fmt.Fprintln(w)
+}
+
+func (w *indentWriter) Write(data []byte) (int, error) {
 	if w.err != nil {
 		return 0, w.err
 	}
@@ -69,7 +116,7 @@ func (w *errWriter) Write(data []byte) (int, error) {
 	return n, err
 }
 
-func (w *errWriter) Err() error { return w.err }
+func (w *indentWriter) Err() error { return w.err }
 
 func run(outputFile, title string, files []string) (err error) {
 	outFile, err := os.Create(outputFile)
@@ -78,28 +125,30 @@ func run(outputFile, title string, files []string) (err error) {
 	}
 	defer func() { err = errors.Join(err, outFile.Close()) }()
 
-	ew := &errWriter{w: outFile}
+	iw := &indentWriter{w: outFile}
 
-	fmt.Fprintf(ew, top, title)
+	fmt.Fprintf(iw, top, title)
 
 	for i, filename := range files {
-		if err := processFile(ew, filename, i+1); err != nil {
+		if err := processFile(iw, filename, i+1); err != nil {
 			return fmt.Errorf("error processing %s: %w", filename, err)
 		}
 	}
 
-	fmt.Fprintln(ew, bottom)
+	fmt.Fprintln(iw, bottom)
 
-	return ew.Err()
+	return iw.Err()
 }
 
-func processFile(w io.Writer, filename string, pageNum int) error {
+func processFile(w *indentWriter, filename string, pageNum int) error {
 	slide, err := scanFile(filename)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintln(w)
+	w.linef("<!-- %s -->", filename)
 	writeSlideHTML(w, slide, pageNum)
-	return nil
+	return w.Err()
 }
 
 func scanFile(filename string) (*Slide, error) {
@@ -130,12 +179,12 @@ func scanFile(filename string) (*Slide, error) {
 			inSection = true
 			current.Reset()
 		case "// !code":
-			if !inSection || currentKind != sectionCode {
+			if !inSection || (currentKind != sectionCode) {
 				return nil, fmt.Errorf("%s:%d: !code without matching code", filename, lineNum)
 			}
 			// Trim trailing blank line
 			content := strings.TrimSuffix(current.String(), "\n")
-			slide.sections = append(slide.sections, section{kind: sectionCode, content: content})
+			slide.sections = append(slide.sections, section{kind: currentKind, content: content})
 			inSection = false
 		case "// note":
 			if inSection {
@@ -208,18 +257,22 @@ func scanFile(filename string) (*Slide, error) {
 		default:
 			if h, ok := strings.CutPrefix(line, "// heading "); ok {
 				slide.heading = h
-			} else if inSection && currentKind == sectionCode {
+			} else if html, ok := strings.CutPrefix(line, "// html "); ok {
+				slide.sections = append(slide.sections,
+					section{kind: sectionHTML, content: html})
+			} else if inSection && (currentKind == sectionCode) {
 				trimmed := strings.TrimLeft(line, " \t")
-				if trimmed == "// em" {
+				switch trimmed {
+				case "// em":
 					current.WriteString("\x00em\x00")
-				} else if trimmed == "// !em" {
+				case "// !em":
 					// Trim trailing blank line before closing em
 					s := strings.TrimSuffix(current.String(), "\n")
 					current.Reset()
 					current.WriteString(s)
 					current.WriteString("\x00/em\x00")
 					current.WriteByte('\n')
-				} else {
+				default:
 					current.WriteString(line)
 					current.WriteByte('\n')
 				}
@@ -244,29 +297,16 @@ func scanFile(filename string) (*Slide, error) {
 	return slide, nil
 }
 
-func kindName(k sectionKind) string {
-	switch k {
-	case sectionNote:
-		return "note"
-	case sectionCode:
-		return "code"
-	case sectionQuestion:
-		return "question"
-	case sectionAnswer:
-		return "answer"
-	case sectionText:
-		return "text"
-	}
-	return "unknown"
-}
-
-func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
-	fmt.Fprintln(w, "<article>")
-	fmt.Fprintf(w, "  <h1>%s</h1>\n", html.EscapeString(slide.heading))
+func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
+	w.open("<article>")
+	w.linef("<h1>%s</h1>", html.EscapeString(slide.heading))
 	for _, sec := range slide.sections {
 		switch sec.kind {
 		case sectionCode:
-			fmt.Fprintf(w, "    <div class='code'><pre>%s</pre></div>\n", renderCode(sec.content))
+			w.open("<div class='code'><pre>")
+			fmt.Fprint(w, renderCode(sec.content))
+			fmt.Fprintln(w, "</pre>") // indenting adds a blank line
+			w.close("</div>")
 		case sectionText:
 			fmt.Fprint(w, renderMarkdown(sec.content))
 		case sectionQuestion:
@@ -283,11 +323,12 @@ func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
 			if includeNotes {
 				fmt.Fprint(w, renderMarkdown(sec.content))
 			}
+		case sectionHTML:
+			w.linef("%s", sec.content)
 		}
 	}
-
-	fmt.Fprintf(w, "<span class='pagenumber'>%d</span>\n", pageNum)
-	fmt.Fprintln(w, "</article>")
+	w.linef("<span class='pagenumber'>%d</span>", pageNum)
+	w.close("</article>")
 }
 
 func renderCode(s string) string {

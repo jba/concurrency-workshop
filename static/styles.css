@@ -244,13 +244,26 @@ div.code, div.output {
   padding: 0;
 }
 
+div.flex {
+  display: flex;
+  gap: 40px;
+  margin: 0;
+  padding: 0;
+}
+
+div.code2col pre {
+  flex: 1;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
 pre {
   padding: 5px 10px;
   margin-top: 20px;
   margin-bottom: 20px;
   overflow: hidden;
 
-  background: rgb(240, 240, 240);
+  background: rgb(255, 252, 230);
   border: 1px solid rgb(224, 224, 224);
 
   font-family: 'Droid Sans Mono', 'Courier New', monospace;

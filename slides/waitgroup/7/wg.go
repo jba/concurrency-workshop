@@ -2,13 +2,15 @@ package wg
 
 import "sync"
 
-// heading
+// heading Fixing the race
 
 // text
 // - Channel _operations_ are concurrency-safe
 // - But _accessing a variable_ (even one holding a channel) is not
 // !text
 
+// html <div class='flex'>
+// code
 type WaitGroup struct {
 	mu    sync.Mutex
 	count int           // number of active goroutines
@@ -23,6 +25,8 @@ func (g *WaitGroup) Go(f func()) {
 	}()
 }
 
+// !code
+// code
 func (g *WaitGroup) add(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -45,6 +49,8 @@ func (g *WaitGroup) Wait() {
 }
 
 // !em
+// !code
+// html </div>
 
 // question
 // Find the bug.

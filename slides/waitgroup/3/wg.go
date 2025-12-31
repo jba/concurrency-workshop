@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 )
 
-// heading Aside: Atomics
+// heading WaitGroup with atomics
 
 /* text
 - Atomics work well here, for now
