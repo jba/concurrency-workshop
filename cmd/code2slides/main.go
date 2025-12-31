@@ -34,13 +34,16 @@ type section struct {
 	content string
 }
 
+var includeNotes bool
+
 func main() {
 	outputFile := flag.String("o", "output.html", "output file name")
 	title := flag.String("title", "Title", "presentation title")
+	flag.BoolVar(&includeNotes, "notes", false, "include notes and answers in output")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "usage: code2slides [-o output.html] <file>...")
+		fmt.Fprintln(os.Stderr, "usage: code2slides [-o output.html] [-notes] <file>...")
 		os.Exit(1)
 	}
 
@@ -80,7 +83,7 @@ func run(outputFile, title string, files []string) (err error) {
 	fmt.Fprintf(ew, top, title)
 
 	for i, filename := range files {
-		if err := processFile(ew, filename, i); err != nil {
+		if err := processFile(ew, filename, i+1); err != nil {
 			return fmt.Errorf("error processing %s: %w", filename, err)
 		}
 	}
@@ -149,15 +152,19 @@ func scanFile(filename string) (*Slide, error) {
 				slide.sections = append(slide.sections, section{kind: sectionNote, content: current.String()})
 			}
 			inSection = false
-		case "// text":
+		case "// text", "/* text":
 			if inSection {
 				return nil, fmt.Errorf("%s:%d: text inside %s", filename, lineNum, kindName(currentKind))
 			}
 			currentKind = sectionText
 			inSection = true
 			current.Reset()
-		case "// !text":
+		case "// !text", "*/":
 			if !inSection || currentKind != sectionText {
+				if line == "*/" {
+					// */ outside text section is just regular content
+					break
+				}
 				return nil, fmt.Errorf("%s:%d: !text without matching text", filename, lineNum)
 			}
 			if current.Len() > 0 {
@@ -211,12 +218,17 @@ func scanFile(filename string) (*Slide, error) {
 					current.Reset()
 					current.WriteString(s)
 					current.WriteString("\x00/em\x00")
+					current.WriteByte('\n')
 				} else {
 					current.WriteString(line)
 					current.WriteByte('\n')
 				}
 			} else if inSection {
-				text, _ := strings.CutPrefix(line, "// ")
+				// Strip // prefix if present (for // text style), otherwise use line as-is (for /* text style)
+				text, ok := strings.CutPrefix(line, "// ")
+				if !ok {
+					text = line
+				}
 				current.WriteString(text)
 				current.WriteByte('\n')
 			}
@@ -259,12 +271,18 @@ func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
 			fmt.Fprint(w, renderMarkdown(sec.content))
 		case sectionQuestion:
 			fmt.Fprint(w, renderMarkdown(sec.content))
-			fmt.Fprintln(w, "  <details><summary></summary>")
+			if includeNotes {
+				fmt.Fprintln(w, "  <details><summary></summary>")
+			}
 		case sectionAnswer:
-			fmt.Fprint(w, renderMarkdown(sec.content))
-			fmt.Fprintln(w, "  </details>")
+			if includeNotes {
+				fmt.Fprint(w, renderMarkdown(sec.content))
+				fmt.Fprintln(w, "  </details>")
+			}
 		case sectionNote:
-			// Notes are not rendered
+			if includeNotes {
+				fmt.Fprint(w, renderMarkdown(sec.content))
+			}
 		}
 	}
 
