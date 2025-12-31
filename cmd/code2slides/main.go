@@ -426,7 +426,7 @@ const top = `<!DOCTYPE html>
     <script>
       var notesEnabled =  false ;
     </script>
-    <script src='/static/slides.js'></script>
+    <script src='static/slides.js'></script>
   </head>
 
   <body style='display: none'>
