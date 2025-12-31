@@ -18,11 +18,11 @@ It has two methods: <code>Go</code> and <code>Wait</code>.
 We'll start with <code>Go</code>.</p>
 <p>All we need to support it is a simple counter, holding
 the number of active goroutines.</p>
-    <div class='code'><pre>type WaitGroup struct {
-	count int <i>// number of active goroutines</i>
+    <div class='code'><pre>type <defn>WaitGroup</defn> struct {
+	count int <comment>// number of active goroutines</comment>
 }
 
-func (g *WaitGroup) Go(f func()) {
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
 	g.add(1)
 	go func() {
 		defer g.add(-1)
@@ -30,12 +30,12 @@ func (g *WaitGroup) Go(f func()) {
 	}()
 }
 
-func (g *WaitGroup) add(n int) {
+func (g *WaitGroup) <defn>add</defn>(n int) {
 	g.count += n
 }
 
-func (g *WaitGroup) Wait() {
-	<i>// Wait for g.count to reach 0.</i>
+func (g *WaitGroup) <defn>Wait</defn>() {
+	<comment>// Wait for g.count to reach 0.</comment>
 }
 
 </pre></div>
@@ -52,12 +52,12 @@ func (g *WaitGroup) Wait() {
 <article>
   <h1>With a mutex</h1>
 <p>We can synchronize with a mutex.</p>
-    <div class='code'><pre>type WaitGroup struct {
+    <div class='code'><pre>type <defn>WaitGroup</defn> struct {
 <b>	mu sync.Mutex
-</b>	count int <i>// number of active goroutines</i>
+</b>	count int <comment>// number of active goroutines</comment>
 }
 
-func (g *WaitGroup) Go(f func()) {
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
 	g.add(1)
 	go func() {
 		defer g.add(-1)
@@ -72,8 +72,8 @@ func (g *WaitGroup) Go(f func()) {
 }
 
 </b>
-func (g *WaitGroup) Wait() {
-	<i>// Wait for g.count to reach 0.</i>
+func (g *WaitGroup) <defn>Wait</defn>() {
+	<comment>// Wait for g.count to reach 0.</comment>
 }
 
 </pre></div>
@@ -83,11 +83,11 @@ func (g *WaitGroup) Wait() {
   <h1>Aside: Atomics</h1>
 <p>This looks like a good place to use atomics, because we're just
 incrementing and decrementing a counter. So let's do that.</p>
-    <div class='code'><pre>type WaitGroup struct {
-<b>	count atomic.Int64 <i>// number of active goroutines</i>
+    <div class='code'><pre>type <defn>WaitGroup</defn> struct {
+<b>	count atomic.Int64 <comment>// number of active goroutines</comment>
 </b>}
 
-func (g *WaitGroup) Go(f func()) {
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
 	g.add(1)
 	go func() {
 		defer g.add(-1)
@@ -100,8 +100,8 @@ func (g *WaitGroup) Go(f func()) {
 }
 
 </b>
-func (g *WaitGroup) Wait() {
-	<i>// Wait for g.count to reach 0.</i>
+func (g *WaitGroup) <defn>Wait</defn>() {
+	<comment>// Wait for g.count to reach 0.</comment>
 }
 
 </pre></div>
@@ -113,11 +113,11 @@ func (g *WaitGroup) Wait() {
 It should block until the count is zero.</p>
 <p><code>Wait</code> may be called more than once, perhaps concurrently.</p>
 <p>Here is one possible implementation.</p>
-    <div class='code'><pre>type WaitGroup struct {
-	count atomic.Int64 <i>// number of active goroutines</i>
+    <div class='code'><pre>type <defn>WaitGroup</defn> struct {
+	count atomic.Int64 <comment>// number of active goroutines</comment>
 }
 
-func (g *WaitGroup) Go(f func()) {
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
 	g.add(1)
 	go func() {
 		defer g.add(-1)
@@ -125,7 +125,7 @@ func (g *WaitGroup) Go(f func()) {
 	}()
 }
 
-func (g *WaitGroup) add(n int) {
+func (g *WaitGroup) <defn>add</defn>(n int) {
 	g.count.Add(int64(n))
 }
 
@@ -160,8 +160,8 @@ or too short, wasting CPU.</p>
 for threads to wait for an event to occur.</p>
 <p>The trick here is to close the channel, thereby signaling all readers.
 If we sent something to the channel, that would only wake up one reader.</p>
-    <div class='code'><pre>func (g *WaitGroup) Wait() {
-	<i>// In-class exercise: what goes here?</i>
+    <div class='code'><pre>func (g *WaitGroup) <defn>Wait</defn>() {
+	<comment>// In-class exercise: what goes here?</comment>
 }
 
 </pre></div>
@@ -219,13 +219,13 @@ group of goroutines completes, the channel is nil, and <code>Wait</code> will ne
 </article>
 <article>
   <h1>Fix to previous</h1>
-    <div class='code'><pre>type WaitGroup struct {
+    <div class='code'><pre>type <defn>WaitGroup</defn> struct {
 	mu    sync.Mutex
-	count int           <i>// number of active goroutines</i>
-	done  chan struct{} <i>// closed when count reaches zero</i>
+	count int           <comment>// number of active goroutines</comment>
+	done  chan struct{} <comment>// closed when count reaches zero</comment>
 }
 
-func (g *WaitGroup) Go(f func()) {
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
 	g.add(1)
 	go func() {
 		defer g.add(-1)
@@ -233,7 +233,7 @@ func (g *WaitGroup) Go(f func()) {
 	}()
 }
 
-func (g *WaitGroup) add(n int) {
+func (g *WaitGroup) <defn>add</defn>(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.done == nil {
@@ -242,12 +242,12 @@ func (g *WaitGroup) add(n int) {
 	g.count += n
 	if g.count == 0 {
 		close(g.done)
-		g.done = nil <i>// Make sure we only close this channel once.</i>
+		g.done = nil <comment>// Make sure we only close this channel once.</comment>
 	}
 }
 
-func (g *WaitGroup) Wait() {
-	<i>// Wait for something to be written to the channel, or for it to be closed.</i>
+func (g *WaitGroup) <defn>Wait</defn>() {
+	<comment>// Wait for something to be written to the channel, or for it to be closed.</comment>
 <b>	g.mu.Lock()
 	d := g.done
 	g.mu.Unlock()
