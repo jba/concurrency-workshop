@@ -130,7 +130,9 @@ func scanFile(filename string) (*Slide, error) {
 			if !inSection || currentKind != sectionCode {
 				return nil, fmt.Errorf("%s:%d: !code without matching code", filename, lineNum)
 			}
-			slide.sections = append(slide.sections, section{kind: sectionCode, content: current.String()})
+			// Trim trailing blank line
+			content := strings.TrimSuffix(current.String(), "\n")
+			slide.sections = append(slide.sections, section{kind: sectionCode, content: content})
 			inSection = false
 		case "// note":
 			if inSection {
@@ -204,6 +206,10 @@ func scanFile(filename string) (*Slide, error) {
 				if trimmed == "// em" {
 					current.WriteString("\x00em\x00")
 				} else if trimmed == "// !em" {
+					// Trim trailing blank line before closing em
+					s := strings.TrimSuffix(current.String(), "\n")
+					current.Reset()
+					current.WriteString(s)
 					current.WriteString("\x00/em\x00")
 				} else {
 					current.WriteString(line)

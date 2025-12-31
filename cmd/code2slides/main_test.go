@@ -47,11 +47,11 @@ func TestScanFile(t *testing.T) {
 
 	wantSections := []section{
 		{kind: sectionNote, content: "First note.\n"},
-		{kind: sectionCode, content: "func foo() {}\n"},
+		{kind: sectionCode, content: "func foo() {}"},
 		{kind: sectionNote, content: "Second note.\n"},
 		{kind: sectionNote, content: "Third note after blank comment.\n"},
 		{kind: sectionNote, content: "Fourth note after blank line.\n"},
-		{kind: sectionCode, content: "func bar() {}\n"},
+		{kind: sectionCode, content: "func bar() {}"},
 		{kind: sectionQuestion, content: "What is the answer?\n"},
 		{kind: sectionAnswer, content: "The answer is 42.\n"},
 		{kind: sectionNote, content: "Use `fmt.Println` to print.\n"},
