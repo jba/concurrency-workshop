@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"rsc.io/markdown"
 )
 
 type Slide struct {
@@ -172,7 +174,9 @@ func scanFile(filename string) (*Slide, error) {
 			}
 			inSection = false
 		case "//", "":
-			if inSection && currentKind != sectionCode && current.Len() > 0 {
+			if inSection && currentKind == sectionCode {
+				current.WriteByte('\n')
+			} else if inSection && current.Len() > 0 {
 				slide.sections = append(slide.sections, section{kind: currentKind, content: current.String()})
 				current.Reset()
 			}
@@ -240,7 +244,7 @@ func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
 		case sectionCode:
 			fmt.Fprintf(w, "    <div class='code'><pre>%s</pre></div>\n", renderCode(sec.content))
 		case sectionNote, sectionQuestion, sectionAnswer:
-			fmt.Fprintf(w, "<p>%s</p>\n", renderInlineCode(sec.content))
+			fmt.Fprint(w, renderMarkdown(sec.content))
 		}
 	}
 	if inAnswer {
@@ -253,30 +257,32 @@ func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
 }
 
 func renderCode(s string) string {
-	s = html.EscapeString(s)
-	s = strings.ReplaceAll(s, "\x00em\x00", "<b>")
-	s = strings.ReplaceAll(s, "\x00/em\x00", "</b>")
-	return s
-}
-
-func renderInlineCode(s string) string {
 	var result strings.Builder
-	inCode := false
-	for _, r := range s {
-		if r == '`' {
-			if inCode {
-				result.WriteString("</code>")
-			} else {
-				result.WriteString("<code>")
-			}
-			inCode = !inCode
-		} else if inCode {
-			result.WriteString(html.EscapeString(string(r)))
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if i > 0 {
+			result.WriteByte('\n')
+		}
+		// Check for line comment
+		if idx := strings.Index(line, "//"); idx >= 0 {
+			result.WriteString(html.EscapeString(line[:idx]))
+			result.WriteString("<i>")
+			result.WriteString(html.EscapeString(line[idx:]))
+			result.WriteString("</i>")
 		} else {
-			result.WriteString(html.EscapeString(string(r)))
+			result.WriteString(html.EscapeString(line))
 		}
 	}
-	return result.String()
+	out := result.String()
+	out = strings.ReplaceAll(out, "\x00em\x00", "<b>")
+	out = strings.ReplaceAll(out, "\x00/em\x00", "</b>")
+	return out
+}
+
+func renderMarkdown(s string) string {
+	var p markdown.Parser
+	doc := p.Parse(s)
+	return markdown.ToHTML(doc)
 }
 
 const top = `<!DOCTYPE html>

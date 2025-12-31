@@ -1,0 +1,4 @@
+golang.org/x/text v0.3.7 h1:olpwvP2KacW1ZWvsR7uQhoyTYvKAupfQrRGBFM352Gk=
+golang.org/x/text v0.3.7/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
+rsc.io/markdown v0.0.0-20241212154241-6bf72452917f h1:zQHn9vNRGvg+k5NdSMZ5jdSQcuz7k5niNMO0f0XkwKc=
+rsc.io/markdown v0.0.0-20241212154241-6bf72452917f/go.mod h1:dTYI7HoCsVAs6SKPMgkC2TV2xRFJB9WqcVydnnZby2Y=

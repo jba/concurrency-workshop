@@ -61,3 +61,19 @@ func TestScanFile(t *testing.T) {
 		t.Errorf("sections = %v, want %v", slide.sections, wantSections)
 	}
 }
+
+func TestRenderMarkdown(t *testing.T) {
+	got := renderMarkdown("Use `fmt.Println` to print.\n")
+	want := "<p>Use <code>fmt.Println</code> to print.</p>\n"
+	if got != want {
+		t.Errorf("renderMarkdown() = %q, want %q", got, want)
+	}
+}
+
+func TestRenderCode(t *testing.T) {
+	got := renderCode("x := 1 // comment\n")
+	want := "x := 1 <i>// comment</i>\n"
+	if got != want {
+		t.Errorf("renderCode() = %q, want %q", got, want)
+	}
+}
