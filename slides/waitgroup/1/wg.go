@@ -1,6 +1,6 @@
 package wg
 
-// heading Implementing WaitGroup: Go
+// heading Implementing WaitGroup
 
 // note
 // Let's try to implement `sync.WaitGroup` ourselves.
@@ -9,7 +9,6 @@ package wg
 
 // All we need to support it is a simple counter, holding
 // the number of active goroutines.
-
 // !note
 
 // code
@@ -36,7 +35,7 @@ func (g *WaitGroup) Wait() {
 // !code
 
 // question
-// What do you think about this solution?
+// Thoughts?
 // answer
 // The problem is that there is no synchronization.
 // `Go` should be goroutine-safe.

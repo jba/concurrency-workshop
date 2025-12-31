@@ -26,6 +26,7 @@ const (
 	sectionCode
 	sectionQuestion
 	sectionAnswer
+	sectionText
 )
 
 type section struct {
@@ -146,6 +147,21 @@ func scanFile(filename string) (*Slide, error) {
 				slide.sections = append(slide.sections, section{kind: sectionNote, content: current.String()})
 			}
 			inSection = false
+		case "// text":
+			if inSection {
+				return nil, fmt.Errorf("%s:%d: text inside %s", filename, lineNum, kindName(currentKind))
+			}
+			currentKind = sectionText
+			inSection = true
+			current.Reset()
+		case "// !text":
+			if !inSection || currentKind != sectionText {
+				return nil, fmt.Errorf("%s:%d: !text without matching text", filename, lineNum)
+			}
+			if current.Len() > 0 {
+				slide.sections = append(slide.sections, section{kind: sectionText, content: current.String()})
+			}
+			inSection = false
 		case "// question":
 			if inSection {
 				return nil, fmt.Errorf("%s:%d: question inside %s", filename, lineNum, kindName(currentKind))
@@ -220,6 +236,8 @@ func kindName(k sectionKind) string {
 		return "question"
 	case sectionAnswer:
 		return "answer"
+	case sectionText:
+		return "text"
 	}
 	return "unknown"
 }
@@ -227,29 +245,21 @@ func kindName(k sectionKind) string {
 func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
 	fmt.Fprintln(w, "<article>")
 	fmt.Fprintf(w, "  <h1>%s</h1>\n", html.EscapeString(slide.heading))
-	inAnswer := false
 	for _, sec := range slide.sections {
-		if sec.kind == sectionAnswer && !inAnswer {
-			fmt.Fprintln(w, "  <details>")
-			fmt.Fprintln(w, "    <summary>Answer</summary>")
-			fmt.Fprintln(w, `    <div class="answer">`)
-			inAnswer = true
-		} else if sec.kind != sectionAnswer && inAnswer {
-			fmt.Fprintln(w, "    </div>")
-			fmt.Fprintln(w, "  </details>")
-			inAnswer = false
-		}
-
 		switch sec.kind {
 		case sectionCode:
 			fmt.Fprintf(w, "    <div class='code'><pre>%s</pre></div>\n", renderCode(sec.content))
-		case sectionNote, sectionQuestion, sectionAnswer:
+		case sectionText:
 			fmt.Fprint(w, renderMarkdown(sec.content))
+		case sectionQuestion:
+			fmt.Fprint(w, renderMarkdown(sec.content))
+			fmt.Fprintln(w, "  <details><summary></summary>")
+		case sectionAnswer:
+			fmt.Fprint(w, renderMarkdown(sec.content))
+			fmt.Fprintln(w, "  </details>")
+		case sectionNote:
+			// Notes are not rendered
 		}
-	}
-	if inAnswer {
-		fmt.Fprintln(w, "    </div>")
-		fmt.Fprintln(w, "  </details>")
 	}
 
 	fmt.Fprintf(w, "<span class='pagenumber'>%d</span>\n", pageNum)
@@ -257,6 +267,7 @@ func writeSlideHTML(w io.Writer, slide *Slide, pageNum int) {
 }
 
 func renderCode(s string) string {
+	s = strings.ReplaceAll(s, "\t", "    ")
 	var result strings.Builder
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {

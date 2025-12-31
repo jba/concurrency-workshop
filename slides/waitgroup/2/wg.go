@@ -2,7 +2,7 @@ package wg
 
 import "sync"
 
-// heading With a mutex
+// heading WaitGroup with a mutex
 
 // note
 // We can synchronize with a mutex.
