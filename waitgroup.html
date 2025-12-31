@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WG</title>
+    <meta charset='utf-8'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='/static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+
+<!-- 1/wg.go -->
+<article>
+  <h1>Implementing WaitGroup</h1>
+  <div class='flex'>
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+    count int <comment>// number of active goroutines</comment>
+}
+
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+
+func (g *WaitGroup) <defn>add</defn>(n int) {
+    g.count += n
+}
+
+func (g *WaitGroup) <defn>Wait</defn>() {
+    <comment>// Wait for g.count to reach 0.</comment>
+}
+</pre>
+  </div>
+<ul>
+<li>Lots of interesting stuff here.</li>
+<li>More than you realize.</li>
+</ul>
+  </div>
+<p>Thoughts?</p>
+  <span class='pagenumber'>1</span>
+</article>
+
+<!-- 2/wg.go -->
+<article>
+  <h1>WaitGroup with a mutex</h1>
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+<b>    mu sync.Mutex</b>
+    count int <comment>// number of active goroutines</comment>
+}
+
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+
+<b>func (g *WaitGroup) <defn>add</defn>(n int) {
+    g.mu.Lock()
+    defer g.mu.Unlock()
+    g.count += n
+}
+</b>
+
+func (g *WaitGroup) <defn>Wait</defn>() {
+    <comment>// Wait for g.count to reach 0.</comment>
+}
+</pre>
+  </div>
+  <span class='pagenumber'>2</span>
+</article>
+
+<!-- 3/wg.go -->
+<article>
+  <h1>WaitGroup with atomics</h1>
+<ul>
+<li>Atomics work well here, for now</li>
+</ul>
+<ul>
+<li>Trouble with <code>Wait</code></li>
+</ul>
+<ul>
+<li>Stdlib implementation uses them</li>
+</ul>
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+<b>    count atomic.Int64 <comment>// number of active goroutines</b></comment>
+}
+
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+
+<b>func (g *WaitGroup) <defn>add</defn>(n int) {
+    g.count.Add(int64(n))
+}
+</b>
+
+func (g *WaitGroup) <defn>Wait</defn>() {
+    <comment>// Wait for g.count to reach 0.</comment>
+}
+</pre>
+  </div>
+  <span class='pagenumber'>3</span>
+</article>
+
+<!-- 4/wg.go -->
+<article>
+  <h1>The Wait method</h1>
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+    count atomic.Int64 <comment>// number of active goroutines</comment>
+}
+
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+
+func (g *WaitGroup) <defn>add</defn>(n int) {
+    g.count.Add(int64(n))
+}
+
+<b>func (g *WaitGroup) <defn>Wait</defn>() {
+    for g.count.Load() &gt; 0 {
+        time.Sleep(time.Millisecond)
+    }
+}
+</b></pre>
+  </div>
+<p>What's wrong with busy-waiting?</p>
+<p>Find the bug.</p>
+  <span class='pagenumber'>4</span>
+</article>
+
+<!-- 5/wg.go -->
+<article>
+  <h1>Fixing busy-waiting Wait</h1>
+<ul>
+<li>Use a channel</li>
+<li>Close it to broadcast</li>
+</ul>
+  <div class="flex">
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+    count atomic.Int64 <comment>// number of active goroutines</comment>
+<b>    done chan struct{} <comment>// closed when count reaches zero</b></comment>
+}
+
+<b>func <defn>NewWaitGroup</defn>() *WaitGroup {
+    return &amp;WaitGroup{done: make(chan struct{})}
+}
+</b>
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+</pre>
+  </div>
+  <div class='code'><pre>
+func (g *WaitGroup) <defn>add</defn>(n int) {
+    c := g.count.Add(int64(n))
+<b>    if c == 0 {
+        close(g.done)
+    }</b>
+}
+
+func (g *WaitGroup) <defn>Wait</defn>() {
+    <comment>// In-class exercise: what goes here?</comment>
+}
+</pre>
+  </div>
+  </div> <!-- flex -->
+<p>What should the body of Wait be?</p>
+<p>Find the bug in <code>add</code>.</p>
+  <span class='pagenumber'>5</span>
+</article>
+
+<!-- 6/wg.go -->
+<article>
+  <h1>Back to a mutex</h1>
+<p>Need a mutex to perform more than one operation atomically</p>
+  <div class="flex">
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+    mu    sync.Mutex
+    count int           <comment>// number of active goroutines</comment>
+    done  chan struct{} <comment>// closed when count reaches zero</comment>
+}
+
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+</pre>
+  </div>
+  <div class='code'><pre>
+<b>func (g *WaitGroup) <defn>add</defn>(n int) {
+    g.mu.Lock()
+    defer g.mu.Unlock()
+    if g.done == nil {
+        g.done = make(chan struct{})
+    }
+    g.count += n
+    if g.count == 0 {
+        close(g.done)
+        g.done = nil <comment>// don&#39;t close channel twice</comment>
+    }
+}
+</b>
+func (g *WaitGroup) <defn>Wait</defn>() {
+    <comment>// wait for close</comment>
+    &lt;-g.done
+}
+</pre>
+  </div>
+  </div>
+<p>Find the race condition.</p>
+<p>This WaitGroup can't be used for a second wave of <code>Go</code> calls: once the first
+group of goroutines completes, the channel is nil, and <code>Wait</code> will never return.</p>
+<p>How can we fix that?</p>
+  <span class='pagenumber'>6</span>
+</article>
+
+<!-- 7/wg.go -->
+<article>
+  <h1>Fixing the race</h1>
+<ul>
+<li>Channel <em>operations</em> are concurrency-safe</li>
+<li>But <em>accessing a variable</em> (even one holding a channel) is not</li>
+</ul>
+  <div class='flex'>
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+    mu    sync.Mutex
+    count int           <comment>// number of active goroutines</comment>
+    done  chan struct{} <comment>// closed when count reaches zero</comment>
+}
+
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+</pre>
+  </div>
+  <div class='code'><pre>
+func (g *WaitGroup) <defn>add</defn>(n int) {
+    g.mu.Lock()
+    defer g.mu.Unlock()
+    if g.done == nil {
+        g.done = make(chan struct{})
+    }
+    g.count += n
+    if g.count == 0 {
+        close(g.done)
+        g.done = nil <comment>// Make sure we only close this channel once.</comment>
+    }
+}
+
+<b>func (g *WaitGroup) <defn>Wait</defn>() {
+    <comment>// Wait for something to be written to the channel, or for it to be closed.</comment>
+    g.mu.Lock()
+    defer g.mu.Unlock()
+    &lt;-g.done
+}
+</b></pre>
+  </div>
+  </div>
+<p>Find the bug.</p>
+  <span class='pagenumber'>7</span>
+</article>
+
+<!-- 8/wg.go -->
+<article>
+  <h1>Fix to previous</h1>
+<ul>
+<li>Channel <em>operations</em> are concurrency-safe</li>
+<li>But <em>accessing a variable</em> (even one holding a channel) is not</li>
+</ul>
+  <div class='code'><pre>
+type <defn>WaitGroup</defn> struct {
+    mu    sync.Mutex
+    count int           <comment>// number of active goroutines</comment>
+    done  chan struct{} <comment>// closed when count reaches zero</comment>
+}
+
+func (g *WaitGroup) <defn>Go</defn>(f func()) {
+    g.add(1)
+    go func() {
+        defer g.add(-1)
+        f()
+    }()
+}
+
+func (g *WaitGroup) <defn>add</defn>(n int) {
+    g.mu.Lock()
+    defer g.mu.Unlock()
+    if g.done == nil {
+        g.done = make(chan struct{})
+    }
+    g.count += n
+    if g.count == 0 {
+        close(g.done)
+        g.done = nil <comment>// Make sure we only close this channel once.</comment>
+    }
+}
+
+func (g *WaitGroup) <defn>Wait</defn>() {
+    <comment>// Wait for something to be written to the channel, or for it to be closed.</comment>
+<b>    g.mu.Lock()
+    d := g.done
+    g.mu.Unlock()</b>
+    &lt;-d
+}
+</pre>
+  </div>
+  <span class='pagenumber'>8</span>
+</article>
+
+<!-- 9/wg.go -->
+<article>
+  <h1>The real thing</h1>
+<p>Actual sync.WaitGroup implementation</p>
+  <span class='pagenumber'>9</span>
+</article>
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+  </body>
+</html>
