@@ -152,7 +152,7 @@
 }
 
 b {
-  font-weight: 600;
+  font-weight: 1000;
 }
 
 a {
@@ -252,8 +252,8 @@ pre {
   border: 1px solid rgb(224, 224, 224);
 
   font-family: 'Droid Sans Mono', 'Courier New', monospace;
-  font-size: 18px;
-  line-height: 24px;
+  font-size: 30px;
+  line-height: 37px;
   letter-spacing: -1px;
 
   color: black;
@@ -266,7 +266,6 @@ pre.numbers span:before {
 }
 
 code {
-  font-size: 95%;
   font-family: 'Droid Sans Mono', 'Courier New', monospace;
 
   color: black;
@@ -323,6 +322,7 @@ div.playground {
   position: relative;
 }
 div.output {
+
   position: absolute;
   left: 50%;
   top: 50%;

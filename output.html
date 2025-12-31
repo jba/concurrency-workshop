@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WG</title>
+    <meta charset='utf-8'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='/static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+<article>
+  <h1>Implementing WaitGroup: Go</h1>
+<p>Let's try to implement <code>sync.WaitGroup</code> ourselves.
+It has two methods: <code>Go</code> and <code>Wait</code>.
+We'll start with <code>Go</code>.</p>
+<p>All we need to support it is a simple counter, holding
+the number of active goroutines.</p>
+    <div class='code'><pre>type WaitGroup struct {
+	count int <i>// number of active goroutines</i>
+}
+
+func (g *WaitGroup) Go(f func()) {
+	g.add(1)
+	go func() {
+		defer g.add(-1)
+		f()
+	}()
+}
+
+func (g *WaitGroup) add(n int) {
+	g.count += n
+}
+
+func (g *WaitGroup) Wait() {
+	<i>// Wait for g.count to reach 0.</i>
+}
+
+</pre></div>
+<p>What do you think about this solution?</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p>The problem is that there is no synchronization.
+<code>Go</code> should be goroutine-safe.</p>
+    </div>
+  </details>
+<span class='pagenumber'>0</span>
+</article>
+<article>
+  <h1>With a mutex</h1>
+<p>We can synchronize with a mutex.</p>
+    <div class='code'><pre>type WaitGroup struct {
+<b>	mu sync.Mutex
+</b>	count int <i>// number of active goroutines</i>
+}
+
+func (g *WaitGroup) Go(f func()) {
+	g.add(1)
+	go func() {
+		defer g.add(-1)
+		f()
+	}()
+}
+
+<b>func (g *WaitGroup) add(n int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.count += n
+}
+
+</b>
+func (g *WaitGroup) Wait() {
+	<i>// Wait for g.count to reach 0.</i>
+}
+
+</pre></div>
+<span class='pagenumber'>1</span>
+</article>
+<article>
+  <h1>Aside: Atomics</h1>
+<p>This looks like a good place to use atomics, because we're just
+incrementing and decrementing a counter. So let's do that.</p>
+    <div class='code'><pre>type WaitGroup struct {
+<b>	count atomic.Int64 <i>// number of active goroutines</i>
+</b>}
+
+func (g *WaitGroup) Go(f func()) {
+	g.add(1)
+	go func() {
+		defer g.add(-1)
+		f()
+	}()
+}
+
+<b>func (g *WaitGroup) add(n int) {
+	g.count.Add(int64(n))
+}
+
+</b>
+func (g *WaitGroup) Wait() {
+	<i>// Wait for g.count to reach 0.</i>
+}
+
+</pre></div>
+<span class='pagenumber'>2</span>
+</article>
+<article>
+  <h1>The Wait method</h1>
+<p>Let's turn our attention to the <code>Wait</code> method.
+It should block until the count is zero.</p>
+<p><code>Wait</code> may be called more than once, perhaps concurrently.</p>
+<p>Here is one possible implementation.</p>
+    <div class='code'><pre>type WaitGroup struct {
+	count atomic.Int64 <i>// number of active goroutines</i>
+}
+
+func (g *WaitGroup) Go(f func()) {
+	g.add(1)
+	go func() {
+		defer g.add(-1)
+		f()
+	}()
+}
+
+func (g *WaitGroup) add(n int) {
+	g.count.Add(int64(n))
+}
+
+<b>func (g *WaitGroup) Wait() {
+	for g.count.Load() &gt; 0 {
+		time.Sleep(time.Millisecond)
+	}
+}
+
+</b>
+</pre></div>
+<p>What's wrong with busy-waiting?</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p>There's no perfect time to sleep. You may sleep too long, wasting time,
+or too short, wasting CPU.</p>
+    </div>
+  </details>
+<p>Find the bug (if any).</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p>The count can go to 0, then back up, and Wait won't notice.</p>
+    </div>
+  </details>
+<span class='pagenumber'>3</span>
+</article>
+<article>
+  <h1>Fixing busy-waiting Wait</h1>
+<p>We'll use a channel. Channels are the only way we've seen
+for threads to wait for an event to occur.</p>
+<p>The trick here is to close the channel, thereby signaling all readers.
+If we sent something to the channel, that would only wake up one reader.</p>
+    <div class='code'><pre>func (g *WaitGroup) Wait() {
+	<i>// In-class exercise: what goes here?</i>
+}
+
+</pre></div>
+<p>What should the body of Wait be?</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p><code>&lt;-g.done</code>
+That's it!</p>
+    </div>
+  </details>
+<p>There is a subtle bug in <code>add</code>. Find it.</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p>Two goroutines may both end up on <code>if c == 0</code> with c == 0.
+(How?)
+Closing a channel for a second time panics.</p>
+    </div>
+  </details>
+<span class='pagenumber'>4</span>
+</article>
+<article>
+  <h1>Back to a mutex</h1>
+<p>Find the bug.</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p>Wait reads <code>g.done</code> without the lock.</p>
+    </div>
+  </details>
+<p>This WaitGroup can't be used for a second wave of <code>Go</code> calls: once the first
+group of goroutines completes, the channel is nil, and <code>Wait</code> will never return
+(https://go.dev/ref/spec#Receive_operator:
+&quot;Receiving from a nil channel blocks forever.&quot;)</p>
+<p>How can we fix that?</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p>TODO</p>
+    </div>
+  </details>
+<span class='pagenumber'>5</span>
+</article>
+<article>
+  <h1>wg.go</h1>
+<p>Find the bug.</p>
+  <details>
+    <summary>Answer</summary>
+    <div class="answer">
+<p><code>Wait</code> holds the mutex while it's waiting, so <code>add</code> can't run to decrement the counter.</p>
+    </div>
+  </details>
+<span class='pagenumber'>6</span>
+</article>
+<article>
+  <h1>Fix to previous</h1>
+    <div class='code'><pre>type WaitGroup struct {
+	mu    sync.Mutex
+	count int           <i>// number of active goroutines</i>
+	done  chan struct{} <i>// closed when count reaches zero</i>
+}
+
+func (g *WaitGroup) Go(f func()) {
+	g.add(1)
+	go func() {
+		defer g.add(-1)
+		f()
+	}()
+}
+
+func (g *WaitGroup) add(n int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.done == nil {
+		g.done = make(chan struct{})
+	}
+	g.count += n
+	if g.count == 0 {
+		close(g.done)
+		g.done = nil <i>// Make sure we only close this channel once.</i>
+	}
+}
+
+func (g *WaitGroup) Wait() {
+	<i>// Wait for something to be written to the channel, or for it to be closed.</i>
+<b>	g.mu.Lock()
+	d := g.done
+	g.mu.Unlock()
+</b>	&lt;-d
+}
+
+</pre></div>
+<span class='pagenumber'>7</span>
+</article>
+<article>
+  <h1>The real thing</h1>
+<span class='pagenumber'>8</span>
+</article>
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+  </body>
+</html>
