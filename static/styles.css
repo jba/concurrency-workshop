@@ -271,6 +271,15 @@ code {
   color: black;
 }
 
+comment {
+  font-style: italic;
+  color: green;
+}
+
+defn {
+  color: blue;
+}
+
 pre code {
   font-size: 100%;
 }

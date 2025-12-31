@@ -71,9 +71,35 @@ func TestRenderMarkdown(t *testing.T) {
 }
 
 func TestRenderCode(t *testing.T) {
-	got := renderCode("x := 1 // comment\n")
-	want := "x := 1 <i>// comment</i>\n"
-	if got != want {
-		t.Errorf("renderCode() = %q, want %q", got, want)
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{
+			input: "x := 1 // comment\n",
+			want:  "x := 1 <comment>// comment</comment>\n",
+		},
+		{
+			input: "type Foo struct {}\n",
+			want:  "type <defn>Foo</defn> struct {}\n",
+		},
+		{
+			input: "func bar() {}\n",
+			want:  "func <defn>bar</defn>() {}\n",
+		},
+		{
+			input: "func (*Foo) moo() {}\n",
+			want:  "func (*Foo) <defn>moo</defn>() {}\n",
+		},
+		{
+			input: "func (f Foo) moo() {}\n",
+			want:  "func (f Foo) <defn>moo</defn>() {}\n",
+		},
+	}
+	for _, tt := range tests {
+		got := renderCode(tt.input)
+		if got != tt.want {
+			t.Errorf("renderCode(%q) = %q, want %q", tt.input, got, tt.want)
+		}
 	}
 }

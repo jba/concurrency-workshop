@@ -263,20 +263,67 @@ func renderCode(s string) string {
 		if i > 0 {
 			result.WriteByte('\n')
 		}
-		// Check for line comment
+		// Split off comment if present
+		code, comment := line, ""
 		if idx := strings.Index(line, "//"); idx >= 0 {
-			result.WriteString(html.EscapeString(line[:idx]))
-			result.WriteString("<i>")
-			result.WriteString(html.EscapeString(line[idx:]))
-			result.WriteString("</i>")
-		} else {
-			result.WriteString(html.EscapeString(line))
+			code, comment = line[:idx], line[idx:]
+		}
+		// Render code portion with definition highlighting
+		result.WriteString(renderCodeLine(code))
+		// Render comment if present
+		if comment != "" {
+			result.WriteString("<comment>")
+			result.WriteString(html.EscapeString(comment))
+			result.WriteString("</comment>")
 		}
 	}
 	out := result.String()
 	out = strings.ReplaceAll(out, "\x00em\x00", "<b>")
 	out = strings.ReplaceAll(out, "\x00/em\x00", "</b>")
 	return out
+}
+
+func renderCodeLine(line string) string {
+	trimmed := strings.TrimLeft(line, " \t")
+	indent := line[:len(line)-len(trimmed)]
+
+	// Check for type definition: "type NAME"
+	if name, ok := strings.CutPrefix(trimmed, "type "); ok {
+		// Extract the type name (first word)
+		parts := strings.Fields(name)
+		if len(parts) > 0 {
+			typeName := parts[0]
+			rest := strings.TrimPrefix(name, typeName)
+			return html.EscapeString(indent) + "type <defn>" + html.EscapeString(typeName) + "</defn>" + html.EscapeString(rest)
+		}
+	}
+
+	// Check for func/method definition: "func NAME(" or "func (receiver) NAME("
+	if rest, ok := strings.CutPrefix(trimmed, "func "); ok {
+		// Check if it's a method (starts with receiver)
+		if strings.HasPrefix(rest, "(") {
+			// Find closing paren of receiver
+			if idx := strings.Index(rest, ") "); idx >= 0 {
+				receiver := rest[:idx+1]
+				afterReceiver := rest[idx+2:]
+				// Extract method name
+				if parenIdx := strings.Index(afterReceiver, "("); parenIdx >= 0 {
+					methodName := afterReceiver[:parenIdx]
+					afterName := afterReceiver[parenIdx:]
+					return html.EscapeString(indent) + "func " + html.EscapeString(receiver+" ") + "<defn>" + html.EscapeString(methodName) + "</defn>" + html.EscapeString(afterName)
+				}
+			}
+		} else {
+			// Regular function: "func NAME("
+			if parenIdx := strings.Index(rest, "("); parenIdx >= 0 {
+				funcName := rest[:parenIdx]
+				afterName := rest[parenIdx:]
+				return html.EscapeString(indent) + "func <defn>" + html.EscapeString(funcName) + "</defn>" + html.EscapeString(afterName)
+			}
+		}
+	}
+
+	return html.EscapeString(line)
 }
 
 func renderMarkdown(s string) string {
