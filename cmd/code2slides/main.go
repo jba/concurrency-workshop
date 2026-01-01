@@ -31,7 +31,7 @@ const (
 	sectionHTML
 )
 
-func kindName(k sectionKind) string {
+func (k sectionKind) String() string {
 	switch k {
 	case sectionNote:
 		return "note"
@@ -186,7 +186,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 		switch first {
 		case "code":
 			if inSection {
-				return nil, fmt.Errorf("code inside %s", kindName(currentKind))
+				return nil, fmt.Errorf("code inside %s", currentKind)
 			}
 			currentKind = sectionCode
 			inSection = true
@@ -200,7 +200,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 			inSection = false
 		case "note":
 			if inSection {
-				return nil, fmt.Errorf("note inside %s", kindName(currentKind))
+				return nil, fmt.Errorf("note inside %s", currentKind)
 			}
 			currentKind = sectionNote
 			inSection = true
@@ -215,7 +215,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 			inSection = false
 		case "text":
 			if inSection {
-				return nil, fmt.Errorf("text inside %s", kindName(currentKind))
+				return nil, fmt.Errorf("text inside %s", currentKind)
 			}
 			currentKind = sectionText
 			inSection = true
@@ -230,7 +230,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 			inSection = false
 		case "question":
 			if inSection {
-				return nil, fmt.Errorf("question inside %s", kindName(currentKind))
+				return nil, fmt.Errorf("question inside %s", currentKind)
 			}
 			currentKind = sectionQuestion
 			inSection = true
@@ -262,19 +262,23 @@ func scanFile(filename string) (_ *Slide, err error) {
 			slide.heading = rest
 		case "html":
 			add(sectionHTML, rest)
+		case "flex":
+			add(sectionHTML, "<div class='flex'>")
+		case "!flex":
+			add(sectionHTML, "</div> <!-- flex -->")
 		default:
 			matchFirst = false
 
 		}
 		if !matchFirst {
 			switch line {
-			case "//", "":
-				if inSection && currentKind == sectionCode {
-					current.WriteByte('\n')
-				} else if inSection && current.Len() > 0 {
-					add(currentKind, current.String())
-					current.Reset()
-				}
+			// case "//", "":
+			// 	if inSection && currentKind == sectionCode {
+			// 		current.WriteByte('\n')
+			// 	} else if inSection && current.Len() > 0 {
+			// 		add(currentKind, current.String())
+			// 		current.Reset()
+			// 	}
 			case "*/":
 				if currentKind == sectionText {
 					if current.Len() > 0 {
@@ -302,12 +306,8 @@ func scanFile(filename string) (_ *Slide, err error) {
 						current.WriteByte('\n')
 					}
 				} else if inSection {
-					// Strip // prefix if present (for // text style), otherwise use line as-is (for /* text style)
-					text, ok := strings.CutPrefix(line, "// ")
-					if !ok {
-						text = line
-					}
-					current.WriteString(text)
+					// Strip // prefix if present
+					current.WriteString(strings.TrimSpace(strings.TrimPrefix(line, "//")))
 					current.WriteByte('\n')
 				}
 			}
@@ -317,7 +317,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 		return nil, err
 	}
 	if inSection {
-		return nil, fmt.Errorf("%s:%d: unclosed %s section", filename, lineNum, kindName(currentKind))
+		return nil, fmt.Errorf("unclosed %s section", currentKind)
 	}
 
 	return slide, nil
@@ -346,7 +346,9 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 			fmt.Fprintln(w, "</pre>") // indenting adds a blank line
 			w.close("</div>")
 		case sectionText:
+			w.open("<div class='text'>")
 			fmt.Fprint(w, renderMarkdown(sec.content))
+			w.close("</div>")
 		case sectionQuestion:
 			fmt.Fprint(w, renderMarkdown(sec.content))
 			if includeNotes {

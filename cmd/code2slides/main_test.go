@@ -48,9 +48,7 @@ func TestScanFile(t *testing.T) {
 	wantSections := []section{
 		{kind: sectionNote, content: "First note.\n"},
 		{kind: sectionCode, content: "func foo() {}"},
-		{kind: sectionNote, content: "Second note.\n"},
-		{kind: sectionNote, content: "Third note after blank comment.\n"},
-		{kind: sectionNote, content: "Fourth note after blank line.\n"},
+		{kind: sectionNote, content: "Second note.\n\nThird note after blank comment.\n\nFourth note after blank line.\n"},
 		{kind: sectionCode, content: "func bar() {}"},
 		{kind: sectionQuestion, content: "What is the answer?\n"},
 		{kind: sectionAnswer, content: "The answer is 42.\n"},
@@ -58,7 +56,7 @@ func TestScanFile(t *testing.T) {
 	}
 
 	if !slices.Equal(slide.sections, wantSections) {
-		t.Errorf("sections = %v, want %v", slide.sections, wantSections)
+		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
 	}
 }
 
@@ -72,10 +70,10 @@ func TestRenderMarkdown(t *testing.T) {
 
 func TestSplitFirstWord(t *testing.T) {
 	tests := []struct {
-		input     string
-		wantWord  string
-		wantRest  string
-		wantOK    bool
+		input    string
+		wantWord string
+		wantRest string
+		wantOK   bool
 	}{
 		{"// code", "code", "", true},
 		{"// heading Title", "heading", "Title", true},

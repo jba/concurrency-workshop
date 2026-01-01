@@ -240,6 +240,12 @@ li {
 }
 
 div.code, div.output {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+}
+
+div.output {
   margin: 0;
   padding: 0;
 }
