@@ -174,6 +174,10 @@ func scanFile(filename string) (_ *Slide, err error) {
 		}
 	}()
 
+	add := func(k sectionKind, c string) {
+		slide.sections = append(slide.sections, section{kind: k, content: c})
+	}
+
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
@@ -192,8 +196,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 				return nil, errors.New("!code without matching code")
 			}
 			// Trim trailing blank line
-			content := strings.TrimSuffix(current.String(), "\n")
-			slide.sections = append(slide.sections, section{kind: currentKind, content: content})
+			add(currentKind, strings.TrimSuffix(current.String(), "\n"))
 			inSection = false
 		case "note":
 			if inSection {
@@ -207,7 +210,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 				return nil, errors.New("!note without matching note")
 			}
 			if current.Len() > 0 {
-				slide.sections = append(slide.sections, section{kind: sectionNote, content: current.String()})
+				add(sectionNote, current.String())
 			}
 			inSection = false
 		case "text":
@@ -222,7 +225,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 				return nil, errors.New("!text without matching text")
 			}
 			if current.Len() > 0 {
-				slide.sections = append(slide.sections, section{kind: sectionText, content: current.String()})
+				add(sectionText, current.String())
 			}
 			inSection = false
 		case "question":
@@ -237,7 +240,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 				return nil, errors.New("answer without matching question")
 			}
 			if current.Len() > 0 {
-				slide.sections = append(slide.sections, section{kind: sectionQuestion, content: current.String()})
+				add(sectionQuestion, current.String())
 			}
 			currentKind = sectionAnswer
 			current.Reset()
@@ -249,7 +252,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 				return nil, errors.New("!question without answer")
 			}
 			if current.Len() > 0 {
-				slide.sections = append(slide.sections, section{kind: sectionAnswer, content: current.String()})
+				add(sectionAnswer, current.String())
 			}
 			inSection = false
 		case "heading":
@@ -258,8 +261,7 @@ func scanFile(filename string) (_ *Slide, err error) {
 			}
 			slide.heading = rest
 		case "html":
-			slide.sections = append(slide.sections,
-				section{kind: sectionHTML, content: rest})
+			add(sectionHTML, rest)
 		default:
 			matchFirst = false
 
@@ -270,13 +272,13 @@ func scanFile(filename string) (_ *Slide, err error) {
 				if inSection && currentKind == sectionCode {
 					current.WriteByte('\n')
 				} else if inSection && current.Len() > 0 {
-					slide.sections = append(slide.sections, section{kind: currentKind, content: current.String()})
+					add(currentKind, current.String())
 					current.Reset()
 				}
 			case "*/":
 				if currentKind == sectionText {
 					if current.Len() > 0 {
-						slide.sections = append(slide.sections, section{kind: sectionText, content: current.String()})
+						add(sectionText, current.String())
 					}
 					inSection = false
 					continue
