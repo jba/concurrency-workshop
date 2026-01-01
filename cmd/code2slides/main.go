@@ -22,7 +22,8 @@ type Slide struct {
 type sectionKind int
 
 const (
-	sectionNote sectionKind = iota
+	sectionUndefined sectionKind = iota
+	sectionNote
 	sectionCode
 	sectionQuestion
 	sectionAnswer
@@ -145,8 +146,8 @@ func processFile(w *indentWriter, filename string, pageNum int) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(w)
-	w.linef("<!-- %s -->", filename)
+
+	w.linef("\n<!-- %s -->", filename)
 	writeSlideHTML(w, slide, pageNum)
 	return w.Err()
 }
@@ -170,15 +171,17 @@ func scanFile(filename string) (*Slide, error) {
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
-		switch line {
-		case "// code":
+		first, rest, _ := splitFirstWord(line)
+		matchFirst := true
+		switch first {
+		case "code":
 			if inSection {
 				return nil, fmt.Errorf("%s:%d: code inside %s", filename, lineNum, kindName(currentKind))
 			}
 			currentKind = sectionCode
 			inSection = true
 			current.Reset()
-		case "// !code":
+		case "!code":
 			if !inSection || (currentKind != sectionCode) {
 				return nil, fmt.Errorf("%s:%d: !code without matching code", filename, lineNum)
 			}
@@ -186,14 +189,14 @@ func scanFile(filename string) (*Slide, error) {
 			content := strings.TrimSuffix(current.String(), "\n")
 			slide.sections = append(slide.sections, section{kind: currentKind, content: content})
 			inSection = false
-		case "// note":
+		case "note":
 			if inSection {
 				return nil, fmt.Errorf("%s:%d: note inside %s", filename, lineNum, kindName(currentKind))
 			}
 			currentKind = sectionNote
 			inSection = true
 			current.Reset()
-		case "// !note":
+		case "!note":
 			if !inSection || currentKind != sectionNote {
 				return nil, fmt.Errorf("%s:%d: !note without matching note", filename, lineNum)
 			}
@@ -201,33 +204,29 @@ func scanFile(filename string) (*Slide, error) {
 				slide.sections = append(slide.sections, section{kind: sectionNote, content: current.String()})
 			}
 			inSection = false
-		case "// text", "/* text":
+		case "text":
 			if inSection {
 				return nil, fmt.Errorf("%s:%d: text inside %s", filename, lineNum, kindName(currentKind))
 			}
 			currentKind = sectionText
 			inSection = true
 			current.Reset()
-		case "// !text", "*/":
+		case "!text":
 			if !inSection || currentKind != sectionText {
-				if line == "*/" {
-					// */ outside text section is just regular content
-					break
-				}
 				return nil, fmt.Errorf("%s:%d: !text without matching text", filename, lineNum)
 			}
 			if current.Len() > 0 {
 				slide.sections = append(slide.sections, section{kind: sectionText, content: current.String()})
 			}
 			inSection = false
-		case "// question":
+		case "question":
 			if inSection {
 				return nil, fmt.Errorf("%s:%d: question inside %s", filename, lineNum, kindName(currentKind))
 			}
 			currentKind = sectionQuestion
 			inSection = true
 			current.Reset()
-		case "// answer":
+		case "answer":
 			if !inSection || currentKind != sectionQuestion {
 				return nil, fmt.Errorf("%s:%d: answer without matching question", filename, lineNum)
 			}
@@ -236,7 +235,7 @@ func scanFile(filename string) (*Slide, error) {
 			}
 			currentKind = sectionAnswer
 			current.Reset()
-		case "// !question":
+		case "!question":
 			if !inSection || (currentKind != sectionQuestion && currentKind != sectionAnswer) {
 				return nil, fmt.Errorf("%s:%d: !question without matching question", filename, lineNum)
 			}
@@ -247,43 +246,62 @@ func scanFile(filename string) (*Slide, error) {
 				slide.sections = append(slide.sections, section{kind: sectionAnswer, content: current.String()})
 			}
 			inSection = false
-		case "//", "":
-			if inSection && currentKind == sectionCode {
-				current.WriteByte('\n')
-			} else if inSection && current.Len() > 0 {
-				slide.sections = append(slide.sections, section{kind: currentKind, content: current.String()})
-				current.Reset()
+		case "heading":
+			if rest == "" {
+				return nil, errors.New("missing heading")
 			}
+			slide.heading = rest
+		case "html":
+			slide.sections = append(slide.sections,
+				section{kind: sectionHTML, content: rest})
 		default:
-			if h, ok := strings.CutPrefix(line, "// heading "); ok {
-				slide.heading = h
-			} else if html, ok := strings.CutPrefix(line, "// html "); ok {
-				slide.sections = append(slide.sections,
-					section{kind: sectionHTML, content: html})
-			} else if inSection && (currentKind == sectionCode) {
-				trimmed := strings.TrimLeft(line, " \t")
-				switch trimmed {
-				case "// em":
-					current.WriteString("\x00em\x00")
-				case "// !em":
-					// Trim trailing blank line before closing em
-					s := strings.TrimSuffix(current.String(), "\n")
+			matchFirst = false
+
+		}
+		if !matchFirst {
+			switch line {
+			case "//", "":
+				if inSection && currentKind == sectionCode {
+					current.WriteByte('\n')
+				} else if inSection && current.Len() > 0 {
+					slide.sections = append(slide.sections, section{kind: currentKind, content: current.String()})
 					current.Reset()
-					current.WriteString(s)
-					current.WriteString("\x00/em\x00")
-					current.WriteByte('\n')
-				default:
-					current.WriteString(line)
+				}
+			case "*/":
+				if currentKind == sectionText {
+					if current.Len() > 0 {
+						slide.sections = append(slide.sections, section{kind: sectionText, content: current.String()})
+					}
+					inSection = false
+					continue
+				}
+				fallthrough
+			default:
+				if inSection && (currentKind == sectionCode) {
+					trimmed := strings.TrimLeft(line, " \t")
+					switch trimmed {
+					case "// em":
+						current.WriteString("\x00em\x00")
+					case "// !em":
+						// Trim trailing blank line before closing em
+						s := strings.TrimSuffix(current.String(), "\n")
+						current.Reset()
+						current.WriteString(s)
+						current.WriteString("\x00/em\x00")
+						current.WriteByte('\n')
+					default:
+						current.WriteString(line)
+						current.WriteByte('\n')
+					}
+				} else if inSection {
+					// Strip // prefix if present (for // text style), otherwise use line as-is (for /* text style)
+					text, ok := strings.CutPrefix(line, "// ")
+					if !ok {
+						text = line
+					}
+					current.WriteString(text)
 					current.WriteByte('\n')
 				}
-			} else if inSection {
-				// Strip // prefix if present (for // text style), otherwise use line as-is (for /* text style)
-				text, ok := strings.CutPrefix(line, "// ")
-				if !ok {
-					text = line
-				}
-				current.WriteString(text)
-				current.WriteByte('\n')
 			}
 		}
 	}
@@ -295,6 +313,18 @@ func scanFile(filename string) (*Slide, error) {
 	}
 
 	return slide, nil
+}
+
+func splitFirstWord(s string) (string, string, bool) {
+	if !strings.HasPrefix(s, "//") && !strings.HasPrefix(s, "/*") {
+		return "", "", false
+	}
+	s = strings.TrimSpace(s[2:])
+	i := strings.IndexAny(s, " \t")
+	if i < 0 {
+		return s, "", true
+	}
+	return s[:i], strings.TrimSpace(s[i+1:]), true
 }
 
 func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {

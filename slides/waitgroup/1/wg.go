@@ -11,34 +11,30 @@ package wg
 // the number of active goroutines.
 // !note
 
-// html <div class='flex'>
 // code
 type WaitGroup struct {
 	count int // number of active goroutines
 }
 
 func (g *WaitGroup) Go(f func()) {
-	g.add(1)
+	g.Add(1)
 	go func() {
-		defer g.add(-1)
+		defer g.Done()
 		f()
 	}()
 }
 
-func (g *WaitGroup) add(n int) {
+func (g *WaitGroup) Add(n int) {
 	g.count += n
 }
+
+func (g *WaitGroup) Done() { g.Add(-1) }
 
 func (g *WaitGroup) Wait() {
 	// Wait for g.count to reach 0.
 }
 
 // !code
-// text
-// - Lots of interesting stuff here.
-// - More than you realize.
-// !text
-// html </div>
 
 // question
 // Thoughts?

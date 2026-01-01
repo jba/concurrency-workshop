@@ -17,21 +17,23 @@ type WaitGroup struct {
 }
 
 func (g *WaitGroup) Go(f func()) {
-	g.add(1)
+	g.Add(1)
 	go func() {
-		defer g.add(-1)
+		defer g.Done()
 		f()
 	}()
 }
 
 // em
-func (g *WaitGroup) add(n int) {
+func (g *WaitGroup) Add(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.count += n
 }
 
 // !em
+
+func (g *WaitGroup) Done() { g.Add(-1) }
 
 func (g *WaitGroup) Wait() {
 	// Wait for g.count to reach 0.

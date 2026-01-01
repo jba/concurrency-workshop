@@ -12,42 +12,38 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- 1/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/1/wg.go -->
 <article>
   <h1>Implementing WaitGroup</h1>
-  <div class='flex'>
   <div class='code'><pre>
 type <defn>WaitGroup</defn> struct {
     count int <comment>// number of active goroutines</comment>
 }
 
 func (g *WaitGroup) <defn>Go</defn>(f func()) {
-    g.add(1)
+    g.Add(1)
     go func() {
-        defer g.add(-1)
+        defer g.Done()
         f()
     }()
 }
 
-func (g *WaitGroup) <defn>add</defn>(n int) {
+func (g *WaitGroup) <defn>Add</defn>(n int) {
     g.count += n
 }
+
+func (g *WaitGroup) <defn>Done</defn>() { g.Add(-1) }
 
 func (g *WaitGroup) <defn>Wait</defn>() {
     <comment>// Wait for g.count to reach 0.</comment>
 }
 </pre>
   </div>
-<ul>
-<li>Lots of interesting stuff here.</li>
-<li>More than you realize.</li>
-</ul>
-  </div>
 <p>Thoughts?</p>
   <span class='pagenumber'>1</span>
 </article>
 
-<!-- 2/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/2/wg.go -->
 <article>
   <h1>WaitGroup with a mutex</h1>
   <div class='code'><pre>
@@ -57,18 +53,20 @@ type <defn>WaitGroup</defn> struct {
 }
 
 func (g *WaitGroup) <defn>Go</defn>(f func()) {
-    g.add(1)
+    g.Add(1)
     go func() {
-        defer g.add(-1)
+        defer g.Done()
         f()
     }()
 }
 
-<b>func (g *WaitGroup) <defn>add</defn>(n int) {
+<b>func (g *WaitGroup) <defn>Add</defn>(n int) {
     g.mu.Lock()
     defer g.mu.Unlock()
     g.count += n
 }
+
+func (g *WaitGroup) <defn>Done</defn>() { g.Add(-1) }
 </b>
 
 func (g *WaitGroup) <defn>Wait</defn>() {
@@ -79,14 +77,11 @@ func (g *WaitGroup) <defn>Wait</defn>() {
   <span class='pagenumber'>2</span>
 </article>
 
-<!-- 3/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/3/wg.go -->
 <article>
   <h1>WaitGroup with atomics</h1>
 <ul>
 <li>Atomics work well here, for now</li>
-</ul>
-<ul>
-<li>Trouble with <code>Wait</code></li>
 </ul>
 <ul>
 <li>Stdlib implementation uses them</li>
@@ -97,17 +92,19 @@ type <defn>WaitGroup</defn> struct {
 }
 
 func (g *WaitGroup) <defn>Go</defn>(f func()) {
-    g.add(1)
+    g.Add(1)
     go func() {
-        defer g.add(-1)
+        defer g.Add(-1)
         f()
     }()
 }
 
-<b>func (g *WaitGroup) <defn>add</defn>(n int) {
+<b>func (g *WaitGroup) <defn>Add</defn>(n int) {
     g.count.Add(int64(n))
 }
 </b>
+
+func (g *WaitGroup) <defn>Done</defn>() { g.Add(-1) }
 
 func (g *WaitGroup) <defn>Wait</defn>() {
     <comment>// Wait for g.count to reach 0.</comment>
@@ -117,7 +114,7 @@ func (g *WaitGroup) <defn>Wait</defn>() {
   <span class='pagenumber'>3</span>
 </article>
 
-<!-- 4/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/4/wg.go -->
 <article>
   <h1>The Wait method</h1>
   <div class='code'><pre>
@@ -149,7 +146,7 @@ func (g *WaitGroup) <defn>add</defn>(n int) {
   <span class='pagenumber'>4</span>
 </article>
 
-<!-- 5/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/5/wg.go -->
 <article>
   <h1>Fixing busy-waiting Wait</h1>
 <ul>
@@ -195,7 +192,7 @@ func (g *WaitGroup) <defn>Wait</defn>() {
   <span class='pagenumber'>5</span>
 </article>
 
-<!-- 6/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/6/wg.go -->
 <article>
   <h1>Back to a mutex</h1>
 <p>Need a mutex to perform more than one operation atomically</p>
@@ -244,7 +241,7 @@ group of goroutines completes, the channel is nil, and <code>Wait</code> will ne
   <span class='pagenumber'>6</span>
 </article>
 
-<!-- 7/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/7/wg.go -->
 <article>
   <h1>Fixing the race</h1>
 <ul>
@@ -295,7 +292,7 @@ func (g *WaitGroup) <defn>add</defn>(n int) {
   <span class='pagenumber'>7</span>
 </article>
 
-<!-- 8/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/8/wg.go -->
 <article>
   <h1>Fix to previous</h1>
 <ul>
@@ -342,7 +339,7 @@ func (g *WaitGroup) <defn>Wait</defn>() {
   <span class='pagenumber'>8</span>
 </article>
 
-<!-- 9/wg.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/9/wg.go -->
 <article>
   <h1>The real thing</h1>
 <p>Actual sync.WaitGroup implementation</p>

@@ -70,6 +70,31 @@ func TestRenderMarkdown(t *testing.T) {
 	}
 }
 
+func TestSplitFirstWord(t *testing.T) {
+	tests := []struct {
+		input     string
+		wantWord  string
+		wantRest  string
+		wantOK    bool
+	}{
+		{"// code", "code", "", true},
+		{"// heading Title", "heading", "Title", true},
+		{"/* text", "text", "", true},
+		{"// html <div>foo</div>", "html", "<div>foo</div>", true},
+		{"//code", "code", "", true},
+		{"//  spaced   rest", "spaced", "rest", true},
+		{"not a comment", "", "", false},
+		{"/ not a comment", "", "", false},
+	}
+	for _, tt := range tests {
+		word, rest, ok := splitFirstWord(tt.input)
+		if word != tt.wantWord || rest != tt.wantRest || ok != tt.wantOK {
+			t.Errorf("splitFirstWord(%q) = (%q, %q, %v), want (%q, %q, %v)",
+				tt.input, word, rest, ok, tt.wantWord, tt.wantRest, tt.wantOK)
+		}
+	}
+}
+
 func TestRenderCode(t *testing.T) {
 	tests := []struct {
 		input string
