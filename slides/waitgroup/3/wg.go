@@ -6,13 +6,7 @@ import (
 
 // heading WaitGroup with atomics
 
-// flex
-/* text
-- Atomics work well here, for now
-
-- Stdlib implementation uses them
-*/
-
+// div.flex
 // code
 type WaitGroup struct {
 	// em
@@ -42,4 +36,10 @@ func (g *WaitGroup) Wait() {
 }
 
 // !code
-// !flex
+/* text
+- Atomics work well here, for now
+
+- Stdlib implementation uses them
+*/
+
+// !div.flex

@@ -93,6 +93,33 @@ func TestSplitFirstWord(t *testing.T) {
 	}
 }
 
+func TestDivClass(t *testing.T) {
+	slide, err := scanFile("testdata/div_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantSections := []section{
+		{kind: sectionHTML, content: `<div class="flex">`},
+		{kind: sectionCode, content: "x := 1"},
+		{kind: sectionHTML, content: "</div> <!-- flex -->"},
+	}
+
+	if !slices.Equal(slide.sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
+	}
+}
+
+func TestDivClassMismatch(t *testing.T) {
+	_, err := scanFile("testdata/div_mismatch.go")
+	if err == nil {
+		t.Fatal("expected error for mismatched div class")
+	}
+	if !strings.Contains(err.Error(), "mismatched div class") {
+		t.Errorf("error = %q, want error containing 'mismatched div class'", err)
+	}
+}
+
 func TestRenderCode(t *testing.T) {
 	tests := []struct {
 		input string

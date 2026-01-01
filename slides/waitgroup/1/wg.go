@@ -11,6 +11,7 @@ package wg
 // the number of active goroutines.
 // !note
 
+// div.flex
 // code
 type WaitGroup struct {
 	count int // number of active goroutines
@@ -36,9 +37,21 @@ func (g *WaitGroup) Wait() {
 
 // !code
 
+// html <div> <!-- one child for flex -->
+
+// html <div style="height: 5em"></div>
+
+// text
+// See [this CL](https://go-review.git.corp.google.com/c/go/+/717760)
+// for a recent, subtle change to `Go`.
+// !text
+// html <div style="height: 5em"></div>
+
 // question
-// Thoughts?
+// Any thoughts about how we're using `count`?
 // answer
 // The problem is that there is no synchronization.
 // `Go` should be goroutine-safe.
 // !question
+// html </div>
+// !div.flex

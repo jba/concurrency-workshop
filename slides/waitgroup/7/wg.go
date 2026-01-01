@@ -9,7 +9,7 @@ import "sync"
 // - But _accessing a variable_ (even one holding a channel) is not
 // !text
 
-// html <div class='flex'>
+// div.flex
 // code
 type WaitGroup struct {
 	mu    sync.Mutex
@@ -50,7 +50,7 @@ func (g *WaitGroup) Wait() {
 
 // !em
 // !code
-// html </div>
+// !div.flex
 
 // question
 // Find the bug.

@@ -17,7 +17,7 @@ import "sync/atomic"
 // If we sent something to the channel, that would only wake up one reader.
 // !note
 
-// html <div class="flex">
+// div.flex
 // code
 type WaitGroup struct {
 	count atomic.Int64 // number of active goroutines
@@ -57,7 +57,7 @@ func (g *WaitGroup) Wait() {
 
 // !code
 
-// html </div> <!-- flex -->
+// !div.flex
 
 // question
 // What should the body of Wait be?

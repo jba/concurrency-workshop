@@ -15,6 +15,7 @@
 <!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/1/wg.go -->
 <article>
   <h1>Implementing WaitGroup</h1>
+  <div class="flex">
   <div class='code'><pre>
 type <defn>WaitGroup</defn> struct {
     count int <comment>// number of active goroutines</comment>
@@ -39,7 +40,20 @@ func (g *WaitGroup) <defn>Wait</defn>() {
 }
 </pre>
   </div>
-<p>Thoughts?</p>
+  <div> <!-- one child for flex -->
+  <div style="height: 5em"></div>
+  <div class='text'>
+<p>See <a href="https://go-review.git.corp.google.com/c/go/+/717760">this CL</a>
+for a recent, subtle change to <code>Go</code>.</p>
+  </div>
+  <div style="height: 5em"></div>
+<p>Any thoughts about how we're using <code>count</code>?</p>
+  <details><summary></summary>
+<p>The problem is that there is no synchronization.
+<code>Go</code> should be goroutine-safe.</p>
+  </details>
+  </div>
+  </div> <!-- flex -->
   <span class='pagenumber'>1</span>
 </article>
 
@@ -80,17 +94,7 @@ func (g *WaitGroup) <defn>Wait</defn>() {
 <!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/3/wg.go -->
 <article>
   <h1>WaitGroup with atomics</h1>
-  <div class='flex'>
-  <div class='text'>
-<ul>
-<li>
-<p>Atomics work well here, for now</p>
-</li>
-<li>
-<p>Stdlib implementation uses them</p>
-</li>
-</ul>
-  </div>
+  <div class="flex">
   <div class='code'><pre>
 type <defn>WaitGroup</defn> struct {
 <b>    count atomic.Int64 <comment>// number of active goroutines</b></comment>
@@ -116,6 +120,16 @@ func (g *WaitGroup) <defn>Wait</defn>() {
 }
 </pre>
   </div>
+  <div class='text'>
+<ul>
+<li>
+<p>Atomics work well here, for now</p>
+</li>
+<li>
+<p>Stdlib implementation uses them</p>
+</li>
+</ul>
+  </div>
   </div> <!-- flex -->
   <span class='pagenumber'>3</span>
 </article>
@@ -123,22 +137,25 @@ func (g *WaitGroup) <defn>Wait</defn>() {
 <!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/waitgroup/4/wg.go -->
 <article>
   <h1>The Wait method</h1>
+  <div class="flex">
   <div class='code'><pre>
 type <defn>WaitGroup</defn> struct {
     count atomic.Int64 <comment>// number of active goroutines</comment>
 }
 
 func (g *WaitGroup) <defn>Go</defn>(f func()) {
-    g.add(1)
+    g.Add(1)
     go func() {
-        defer g.add(-1)
+        defer g.Add(-1)
         f()
     }()
 }
 
-func (g *WaitGroup) <defn>add</defn>(n int) {
+func (g *WaitGroup) <defn>Add</defn>(n int) {
     g.count.Add(int64(n))
 }
+
+func (g *WaitGroup) <defn>Done</defn>() { g.Add(-1) }
 
 <b>func (g *WaitGroup) <defn>Wait</defn>() {
     for g.count.Load() &gt; 0 {
@@ -147,8 +164,64 @@ func (g *WaitGroup) <defn>add</defn>(n int) {
 }
 </b></pre>
   </div>
+  <div> <!-- one child for flex -->
 <p>What's wrong with busy-waiting?</p>
+  <details><summary></summary>
+<ul>
+<li>Sleep too long: waste time</li>
+<li>Sleep too short: waste CPU</li>
+</ul>
+  </details>
 <p>Find the bug.</p>
+  <details><summary></summary>
+<p><code>Wait</code> might not notice a 0 count.</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Add(1)</td>
+</tr>
+<tr>
+<td>Load</td>
+<td></td>
+</tr>
+<tr>
+<td>Sleep</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Done()</td>
+</tr>
+<tr>
+<td></td>
+<td>Add(1)</td>
+</tr>
+<tr>
+<td>Load</td>
+<td></td>
+</tr>
+<tr>
+<td>Sleep</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="font-size: 50%">
+(Technically, this is disallowed:
+"Note that calls with a positive delta that occur when the counter is zero must happen before a Wait.")
+</div>
+  </details>
+  </div>
+  </div> <!-- flex -->
   <span class='pagenumber'>4</span>
 </article>
 
@@ -196,7 +269,16 @@ func (g *WaitGroup) <defn>Wait</defn>() {
   </div>
   </div> <!-- flex -->
 <p>What should the body of Wait be?</p>
+  <details><summary></summary>
+<p><code>&lt;-g.done</code>
+That's it!</p>
+  </details>
 <p>Find the bug in <code>add</code>.</p>
+  <details><summary></summary>
+<p>Two goroutines may both end up on <code>if c == 0</code> with c == 0.
+(How?)
+Closing a channel for a second time panics.</p>
+  </details>
   <span class='pagenumber'>5</span>
 </article>
 
@@ -243,11 +325,17 @@ func (g *WaitGroup) <defn>Wait</defn>() {
 }
 </pre>
   </div>
-  </div>
+  </div> <!-- flex -->
 <p>Find the race condition.</p>
+  <details><summary></summary>
+<p>Wait reads <code>g.done</code> without the lock.</p>
+  </details>
 <p>This WaitGroup can't be used for a second wave of <code>Go</code> calls: once the first
 group of goroutines completes, the channel is nil, and <code>Wait</code> will never return.</p>
 <p>How can we fix that?</p>
+  <details><summary></summary>
+<p>TODO</p>
+  </details>
   <span class='pagenumber'>6</span>
 </article>
 
@@ -260,7 +348,7 @@ group of goroutines completes, the channel is nil, and <code>Wait</code> will ne
 <li>But <em>accessing a variable</em> (even one holding a channel) is not</li>
 </ul>
   </div>
-  <div class='flex'>
+  <div class="flex">
   <div class='code'><pre>
 type <defn>WaitGroup</defn> struct {
     mu    sync.Mutex
@@ -299,8 +387,11 @@ func (g *WaitGroup) <defn>add</defn>(n int) {
 }
 </b></pre>
   </div>
-  </div>
+  </div> <!-- flex -->
 <p>Find the bug.</p>
+  <details><summary></summary>
+<p><code>Wait</code> holds the mutex while it's waiting, so <code>add</code> can't run to decrement the counter.</p>
+  </details>
   <span class='pagenumber'>7</span>
 </article>
 

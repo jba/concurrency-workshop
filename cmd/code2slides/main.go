@@ -163,8 +163,11 @@ func scanFile(filename string) (_ *Slide, err error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	var current strings.Builder
-	var currentKind sectionKind
+	var (
+		current     strings.Builder
+		currentKind sectionKind
+		divClass    string
+	)
 	inSection := false
 	lineNum := 0
 
@@ -262,15 +265,22 @@ func scanFile(filename string) (_ *Slide, err error) {
 			slide.heading = rest
 		case "html":
 			add(sectionHTML, rest)
-		case "flex":
-			add(sectionHTML, "<div class='flex'>")
-		case "!flex":
-			add(sectionHTML, "</div> <!-- flex -->")
 		default:
 			matchFirst = false
-
 		}
 		if !matchFirst {
+			if d, c, ok := strings.Cut(first, "."); ok {
+				if d == "div" {
+					add(sectionHTML, fmt.Sprintf("<div class=%q>", c))
+					divClass = c
+				} else if d == "!div" {
+					if c != divClass {
+						return nil, fmt.Errorf("mismatched div class: start %q, end %q", divClass, c)
+					}
+					add(sectionHTML, fmt.Sprintf("</div> <!-- %s -->", c))
+					divClass = ""
+				}
+			}
 			switch line {
 			// case "//", "":
 			// 	if inSection && currentKind == sectionCode {
@@ -351,14 +361,10 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 			w.close("</div>")
 		case sectionQuestion:
 			fmt.Fprint(w, renderMarkdown(sec.content))
-			if includeNotes {
-				fmt.Fprintln(w, "  <details><summary></summary>")
-			}
+			fmt.Fprintln(w, "  <details><summary></summary>")
 		case sectionAnswer:
-			if includeNotes {
-				fmt.Fprint(w, renderMarkdown(sec.content))
-				fmt.Fprintln(w, "  </details>")
-			}
+			fmt.Fprint(w, renderMarkdown(sec.content))
+			fmt.Fprintln(w, "  </details>")
 		case sectionNote:
 			if includeNotes {
 				fmt.Fprint(w, renderMarkdown(sec.content))
@@ -454,6 +460,7 @@ func renderCodeLine(line string) string {
 
 func renderMarkdown(s string) string {
 	var p markdown.Parser
+	p.Table = true
 	doc := p.Parse(s)
 	return markdown.ToHTML(doc)
 }

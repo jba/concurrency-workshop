@@ -8,7 +8,7 @@ import "sync"
 // Need a mutex to perform more than one operation atomically
 // !text
 
-// html <div class="flex">
+// div.flex
 // code
 type WaitGroup struct {
 	mu    sync.Mutex
@@ -47,7 +47,7 @@ func (g *WaitGroup) Wait() {
 }
 
 // !code
-// html </div>
+// !div.flex
 
 // question
 // Find the race condition.

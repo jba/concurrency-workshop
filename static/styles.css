@@ -316,6 +316,7 @@ article.background {
   background-repeat: round;
 }
 
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -330,6 +331,16 @@ th {
   border: 1px solid rgb(224, 224, 224);
   padding: 5px 10px;
   vertical-align: top;
+}
+
+div.interleave table {
+  border: 0px;
+  width: auto;
+}
+
+div.interleave td {
+  border-left, border-right: 1px;
+  border-top, border-bottom: 0px;
 }
 
 p.link {
