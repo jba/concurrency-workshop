@@ -152,7 +152,7 @@ func processFile(w *indentWriter, filename string, pageNum int) error {
 	return w.Err()
 }
 
-func scanFile(filename string) (*Slide, error) {
+func scanFile(filename string) (_ *Slide, err error) {
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -168,6 +168,12 @@ func scanFile(filename string) (*Slide, error) {
 	inSection := false
 	lineNum := 0
 
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("%s:%d: %v", filename, lineNum, err)
+		}
+	}()
+
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
@@ -176,14 +182,14 @@ func scanFile(filename string) (*Slide, error) {
 		switch first {
 		case "code":
 			if inSection {
-				return nil, fmt.Errorf("%s:%d: code inside %s", filename, lineNum, kindName(currentKind))
+				return nil, fmt.Errorf("code inside %s", kindName(currentKind))
 			}
 			currentKind = sectionCode
 			inSection = true
 			current.Reset()
 		case "!code":
 			if !inSection || (currentKind != sectionCode) {
-				return nil, fmt.Errorf("%s:%d: !code without matching code", filename, lineNum)
+				return nil, errors.New("!code without matching code")
 			}
 			// Trim trailing blank line
 			content := strings.TrimSuffix(current.String(), "\n")
@@ -191,14 +197,14 @@ func scanFile(filename string) (*Slide, error) {
 			inSection = false
 		case "note":
 			if inSection {
-				return nil, fmt.Errorf("%s:%d: note inside %s", filename, lineNum, kindName(currentKind))
+				return nil, fmt.Errorf("note inside %s", kindName(currentKind))
 			}
 			currentKind = sectionNote
 			inSection = true
 			current.Reset()
 		case "!note":
 			if !inSection || currentKind != sectionNote {
-				return nil, fmt.Errorf("%s:%d: !note without matching note", filename, lineNum)
+				return nil, errors.New("!note without matching note")
 			}
 			if current.Len() > 0 {
 				slide.sections = append(slide.sections, section{kind: sectionNote, content: current.String()})
@@ -206,14 +212,14 @@ func scanFile(filename string) (*Slide, error) {
 			inSection = false
 		case "text":
 			if inSection {
-				return nil, fmt.Errorf("%s:%d: text inside %s", filename, lineNum, kindName(currentKind))
+				return nil, fmt.Errorf("text inside %s", kindName(currentKind))
 			}
 			currentKind = sectionText
 			inSection = true
 			current.Reset()
 		case "!text":
 			if !inSection || currentKind != sectionText {
-				return nil, fmt.Errorf("%s:%d: !text without matching text", filename, lineNum)
+				return nil, errors.New("!text without matching text")
 			}
 			if current.Len() > 0 {
 				slide.sections = append(slide.sections, section{kind: sectionText, content: current.String()})
@@ -221,14 +227,14 @@ func scanFile(filename string) (*Slide, error) {
 			inSection = false
 		case "question":
 			if inSection {
-				return nil, fmt.Errorf("%s:%d: question inside %s", filename, lineNum, kindName(currentKind))
+				return nil, fmt.Errorf("question inside %s", kindName(currentKind))
 			}
 			currentKind = sectionQuestion
 			inSection = true
 			current.Reset()
 		case "answer":
 			if !inSection || currentKind != sectionQuestion {
-				return nil, fmt.Errorf("%s:%d: answer without matching question", filename, lineNum)
+				return nil, errors.New("answer without matching question")
 			}
 			if current.Len() > 0 {
 				slide.sections = append(slide.sections, section{kind: sectionQuestion, content: current.String()})
@@ -237,10 +243,10 @@ func scanFile(filename string) (*Slide, error) {
 			current.Reset()
 		case "!question":
 			if !inSection || (currentKind != sectionQuestion && currentKind != sectionAnswer) {
-				return nil, fmt.Errorf("%s:%d: !question without matching question", filename, lineNum)
+				return nil, errors.New("!question without matching question")
 			}
 			if currentKind == sectionQuestion {
-				return nil, fmt.Errorf("%s:%d: !question without answer", filename, lineNum)
+				return nil, errors.New("!question without answer")
 			}
 			if current.Len() > 0 {
 				slide.sections = append(slide.sections, section{kind: sectionAnswer, content: current.String()})
