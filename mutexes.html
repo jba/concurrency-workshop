@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mutexes</title>
+    <meta charset='utf-8'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go -->
+<article>
+  <h1>Interleaving</h1>
+  <div class='text'>
+<p>Goroutines <em>interleave</em> with each other.</p>
+  </div>
+  <div class='code'><pre>
+var c int
+
+func <defn>main</defn>() {
+    var wg sync.WaitGroup
+    wg.Go(count)
+    wg.Go(count)
+    wg.Wait()
+    fmt.Println(c)
+}
+
+func <defn>count</defn>() {
+    for range 20_000 {
+        c++
+    }
+}
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+27357
+</pre>
+  </div>
+  <span class='pagenumber'>1</span>
+</article>
+
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/20/m.go -->
+<article>
+  <h1>The race detector</h1>
+  <div class='text'>
+<p>Data race:</p>
+<ul>
+<li>Two goroutines access the same memory</li>
+<li>At least one writes to it</li>
+<li><em>The accesses aren't synchronized</em></li>
+</ul>
+  </div>
+  <div class="flex">
+  <div> <!-- one child for flex -->
+  <div class='code'><pre>
+var c int
+
+func <defn>main</defn>() {
+    var wg sync.WaitGroup
+    wg.Go(count)
+    wg.Go(count)
+    wg.Wait()
+    fmt.Println(c)
+}
+
+func <defn>count</defn>() {
+    for range 20_000 {
+        c++
+    }
+}
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+27357
+</pre>
+  </div>
+  </div>
+  <div> <!-- one child for flex -->
+  <div class='text'>
+<p><code>go run -race .</code></p>
+  </div>
+<div></div>
+  <div class='output'><pre>
+==================
+WARNING: DATA RACE
+Read at 0x000000612e58 by goroutine 7:
+main.count()
+jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x2c
+sync.(*WaitGroup).Go.func1()
+jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+
+Previous write at 0x000000612e58 by goroutine 8:
+main.count()
+jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x44
+sync.(*WaitGroup).Go.func1()
+jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+</pre>
+  </div>
+  </div>
+  </div> <!-- flex -->
+  <span class='pagenumber'>2</span>
+</article>
+
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/30/m.go -->
+<article>
+  <h1>Interleavings</h1>
+  <div class="flex">
+  <div class='text'>
+<div class='code'><pre>
+c++
+</pre></div>
+<p>is actually</p>
+<div class='code'><pre>
+R0 = c
+R0++
+c = R0
+</pre></div>
+<div style="width: 30vw"></div>
+  </div>
+  <div class='text'>
+<p>What we want:</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c++</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>c++</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>What we might get:</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R0 = c</td>
+<td>R0 = c</td>
+</tr>
+<tr>
+<td>R0++</td>
+<td>R0++</td>
+</tr>
+<tr>
+<td>c = R0</td>
+<td>c = R0</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  </div> <!-- flex -->
+  <span class='pagenumber'>3</span>
+</article>
+
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/40/m.go -->
+<article>
+  <h1>Enter the mutex</h1>
+  <div class="flex">
+  <div class='code'><pre>
+import (
+    &#34;fmt&#34;
+<b>    &#34;sync&#34;</b>
+)
+
+<b>var mu sync.Mutex
+</b>
+var c int
+
+func <defn>main</defn>() {
+    var wg sync.WaitGroup
+    wg.Go(count)
+    wg.Go(count)
+    wg.Wait()
+    fmt.Println(c)
+}
+
+func <defn>count</defn>() {
+    for range 20_000 {
+<b>        mu.Lock()</b>
+        c++
+<b>        mu.Unlock()</b>
+    }
+}
+</pre>
+  </div>
+  <div class='text'>
+<p>Only on goroutine between <code>Lock</code> and <code>Unlock</code></p>
+<p>A mutex limits interleavings</p>
+  </div>
+  </div> <!-- flex -->
+  <span class='pagenumber'>4</span>
+</article>
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+  </body>
+</html>

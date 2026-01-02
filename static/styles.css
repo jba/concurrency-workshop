@@ -363,10 +363,9 @@ div.playground {
   position: relative;
 }
 div.output {
-
-  position: absolute;
-  left: 50%;
-  top: 50%;
+  /* position: absolute; */
+  /* left: 50%; */
+  /* top: 50%; */
   right: 40px;
   bottom: 40px;
   background: #202020;

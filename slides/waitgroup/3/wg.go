@@ -37,9 +37,9 @@ func (g *WaitGroup) Wait() {
 
 // !code
 /* text
-- Atomics work well here, for now
+Atomics work well here, for now
 
-- Stdlib implementation uses them
+Stdlib implementation uses them
 */
 
 // !div.flex

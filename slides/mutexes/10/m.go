@@ -8,7 +8,8 @@ import (
 // heading Interleaving
 
 // text
-// Goroutines _interleave_ with each other
+// Goroutines _interleave_ with each other.
+// !text
 
 // code
 var c int
@@ -29,10 +30,6 @@ func count() {
 
 // !code
 
-// text
-// div.output
+// output
 // 27357
-// !div.output
-// !text
-
-// slide
+// !output

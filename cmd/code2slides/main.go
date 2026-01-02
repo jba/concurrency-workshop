@@ -19,6 +19,14 @@ type Slide struct {
 	sections []section
 }
 
+func (s *Slide) dump() {
+	fmt.Printf("----------------\n")
+	fmt.Printf("# %s\n", s.heading)
+	for _, sec := range s.sections {
+		sec.dump()
+	}
+}
+
 type sectionKind int
 
 const (
@@ -29,6 +37,7 @@ const (
 	sectionAnswer
 	sectionText
 	sectionHTML
+	sectionOutput
 )
 
 func (k sectionKind) String() string {
@@ -45,9 +54,19 @@ func (k sectionKind) String() string {
 		return "text"
 	case sectionHTML:
 		return "html"
+	case sectionOutput:
+		return "output"
 	default:
 		return "unknown"
 	}
+}
+
+var simpleKinds = map[string]sectionKind{
+	"note":     sectionNote,
+	"code":     sectionCode,
+	"text":     sectionText,
+	"output":   sectionOutput,
+	"question": sectionQuestion,
 }
 
 type section struct {
@@ -55,12 +74,22 @@ type section struct {
 	content string
 }
 
-var includeNotes bool
+func (s section) dump() {
+	fmt.Printf("-- %s --\n", s.kind)
+	fmt.Printf("%s", s.content)
+	fmt.Printf("^^^^\n")
+}
+
+var (
+	includeNotes bool
+	debug        bool
+)
 
 func main() {
 	outputFile := flag.String("o", "output.html", "output file name")
 	title := flag.String("title", "Title", "presentation title")
 	flag.BoolVar(&includeNotes, "notes", false, "include notes and answers in output")
+	flag.BoolVar(&debug, "debug", false, "debug output")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -146,6 +175,9 @@ func processFile(w *indentWriter, filename string, pageNum int) error {
 	if err != nil {
 		return err
 	}
+	if debug {
+		slide.dump()
+	}
 
 	w.linef("\n<!-- %s -->", filename)
 	writeSlideHTML(w, slide, pageNum)
@@ -164,11 +196,10 @@ func scanFile(filename string) (_ *Slide, err error) {
 
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	var (
-		current     strings.Builder
-		currentKind sectionKind
-		divClass    string
+		current  strings.Builder
+		kind     sectionKind
+		divClass string
 	)
-	inSection := false
 	lineNum := 0
 
 	defer func() {
@@ -181,90 +212,80 @@ func scanFile(filename string) (_ *Slide, err error) {
 		slide.sections = append(slide.sections, section{kind: k, content: c})
 	}
 
+	addCurrent := func(k sectionKind) {
+		if current.Len() > 0 {
+			add(k, current.String())
+			current.Reset()
+		}
+	}
+
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
 		first, rest, _ := splitFirstWord(line)
 		matchFirst := true
+		if sec, ok := simpleKinds[first]; ok {
+			if kind != sectionUndefined {
+				return nil, fmt.Errorf("%s inside %s", sec, kind)
+			}
+			kind = sec
+			continue
+		}
 		switch first {
-		case "code":
-			if inSection {
-				return nil, fmt.Errorf("code inside %s", currentKind)
-			}
-			currentKind = sectionCode
-			inSection = true
-			current.Reset()
-		case "!code":
-			if !inSection || (currentKind != sectionCode) {
-				return nil, errors.New("!code without matching code")
-			}
-			// Trim trailing blank line
-			add(currentKind, strings.TrimSuffix(current.String(), "\n"))
-			inSection = false
-		case "note":
-			if inSection {
-				return nil, fmt.Errorf("note inside %s", currentKind)
-			}
-			currentKind = sectionNote
-			inSection = true
-			current.Reset()
-		case "!note":
-			if !inSection || currentKind != sectionNote {
-				return nil, errors.New("!note without matching note")
-			}
-			if current.Len() > 0 {
-				add(sectionNote, current.String())
-			}
-			inSection = false
-		case "text":
-			if inSection {
-				return nil, fmt.Errorf("text inside %s", currentKind)
-			}
-			currentKind = sectionText
-			inSection = true
-			current.Reset()
-		case "!text":
-			if !inSection || currentKind != sectionText {
-				return nil, errors.New("!text without matching text")
-			}
-			if current.Len() > 0 {
-				add(sectionText, current.String())
-			}
-			inSection = false
-		case "question":
-			if inSection {
-				return nil, fmt.Errorf("question inside %s", currentKind)
-			}
-			currentKind = sectionQuestion
-			inSection = true
-			current.Reset()
-		case "answer":
-			if !inSection || currentKind != sectionQuestion {
-				return nil, errors.New("answer without matching question")
-			}
-			if current.Len() > 0 {
-				add(sectionQuestion, current.String())
-			}
-			currentKind = sectionAnswer
-			current.Reset()
-		case "!question":
-			if !inSection || (currentKind != sectionQuestion && currentKind != sectionAnswer) {
-				return nil, errors.New("!question without matching question")
-			}
-			if currentKind == sectionQuestion {
-				return nil, errors.New("!question without answer")
-			}
-			if current.Len() > 0 {
-				add(sectionAnswer, current.String())
-			}
-			inSection = false
 		case "heading":
 			if rest == "" {
 				return nil, errors.New("missing heading")
 			}
 			slide.heading = rest
+
 		case "html":
 			add(sectionHTML, rest)
+
+		case "!code":
+			if kind != sectionCode {
+				return nil, errors.New("!code without matching code")
+			}
+			// Trim trailing blank line
+			add(kind, strings.TrimSuffix(current.String(), "\n"))
+			current.Reset()
+			kind = sectionUndefined
+		case "!note":
+			if kind != sectionNote {
+				return nil, errors.New("!note without matching note")
+			}
+			addCurrent(sectionNote)
+			kind = sectionUndefined
+
+		case "!text":
+			if kind != sectionText {
+				return nil, errors.New("!text without matching text")
+			}
+			addCurrent(sectionText)
+			kind = sectionUndefined
+		case "!output":
+			if kind != sectionOutput {
+				return nil, fmt.Errorf("output inside %s", kind)
+			}
+			addCurrent(sectionOutput)
+			kind = sectionUndefined
+
+		case "answer":
+			if kind != sectionQuestion {
+				return nil, errors.New("answer without matching question")
+			}
+			addCurrent(sectionQuestion)
+			kind = sectionAnswer
+
+		case "!question":
+			if kind != sectionQuestion && kind != sectionAnswer {
+				return nil, errors.New("!question without matching question")
+			}
+			if kind == sectionQuestion {
+				return nil, errors.New("!question without answer")
+			}
+			addCurrent(sectionAnswer)
+			kind = sectionUndefined
+
 		default:
 			matchFirst = false
 		}
@@ -273,33 +294,28 @@ func scanFile(filename string) (_ *Slide, err error) {
 				if d == "div" {
 					add(sectionHTML, fmt.Sprintf("<div class=%q>", c))
 					divClass = c
+					continue
 				} else if d == "!div" {
 					if c != divClass {
 						return nil, fmt.Errorf("mismatched div class: start %q, end %q", divClass, c)
 					}
 					add(sectionHTML, fmt.Sprintf("</div> <!-- %s -->", c))
 					divClass = ""
+					// fmt.Printf("## !div %q\n", c)
+					continue
 				}
 			}
 			switch line {
-			// case "//", "":
-			// 	if inSection && currentKind == sectionCode {
-			// 		current.WriteByte('\n')
-			// 	} else if inSection && current.Len() > 0 {
-			// 		add(currentKind, current.String())
-			// 		current.Reset()
-			// 	}
 			case "*/":
-				if currentKind == sectionText {
-					if current.Len() > 0 {
-						add(sectionText, current.String())
-					}
-					inSection = false
+				if kind == sectionText {
+					addCurrent(sectionText)
+					kind = sectionUndefined
 					continue
 				}
 				fallthrough
 			default:
-				if inSection && (currentKind == sectionCode) {
+				// fmt.Printf("## line %q default section %s\n", line, kind)
+				if kind == sectionCode {
 					trimmed := strings.TrimLeft(line, " \t")
 					switch trimmed {
 					case "// em":
@@ -315,9 +331,10 @@ func scanFile(filename string) (_ *Slide, err error) {
 						current.WriteString(line)
 						current.WriteByte('\n')
 					}
-				} else if inSection {
+				} else if kind != sectionUndefined {
 					// Strip // prefix if present
-					current.WriteString(strings.TrimSpace(strings.TrimPrefix(line, "//")))
+					text := strings.TrimSpace(strings.TrimPrefix(line, "//"))
+					current.WriteString(text)
 					current.WriteByte('\n')
 				}
 			}
@@ -326,14 +343,18 @@ func scanFile(filename string) (_ *Slide, err error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	if inSection {
-		return nil, fmt.Errorf("unclosed %s section", currentKind)
+	if kind != sectionUndefined {
+		return nil, fmt.Errorf("unclosed %s section", kind)
+	}
+	if divClass != "" {
+		return nil, fmt.Errorf("unclosed div with class %q", divClass)
 	}
 
 	return slide, nil
 }
 
 func splitFirstWord(s string) (string, string, bool) {
+	s = strings.TrimSpace(s)
 	if !strings.HasPrefix(s, "//") && !strings.HasPrefix(s, "/*") {
 		return "", "", false
 	}
@@ -365,6 +386,14 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 		case sectionAnswer:
 			fmt.Fprint(w, renderMarkdown(sec.content))
 			fmt.Fprintln(w, "  </details>")
+		case sectionOutput:
+			// Avoid two consecutive inline-block divs from appearing
+			// next to each other.
+			fmt.Fprintln(w, "<div></div>")
+			w.open("<div class='output'><pre>")
+			fmt.Fprint(w, sec.content)
+			fmt.Fprintln(w, "</pre>") // indenting adds a blank line
+			w.close("</div>")
 		case sectionNote:
 			if includeNotes {
 				fmt.Fprint(w, renderMarkdown(sec.content))
