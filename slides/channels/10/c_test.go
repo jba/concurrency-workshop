@@ -194,7 +194,7 @@ func f5a() {
 // answer
 // 1. `time.After` case executes
 // 2. `select` finishes
-// 3. goroutine tries to send to `h`
+// 3. goroutine tries to send to `c`
 //
 // - The GC does not collect `c`: there is still a reference to it.
 // - The GC does not collect goroutines: they must terminate.
@@ -236,9 +236,7 @@ func f6() {
 // 1. `time.After` case executes
 // 2. `select` finishes
 // 3. goroutine tries to send to `c`
-// html <span style="color: purple">
-// 4. value is enqueued
-// html </span>
+// 4. <span style="color:purple">value is enqueued</span>
 // 5. goroutine exits
 //
 // no leaks, no garbage
@@ -276,7 +274,9 @@ func receiveNotification_1() string { return <-nc_1 }
 
 // !code
 
-// text WDYT?
+// text What happens here?
+
+// text What if we add buffering?
 
 // heading Notifications: solution
 // code
@@ -329,30 +329,62 @@ func TestNotifications(t *testing.T) {
 // - Every receiver is notified.
 // !text
 
-// // code
-// type node struct {
-// 	val int
-// 	left, right *node
-// }
+// cols
+// code bad
+type node struct {
+	val         int
+	left, right *node
+}
 
-// // Return a channel
-// func valuesChannel(root *node) chan int
-// func sendValues(n *node, ch chan int){
-// 	if n == nil {return}
-// 	ch <- n.val
-// 	sendValues(n.left, ch)
-// 	sendValues(n.right, ch)
-// }
+func sendValues(n *node, ch chan int) {
+	if n == nil {
+		return
+	}
+	sendValues(n.left, ch)
+	ch <- n.val
+	sendValues(n.right, ch)
+}
 
-// 	close(ch)
-// 	// !em
-// 	}
-// 	return ch
-// }
+// !code
+// nextcol
+// code
+func printTree(root *node) {
+	c := make(chan int)
+	go func() {
+		sendValues(root, c)
+		// em
+		close(c)
+		// !em
+	}()
 
-// func runCollatz() {
-// 	ch := collatzChannel(28)
-// }
+	for {
+		v, ok := <-c // em ok
+		if !ok {     // c is closed
+			break
+		}
+		fmt.Println(v)
+	}
+}
+
+// !code
+// !cols
+
+func TestPrintTree(t *testing.T) {
+	n := &node{
+		val:  2,
+		left: &node{val: 1},
+		right: &node{
+			val:   4,
+			left:  &node{val: 3},
+			right: &node{val: 5},
+		},
+	}
+	got := stdout(func() { printTree(n) })
+	want := "1\n2\n3\n4\n5"
+	if got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}
 
 ////////////////////////////////////
 

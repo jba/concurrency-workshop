@@ -323,6 +323,11 @@ defn {
   color: blue;
 }
 
+.em {
+  font-weight: bold;
+  color: purple;
+}
+
 pre code {
   font-size: 100%;
 }

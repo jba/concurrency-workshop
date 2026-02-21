@@ -108,7 +108,7 @@ go func() { c &lt;- compute(7) }()
 select {
 case v := &lt;-c:
     fmt.Println(v)
-<span style="color: purple">case &lt;-time.After(20 * time.Millisecond):</span>
+<span class="em">case &lt;-time.After(20 * time.Millisecond):</span>
     fmt.Println(&#34;timed out&#34;)
 }</pre>
   </div>
@@ -116,6 +116,7 @@ case v := &lt;-c:
 </article>
 <article>
   <h1>Goroutine leaks</h1>
+  <div class="flex"><div>
   <div class='code bad'><pre>
 c := make(chan int)
 go func() { c &lt;- compute(7) }()
@@ -124,24 +125,39 @@ case v := &lt;-c:
     fmt.Println(v)
 case &lt;-time.After(20 * time.Millisecond):
     fmt.Println(&#34;timed out&#34;)
-}</pre>
+}
+<comment>// program continues</comment></pre>
   </div>
+  </div><div>
 <p>What happens to the first goroutine if there is a timeout?</p>
   <details><summary></summary>
 <ol>
 <li><code>time.After</code> case executes</li>
 <li><code>select</code> finishes</li>
-<li>goroutine tries to send to <code>h</code></li>
+<li>goroutine tries to send to <code>c</code></li>
 </ol>
 <ul>
 <li>The GC does not collect <code>c</code>: there is still a reference to it.</li>
 <li>The GC does not collect goroutines: they must terminate.</li>
 </ul>
   </details>
+  </div></div> <!-- flex -->
   <span class='pagenumber'>7</span>
 </article>
 <article>
   <h1>Buffered goroutines</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+c := make(chan int<span class="em">, 1</span>)
+go func() { c &lt;- compute(7) }()
+select {
+case v := &lt;-c:
+    fmt.Println(v)
+case &lt;-time.After(20 * time.Millisecond):
+    fmt.Println(&#34;timed out&#34;)
+}
+<comment>// program continues</comment></pre>
+  </div>
   <div class='text'>
 <ul>
 <li>A channel can have a queue of values.</li>
@@ -150,28 +166,19 @@ case &lt;-time.After(20 * time.Millisecond):
 <li>Sender and receiver don't have to rendezvous.</li>
 </ul>
   </div>
-  <div class='code'><pre>
-c := make(chan int<span style="color: purple">, 1</span>)
-go func() {
-    c &lt;- compute(7)
-}()
-select {
-case v := &lt;-c:
-    fmt.Println(v)
-<span style="color: purple">case &lt;-time.After(20 * time.Millisecond):</span>
-    fmt.Println(&#34;timed out&#34;)
-}</pre>
-  </div>
-  <div class='text'>
+  </div><div>
+<p>And now?</p>
+  <details><summary></summary>
 <ol>
 <li><code>time.After</code> case executes</li>
 <li><code>select</code> finishes</li>
-<li>goroutine tries to send to <code>ch</code></li>
-<li>value is enqueued</li>
+<li>goroutine tries to send to <code>c</code></li>
+<li><span style="color:purple">value is enqueued</span></li>
 <li>goroutine exits</li>
 </ol>
 <p>no leaks, no garbage</p>
-  </div>
+  </details>
+  </div></div> <!-- flex -->
   <span class='pagenumber'>8</span>
 </article>
 <article>
@@ -204,24 +211,27 @@ func <defn>receiveNotification</defn>() string { return &lt;-nc }
 </pre>
   </div>
   <div class='text'>
-<p>WDYT?</p>
+<p>What happens here?</p>
+  </div>
+  <div class='text'>
+<p>What if we add buffering?</p>
   </div>
   <span class='pagenumber'>10</span>
 </article>
 <article>
   <h1>Notifications: solution</h1>
   <div class='code'><pre>
-var nc = make(chan string<span style="color: purple">, 10</span>)
+var nc = make(chan string<span class="em">, 10</span>)
 
 func <defn>sendNotification</defn>(s string) {
-<span style="color: purple">    select {
+<span class="em">    select {
     case nc &lt;- s:
     default: <comment>// if we can&#39;t send, drop s</comment>
     }</span>
 }
 
 func <defn>receiveNotification</defn>() string {
-<span style="color: purple">    select {
+<span class="em">    select {
     case s := &lt;-nc:
         return s
     default:
@@ -240,6 +250,43 @@ func <defn>receiveNotification</defn>() string {
 <li>Every receiver is notified.</li>
 </ul>
   </div>
+  <div class="flex"><div>
+  <div class='code bad'><pre>
+type <defn>node</defn> struct {
+    val         int
+    left, right *node
+}
+
+func <defn>sendValues</defn>(n *node, ch chan int) {
+    if n == nil {
+        return
+    }
+    sendValues(n.left, ch)
+    ch &lt;- n.val
+    sendValues(n.right, ch)
+}
+</pre>
+  </div>
+  </div><div>
+  <div class='code'><pre>
+func <defn>printTree</defn>(root *node) {
+    c := make(chan int)
+    go func() {
+        sendValues(root, c)
+<span class="em">        close(c)</span>
+    }()
+
+    for {
+        v, <span class="em">ok</span> := &lt;-c
+        if !ok {     <comment>// c is closed</comment>
+            break
+        }
+        fmt.Println(v)
+    }
+}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
   <span class='pagenumber'>12</span>
 </article>
 

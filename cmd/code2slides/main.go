@@ -167,7 +167,6 @@ func (s section) dump() {
 var (
 	includeNotes bool
 	debug        bool
-	emStyle      = "bold"
 )
 
 func main() {
@@ -175,7 +174,6 @@ func main() {
 	title := flag.String("title", "Title", "presentation title")
 	flag.BoolVar(&includeNotes, "notes", false, "include notes and answers in output")
 	flag.BoolVar(&debug, "debug", false, "debug output")
-	flag.StringVar(&emStyle, "em", "bold", "emphasis style: 'bold' or a color name")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -645,15 +643,8 @@ func renderCode(s string) string {
 		}
 	}
 	out := result.String()
-	var emOpen, emClose string
-	if emStyle == "bold" {
-		emOpen, emClose = "<b>", "</b>"
-	} else {
-		emOpen = fmt.Sprintf("<span style=\"color: %s\">", emStyle)
-		emClose = "</span>"
-	}
-	out = strings.ReplaceAll(out, "\x00em\x00", emOpen)
-	out = strings.ReplaceAll(out, "\x00/em\x00", emClose)
+	out = strings.ReplaceAll(out, "\x00em\x00", "<span class=\"em\">")
+	out = strings.ReplaceAll(out, "\x00/em\x00", "</span>")
 	return out
 }
 

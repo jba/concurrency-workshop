@@ -168,8 +168,8 @@ func TestInlineEm(t *testing.T) {
 
 	// Verify rendered HTML
 	got := renderCode(slides[0].sections[0].content)
-	if !strings.Contains(got, "<b>foo</b>") {
-		t.Errorf("rendered code does not contain <b>foo</b>: %s", got)
+	if !strings.Contains(got, "<span class=\"em\">foo</span>") {
+		t.Errorf("rendered code does not contain <span class=\"em\">foo</span>: %s", got)
 	}
 	if strings.Contains(got, "// em") {
 		t.Errorf("rendered code still contains // em: %s", got)
@@ -200,7 +200,7 @@ func TestRenderCode(t *testing.T) {
 		{
 			// Inline em markers (as produced by scanFile)
 			input: "x := \x00em\x00foo\x00/em\x00()\n",
-			want:  "x := <b>foo</b>()\n",
+			want:  "x := <span class=\"em\">foo</span>()\n",
 		},
 		{
 			input: "func (f Foo) moo() {}\n",
