@@ -5,7 +5,8 @@
       "Bash(go build:*)",
       "Bash(./code2html:*)",
       "Bash(cat:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(./code2slides:*)"
     ],
     "deny": [],
     "ask": []

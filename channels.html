@@ -108,7 +108,7 @@
     select {
     case v := &lt;-ch:
         fmt.Println(v)
-<b>    case &lt;-time.After(20 * time.Millisecond):</b>
+<span style="color: purple">    case &lt;-time.After(20 * time.Millisecond):</span>
         fmt.Println(&#34;timed out&#34;)
     }</pre>
   </div>
@@ -130,7 +130,7 @@
   </div>
 <ul>
 <li>What happens to the first goroutine if there is a timeout?</li>
-<li>(Assume nothing else receives from <code>ch</code>)</li>
+<li>Assume nothing else receives from <code>ch</code></li>
 </ul>
   <details><summary></summary>
 <ol>
@@ -156,14 +156,14 @@
 </ul>
   </div>
   <div class='code'><pre>
-    ch := make(chan int<b>, 1</b>)
+    ch := make(chan int<span style="color: purple">, 1</span>)
     go func() {
         ch &lt;- compute(7)
     }()
     select {
     case v := &lt;-ch:
         fmt.Println(v)
-<b>    case &lt;-time.After(20 * time.Millisecond):</b>
+<span style="color: purple">    case &lt;-time.After(20 * time.Millisecond):</span>
         fmt.Println(&#34;timed out&#34;)
     }</pre>
   </div>
@@ -216,17 +216,17 @@ func <defn>receiveNotification</defn>() string { return &lt;-nc }
 <article>
   <h1>Notifications: solution</h1>
   <div class='code'><pre>
-var nc = make(chan string<b>, 10</b>)
+var nc = make(chan string<span style="color: purple">, 10</span>)
 
 func <defn>sendNotification</defn>(s string) {
-<b>    select {
+<span style="color: purple">    select {
     case nc &lt;- s:
     default: <comment>// if we can&#39;t send, drop s</comment>
-    }</b>
+    }</span>
 }
 
 func <defn>receiveNotification</defn>() string {
-<b>    select {
+<span style="color: purple">    select {
     case s := &lt;-nc:
         return s
     default:
