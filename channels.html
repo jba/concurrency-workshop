@@ -3,6 +3,7 @@
   <head>
     <title>Channels</title>
     <meta charset='utf-8'>
+    <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
     <script>
       var notesEnabled =  false ;
     </script>
@@ -19,14 +20,14 @@
 <article>
   <h1>Passing a value between goroutines</h1>
   <div class='text'>
-<p>We can pass a value between goroutines with a WaitGroup.</p>
+<p>We can pass a value between goroutines with a <code>WaitGroup</code>.</p>
   </div>
   <div class='code'><pre>
-    var wg sync.WaitGroup
-    var v int
-    wg.Go(func() { v = compute(7) })
-    wg.Wait()
-    fmt.Println(v)</pre>
+var wg sync.WaitGroup
+var v int
+wg.Go(func() { v = compute(7) })
+wg.Wait()
+fmt.Println(v)</pre>
   </div>
   <div class='text'>
 <p>But there is a more flexible way: channels.</p>
@@ -36,19 +37,19 @@
 <article>
   <h1>Unbuffered channels</h1>
   <div class='text'>
-<ul>
-<li>An unbuffered channel lets two goroutines rendezvous.</li>
-<li>It doesn't matter which happens first, the send or the receive.</li>
-</ul>
+<p>An unbuffered channel lets two goroutines rendezvous.</p>
   </div>
   <div class='code'><pre>
-    ch := make(chan int) <comment>// create a channel</comment>
+c := make(chan int) <comment>// create a channel</comment>
 
-    go func() { ch &lt;- compute(7) }() <comment>// send to ch</comment>
+go func() { c &lt;- compute(7) }() <comment>// send to c</comment>
 
-    v := &lt;-ch <comment>// receive from ch</comment>
+v := &lt;-c <comment>// receive from c</comment>
 
-    fmt.Println(v)</pre>
+fmt.Println(v)</pre>
+  </div>
+  <div class='text'>
+<p>It doesn't matter which happens first, the send or the receive.</p>
   </div>
   <span class='pagenumber'>3</span>
 </article>
@@ -58,40 +59,38 @@
 <p>You can have many senders, and many receivers.</p>
   </div>
   <div class='code'><pre>
-    ch := make(chan int)
-    for i := range 5 {
-        go func() { ch &lt;- compute(i) }()
-    }
-    for range 5 {
-        go func() {
-            fmt.Println(&lt;-ch)
-        }()
-    }
-    <comment>// TODO: Wait for all goroutines here.</comment></pre>
+c := make(chan int)
+for i := range 5 {
+    go func() { c &lt;- compute(i) }()
+}
+for range 5 {
+    go func() {
+        fmt.Println(&lt;-c)
+    }()
+}
+<comment>// Wait for all goroutines here.</comment></pre>
   </div>
   <span class='pagenumber'>4</span>
 </article>
-<article class='problem'>
+<article>
   <h1>Timeout, v1</h1>
   <div class='text'>
 <p>The <code>select</code> statement blocks until one of the cases is ready.</p>
   </div>
-  <div class='code'><pre>
-    ch := make(chan int)
-    timeout := make(chan bool)
-    go func() {
-        ch &lt;- compute(7)
-    }()
-    go func() {
-        time.Sleep(20 * time.Millisecond)
-        timeout &lt;- true
-    }()
-    select {
-    case v := &lt;-ch:
-        fmt.Println(v)
-    case &lt;-timeout:
-        fmt.Println(&#34;timed out&#34;)
-    }</pre>
+  <div class='code bad'><pre>
+c := make(chan int)
+timeout := make(chan bool)
+go func() { c &lt;- compute(7) }()
+go func() {
+    time.Sleep(20 * time.Millisecond)
+    timeout &lt;- true
+}()
+select {
+case v := &lt;-c:
+    fmt.Println(v)
+case &lt;-timeout:
+    fmt.Println(&#34;timed out&#34;)
+}</pre>
   </div>
   <div class='text'>
 <p>We'll get to the problem after the next slide.</p>
@@ -104,45 +103,38 @@
 <p>Use <code>time.After</code> for timeouts.</p>
   </div>
   <div class='code'><pre>
-    ch := make(chan int)
-    go func() {
-        ch &lt;- compute(7)
-    }()
-    select {
-    case v := &lt;-ch:
-        fmt.Println(v)
-<span style="color: purple">    case &lt;-time.After(20 * time.Millisecond):</span>
-        fmt.Println(&#34;timed out&#34;)
-    }</pre>
+c := make(chan int)
+go func() { c &lt;- compute(7) }()
+select {
+case v := &lt;-c:
+    fmt.Println(v)
+<span style="color: purple">case &lt;-time.After(20 * time.Millisecond):</span>
+    fmt.Println(&#34;timed out&#34;)
+}</pre>
   </div>
   <span class='pagenumber'>6</span>
 </article>
 <article>
   <h1>Goroutine leaks</h1>
-  <div class='code'><pre>
-    ch := make(chan int)
-    go func() {
-        ch &lt;- compute(7)
-    }()
-    select {
-    case v := &lt;-ch:
-        fmt.Println(v)
-    case &lt;-time.After(20 * time.Millisecond):
-        fmt.Println(&#34;timed out&#34;)
-    }</pre>
+  <div class='code bad'><pre>
+c := make(chan int)
+go func() { c &lt;- compute(7) }()
+select {
+case v := &lt;-c:
+    fmt.Println(v)
+case &lt;-time.After(20 * time.Millisecond):
+    fmt.Println(&#34;timed out&#34;)
+}</pre>
   </div>
-<ul>
-<li>What happens to the first goroutine if there is a timeout?</li>
-<li>Assume nothing else receives from <code>ch</code></li>
-</ul>
+<p>What happens to the first goroutine if there is a timeout?</p>
   <details><summary></summary>
 <ol>
 <li><code>time.After</code> case executes</li>
 <li><code>select</code> finishes</li>
-<li>goroutine tries to send to <code>ch</code></li>
+<li>goroutine tries to send to <code>h</code></li>
 </ol>
 <ul>
-<li>The GC does not collect <code>ch</code>: there is still a reference to it.</li>
+<li>The GC does not collect <code>c</code>: there is still a reference to it.</li>
 <li>The GC does not collect goroutines: they must terminate.</li>
 </ul>
   </details>
@@ -159,16 +151,16 @@
 </ul>
   </div>
   <div class='code'><pre>
-    ch := make(chan int<span style="color: purple">, 1</span>)
-    go func() {
-        ch &lt;- compute(7)
-    }()
-    select {
-    case v := &lt;-ch:
-        fmt.Println(v)
-<span style="color: purple">    case &lt;-time.After(20 * time.Millisecond):</span>
-        fmt.Println(&#34;timed out&#34;)
-    }</pre>
+c := make(chan int<span style="color: purple">, 1</span>)
+go func() {
+    c &lt;- compute(7)
+}()
+select {
+case v := &lt;-c:
+    fmt.Println(v)
+<span style="color: purple">case &lt;-time.After(20 * time.Millisecond):</span>
+    fmt.Println(&#34;timed out&#34;)
+}</pre>
   </div>
   <div class='text'>
 <ol>

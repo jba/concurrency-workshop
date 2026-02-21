@@ -14,7 +14,7 @@ import (
 // heading Passing a value between goroutines
 
 // text
-// We can pass a value between goroutines with a WaitGroup.
+// We can pass a value between goroutines with a `WaitGroup`.
 // !text
 
 func f1() {
@@ -43,11 +43,11 @@ func Test_f1(t *testing.T) {
 
 func f2() {
 	// code
-	ch := make(chan int) // create a channel
+	c := make(chan int) // create a channel
 
-	go func() { ch <- compute(7) }() // send to ch
+	go func() { c <- compute(7) }() // send to c
 
-	v := <-ch // receive from ch
+	v := <-c // receive from c
 
 	fmt.Println(v)
 	// !code
@@ -69,16 +69,16 @@ func Test_f2(t *testing.T) {
 
 func f3() {
 	// code
-	ch := make(chan int)
+	c := make(chan int)
 	for i := range 5 {
-		go func() { ch <- compute(i) }()
+		go func() { c <- compute(i) }()
 	}
 	for range 5 {
 		go func() {
-			fmt.Println(<-ch)
+			fmt.Println(<-c)
 		}()
 	}
-	// TODO: Wait for all goroutines here.
+	// Wait for all goroutines here.
 	// !code
 }
 
@@ -115,21 +115,17 @@ func f3() {
 // The `select` statement blocks until one of the cases is ready.
 // !text
 
-// problem
-
 func f4() {
-	// code
-	ch := make(chan int)
+	// code bad
+	c := make(chan int)
 	timeout := make(chan bool)
-	go func() {
-		ch <- compute(7)
-	}()
+	go func() { c <- compute(7) }()
 	go func() {
 		time.Sleep(20 * time.Millisecond)
 		timeout <- true
 	}()
 	select {
-	case v := <-ch:
+	case v := <-c:
 		fmt.Println(v)
 	case <-timeout:
 		fmt.Println("timed out")
@@ -154,12 +150,10 @@ func Test_f4(t *testing.T) {
 
 func f5() {
 	// code
-	ch := make(chan int)
-	go func() {
-		ch <- compute(7)
-	}()
+	c := make(chan int)
+	go func() { c <- compute(7) }()
 	select {
-	case v := <-ch:
+	case v := <-c:
 		fmt.Println(v)
 		// em
 	case <-time.After(20 * time.Millisecond):
@@ -180,13 +174,11 @@ func Test_f5(t *testing.T) {
 // heading Goroutine leaks
 
 func f5a() {
-	// code
-	ch := make(chan int)
-	go func() {
-		ch <- compute(7)
-	}()
+	// code bad
+	c := make(chan int)
+	go func() { c <- compute(7) }()
 	select {
-	case v := <-ch:
+	case v := <-c:
 		fmt.Println(v)
 	case <-time.After(20 * time.Millisecond):
 		fmt.Println("timed out")
@@ -195,14 +187,13 @@ func f5a() {
 }
 
 // question
-// - What happens to the first goroutine if there is a timeout?
-// - Assume nothing else receives from `ch`
+// What happens to the first goroutine if there is a timeout?
 // answer
 // 1. `time.After` case executes
 // 2. `select` finishes
-// 3. goroutine tries to send to `ch`
+// 3. goroutine tries to send to `h`
 //
-// - The GC does not collect `ch`: there is still a reference to it.
+// - The GC does not collect `c`: there is still a reference to it.
 // - The GC does not collect goroutines: they must terminate.
 // !question
 
@@ -218,12 +209,12 @@ func f5a() {
 
 func f6() {
 	// code
-	ch := make(chan int, 1) // em , 1
+	c := make(chan int, 1) // em , 1
 	go func() {
-		ch <- compute(7)
+		c <- compute(7)
 	}()
 	select {
-	case v := <-ch:
+	case v := <-c:
 		fmt.Println(v)
 		// em
 	case <-time.After(20 * time.Millisecond):

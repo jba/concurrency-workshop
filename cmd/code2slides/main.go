@@ -88,8 +88,8 @@ import (
 	"html"
 	"io"
 	"os"
-	"regexp"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"rsc.io/markdown"
@@ -349,7 +349,8 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			slide.heading = rest
 
 		case "problem":
-			slide.problem = true
+			return nil, errors.New("'problem' temporarily not supported")
+			// slide.problem = true
 
 		case "text":
 			if kind != sectionUndefined {
@@ -437,8 +438,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				}
 				fallthrough
 			default:
-				// fmt.Printf("## line %q default section %s\n", line, kind)
-				if kind == sectionCode {
+				if kind == sectionCode || kind == sectionCodeBad {
 					trimmed := strings.TrimLeft(line, " \t")
 					switch trimmed {
 					case "// em":
@@ -572,8 +572,50 @@ func stripUnderscoreSuffixes(s string) string {
 
 func renderCode(s string) string {
 	s = strings.ReplaceAll(s, "\t", "    ")
-	var result strings.Builder
 	lines := strings.Split(s, "\n")
+
+	// Find minimum indentation across all non-empty lines
+	minIndent := -1
+	for _, line := range lines {
+		// Strip em marker prefix to find actual content
+		content := line
+		for strings.HasPrefix(content, "\x00em\x00") || strings.HasPrefix(content, "\x00/em\x00") {
+			if strings.HasPrefix(content, "\x00em\x00") {
+				content = content[len("\x00em\x00"):]
+			} else {
+				content = content[len("\x00/em\x00"):]
+			}
+		}
+		if strings.TrimSpace(content) == "" {
+			continue
+		}
+		indent := len(content) - len(strings.TrimLeft(content, " "))
+		if minIndent < 0 || indent < minIndent {
+			minIndent = indent
+		}
+	}
+	// Remove common indentation
+	if minIndent > 0 {
+		for i, line := range lines {
+			// Extract em marker prefix
+			prefix := ""
+			content := line
+			for strings.HasPrefix(content, "\x00em\x00") || strings.HasPrefix(content, "\x00/em\x00") {
+				if strings.HasPrefix(content, "\x00em\x00") {
+					prefix += "\x00em\x00"
+					content = content[len("\x00em\x00"):]
+				} else {
+					prefix += "\x00/em\x00"
+					content = content[len("\x00/em\x00"):]
+				}
+			}
+			if len(content) >= minIndent {
+				lines[i] = prefix + content[minIndent:]
+			}
+		}
+	}
+
+	var result strings.Builder
 	for i, line := range lines {
 		if i > 0 {
 			result.WriteByte('\n')
@@ -671,6 +713,7 @@ const top = `<!DOCTYPE html>
   <head>
     <title>%s</title>
     <meta charset='utf-8'>
+    <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
     <script>
       var notesEnabled =  false ;
     </script>
