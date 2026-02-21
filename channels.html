@@ -11,6 +11,9 @@
 
   <body style='display: none'>
     <section class='slides'>
+<article class='title-slide'>
+  <div class='title-text'>Channels</div>
+</article>
 
 <!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/channels/10/c_test.go -->
 <article>
@@ -28,7 +31,7 @@
   <div class='text'>
 <p>But there is a more flexible way: channels.</p>
   </div>
-  <span class='pagenumber'>1</span>
+  <span class='pagenumber'>2</span>
 </article>
 <article>
   <h1>Unbuffered channels</h1>
@@ -47,7 +50,7 @@
 
     fmt.Println(v)</pre>
   </div>
-  <span class='pagenumber'>2</span>
+  <span class='pagenumber'>3</span>
 </article>
 <article>
   <h1>Multiples</h1>
@@ -66,7 +69,7 @@
     }
     <comment>// TODO: Wait for all goroutines here.</comment></pre>
   </div>
-  <span class='pagenumber'>3</span>
+  <span class='pagenumber'>4</span>
 </article>
 <article class='problem'>
   <h1>Timeout, v1</h1>
@@ -93,7 +96,7 @@
   <div class='text'>
 <p>We'll get to the problem after the next slide.</p>
   </div>
-  <span class='pagenumber'>4</span>
+  <span class='pagenumber'>5</span>
 </article>
 <article>
   <h1>Timeout, v2</h1>
@@ -112,7 +115,7 @@
         fmt.Println(&#34;timed out&#34;)
     }</pre>
   </div>
-  <span class='pagenumber'>5</span>
+  <span class='pagenumber'>6</span>
 </article>
 <article>
   <h1>Goroutine leaks</h1>
@@ -143,7 +146,7 @@
 <li>The GC does not collect goroutines: they must terminate.</li>
 </ul>
   </details>
-  <span class='pagenumber'>6</span>
+  <span class='pagenumber'>7</span>
 </article>
 <article>
   <h1>Buffered goroutines</h1>
@@ -177,7 +180,7 @@
 </ol>
 <p>no leaks, no garbage</p>
   </div>
-  <span class='pagenumber'>7</span>
+  <span class='pagenumber'>8</span>
 </article>
 <article>
   <h1>Non-blocking select</h1>
@@ -196,7 +199,7 @@ func <defn>sendNotification</defn>(string) {}
 func <defn>receiveNotification</defn>() string { return &#34;&#34; }
 </pre>
   </div>
-  <span class='pagenumber'>8</span>
+  <span class='pagenumber'>9</span>
 </article>
 <article>
   <h1>Notifications: first attempt</h1>
@@ -211,7 +214,7 @@ func <defn>receiveNotification</defn>() string { return &lt;-nc }
   <div class='text'>
 <p>WDYT?</p>
   </div>
-  <span class='pagenumber'>9</span>
+  <span class='pagenumber'>10</span>
 </article>
 <article>
   <h1>Notifications: solution</h1>
@@ -235,7 +238,7 @@ func <defn>receiveNotification</defn>() string {
 }
 </pre>
   </div>
-  <span class='pagenumber'>10</span>
+  <span class='pagenumber'>11</span>
 </article>
 <article>
   <h1>Closing channels</h1>
@@ -245,7 +248,7 @@ func <defn>receiveNotification</defn>() string {
 <li>Every receiver is notified.</li>
 </ul>
   </div>
-  <span class='pagenumber'>11</span>
+  <span class='pagenumber'>12</span>
 </article>
 
     <div id="help">

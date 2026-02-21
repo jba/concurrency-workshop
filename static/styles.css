@@ -62,7 +62,10 @@
     margin-left: calc(var(--slide-width)/-2);
     margin-top: calc(var(--slide-height)/-2); 
 
-    padding: 40px 60px;
+    /* First number: top of screen to top of heading.
+       Fourth number: left of screen to left of text.
+    */
+    padding: 150px 60px 40px 100px;
 
     box-sizing: border-box;
     -o-box-sizing: border-box;
@@ -139,6 +142,13 @@
     transform: translate(calc(2*(var(--slide-width) + 200px)));
   }
 
+  /* Title slide - must be after other article rules to override display: block */
+  .slides > article.title-slide {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
 }
 
 
@@ -189,7 +199,6 @@ h1 {
 
   padding: 0;
   margin: 0;
-  margin-top: 30px;
   margin-bottom: 50px;
   padding-right: 40px;
 
@@ -482,4 +491,11 @@ figcaption {
   -o-border-radius: 10px;
   -moz-border-radius: 10px;
   -webkit-border-radius: 10px;
+}
+
+/* Title slide */
+.title-slide .title-text {
+  font-size: 72pt;
+  font-weight: 600;
+  text-align: center;
 }

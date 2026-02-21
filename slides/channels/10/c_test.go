@@ -39,10 +39,7 @@ func Test_f1(t *testing.T) {
 
 // heading Unbuffered channels
 
-// text
-// - An unbuffered channel lets two goroutines rendezvous.
-// - It doesn't matter which happens first, the send or the receive.
-// !text
+// text An unbuffered channel lets two goroutines rendezvous.
 
 func f2() {
 	// code
@@ -55,6 +52,8 @@ func f2() {
 	fmt.Println(v)
 	// !code
 }
+
+// text It doesn't matter which happens first, the send or the receive.
 
 func Test_f2(t *testing.T) {
 	if stdout(f2) != "49" {

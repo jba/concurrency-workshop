@@ -167,7 +167,7 @@ func (s section) dump() {
 var (
 	includeNotes bool
 	debug        bool
-	emStyle      string
+	emStyle      = "bold"
 )
 
 func main() {
@@ -245,7 +245,12 @@ func run(outputFile, title string, files []string) (err error) {
 
 	fmt.Fprintf(iw, top, title)
 
-	pageNum := 1
+	// Write title slide
+	iw.open("<article class='title-slide'>")
+	iw.linef("<div class='title-text'>%s</div>", html.EscapeString(title))
+	iw.close("</article>")
+
+	pageNum := 2
 	for _, filename := range files {
 		var err error
 		pageNum, err = processFile(iw, filename, pageNum)
