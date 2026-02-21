@@ -410,6 +410,15 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			addCurrent(sectionAnswer)
 			kind = sectionUndefined
 
+		case "cols":
+			add(sectionHTML, "<div class=\"flex\"><div>")
+
+		case "!cols":
+			add(sectionHTML, "</div></div> <!-- flex -->")
+
+		case "nextcol":
+			add(sectionHTML, "</div><div>")
+
 		default:
 			matchFirst = false
 		}

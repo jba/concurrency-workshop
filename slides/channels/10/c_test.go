@@ -86,13 +86,13 @@ func f3() {
 
 // func f3() {
 // 	// code
-// 	ch := make(chan int)
+// 	c := make(chan int)
 // 	for i := range 5 {
-// 		go func() { ch <- compute(i) }()
+// 		go func() { c <- compute(i) }()
 // 	}
 // 	var wg sync.WaitGroup
 // 	for range 5 {
-// 		wg.Go(func() { fmt.Println(<-ch) })
+// 		wg.Go(func() { fmt.Println(<-c) })
 // 	}
 // 	wg.Wait()
 // 	// !code
@@ -173,6 +173,7 @@ func Test_f5(t *testing.T) {
 ////////////////////////////////////
 // heading Goroutine leaks
 
+// cols
 func f5a() {
 	// code bad
 	c := make(chan int)
@@ -183,9 +184,11 @@ func f5a() {
 	case <-time.After(20 * time.Millisecond):
 		fmt.Println("timed out")
 	}
+	// program continues
 	// !code
 }
 
+// nextcol
 // question
 // What happens to the first goroutine if there is a timeout?
 // answer
@@ -197,8 +200,26 @@ func f5a() {
 // - The GC does not collect goroutines: they must terminate.
 // !question
 
+// !cols
+
 ////////////////////////////////////
 // heading Buffered goroutines
+
+// cols
+
+func f6() {
+	// code
+	c := make(chan int, 1) // em , 1
+	go func() { c <- compute(7) }()
+	select {
+	case v := <-c:
+		fmt.Println(v)
+	case <-time.After(20 * time.Millisecond):
+		fmt.Println("timed out")
+	}
+	// program continues
+	// !code
+}
 
 // text
 // - A channel can have a queue of values.
@@ -207,32 +228,22 @@ func f5a() {
 // - Sender and receiver don't have to rendezvous.
 // !text
 
-func f6() {
-	// code
-	c := make(chan int, 1) // em , 1
-	go func() {
-		c <- compute(7)
-	}()
-	select {
-	case v := <-c:
-		fmt.Println(v)
-		// em
-	case <-time.After(20 * time.Millisecond):
-		// !em
-		fmt.Println("timed out")
-	}
-	// !code
-}
+// nextcol
 
-// text
+// question
+// And now?
+// answer
 // 1. `time.After` case executes
 // 2. `select` finishes
-// 3. goroutine tries to send to `ch`
+// 3. goroutine tries to send to `c`
+// html <span style="color: purple">
 // 4. value is enqueued
+// html </span>
 // 5. goroutine exits
 //
 // no leaks, no garbage
-// !text
+// !question
+// !cols
 
 ////////////////////////////////////
 // heading Non-blocking select

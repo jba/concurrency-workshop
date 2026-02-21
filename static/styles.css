@@ -277,6 +277,10 @@ div.code2col pre {
   margin-bottom: 20px;
 }
 
+div.code pre {
+  border: 3px solid gray;
+}
+
 div.code.bad pre {
   border: 3px solid rgb(255, 128, 128);
 }
