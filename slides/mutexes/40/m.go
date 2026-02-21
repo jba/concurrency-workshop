@@ -1,6 +1,6 @@
 package main
 
-// heading Enter the mutex
+// heading Using a mutex
 
 // div.flex
 // code
@@ -41,6 +41,8 @@ func count() {
 // text
 //
 // Only one goroutine between `Lock` and `Unlock`
+//
+// The zero mutex is unlocked and ready to use
 //
 // A mutex limits interleavings
 // !text

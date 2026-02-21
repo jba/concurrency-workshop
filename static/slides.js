@@ -190,6 +190,13 @@ function updateSlides() {
     }
   }
 
+  var cur = getSlideEl(curSlide);
+  if (cur && cur.classList.contains('problem')) {
+    document.body.classList.add('problem-bg');
+  } else {
+    document.body.classList.remove('problem-bg');
+  }
+
   triggerLeaveEvent(curSlide - 1);
   triggerEnterEvent(curSlide);
 

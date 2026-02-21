@@ -36,10 +36,15 @@ func TestScanFileErrors(t *testing.T) {
 }
 
 func TestScanFile(t *testing.T) {
-	slide, err := scanFile("testdata/valid.go")
+	slides, err := scanFile("testdata/valid.go")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+	slide := slides[0]
 
 	if slide.heading != "Test Heading" {
 		t.Errorf("heading = %q, want %q", slide.heading, "Test Heading")
@@ -94,9 +99,13 @@ func TestSplitFirstWord(t *testing.T) {
 }
 
 func TestDivClass(t *testing.T) {
-	slide, err := scanFile("testdata/div_test.go")
+	slides, err := scanFile("testdata/div_test.go")
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
 	}
 
 	wantSections := []section{
@@ -105,8 +114,8 @@ func TestDivClass(t *testing.T) {
 		{kind: sectionHTML, content: "</div> <!-- flex -->"},
 	}
 
-	if !slices.Equal(slide.sections, wantSections) {
-		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
+	if !slices.Equal(slides[0].sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
 	}
 }
 
@@ -117,6 +126,53 @@ func TestDivClassMismatch(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "mismatched div class") {
 		t.Errorf("error = %q, want error containing 'mismatched div class'", err)
+	}
+}
+
+func TestCodeBad(t *testing.T) {
+	slides, err := scanFile("testdata/code_bad.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+
+	wantSections := []section{
+		{kind: sectionCodeBad, content: "x := 1 // wrong"},
+	}
+
+	if !slices.Equal(slides[0].sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
+	}
+}
+
+func TestInlineEm(t *testing.T) {
+	slides, err := scanFile("testdata/inline_em.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+
+	wantSections := []section{
+		{kind: sectionCode, content: "x := \x00em\x00foo\x00/em\x00()\ny := bar()"},
+	}
+
+	if !slices.Equal(slides[0].sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
+	}
+
+	// Verify rendered HTML
+	got := renderCode(slides[0].sections[0].content)
+	if !strings.Contains(got, "<b>foo</b>") {
+		t.Errorf("rendered code does not contain <b>foo</b>: %s", got)
+	}
+	if strings.Contains(got, "// em") {
+		t.Errorf("rendered code still contains // em: %s", got)
 	}
 }
 
@@ -142,8 +198,28 @@ func TestRenderCode(t *testing.T) {
 			want:  "func (*Foo) <defn>moo</defn>() {}\n",
 		},
 		{
+			// Inline em markers (as produced by scanFile)
+			input: "x := \x00em\x00foo\x00/em\x00()\n",
+			want:  "x := <b>foo</b>()\n",
+		},
+		{
 			input: "func (f Foo) moo() {}\n",
 			want:  "func (f Foo) <defn>moo</defn>() {}\n",
+		},
+		{
+			// Underscore suffix stripping
+			input: "x := foo_3x(bar_v2)\n",
+			want:  "x := foo(bar)\n",
+		},
+		{
+			// Leading underscore preserved
+			input: "_private := 1\n",
+			want:  "_private := 1\n",
+		},
+		{
+			// Underscore suffix on func def
+			input: "func doThing_2() {}\n",
+			want:  "func <defn>doThing</defn>() {}\n",
 		},
 	}
 	for _, tt := range tests {

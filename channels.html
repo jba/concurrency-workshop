@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Channels</title>
+    <meta charset='utf-8'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/channels/10/c_test.go -->
+<article>
+  <h1>Passing a value between goroutines</h1>
+  <div class='text'>
+<p>We know a way to do this.</p>
+  </div>
+  <div class='code'><pre>
+    var wg sync.WaitGroup
+    var v int
+    wg.Go(func() { v = 7 })
+    wg.Wait()
+    fmt.Println(v)</pre>
+  </div>
+  <div class='text'>
+<p>But there is a more flexible way.</p>
+  </div>
+  <span class='pagenumber'>1</span>
+</article>
+<article>
+  <h1>Unbuffered channels</h1>
+  <div class='text'>
+<ul>
+<li>An unbuffered channel lets two goroutines rendezvous</li>
+<li>It doesn't matter which happens first, the send or the receive</li>
+</ul>
+  </div>
+  <div class='code'><pre>
+    ch := make(chan int) <comment>// create a channel</comment>
+
+    go func() { ch &lt;- 7 }() <comment>// send to ch</comment>
+
+    v := &lt;-ch <comment>// receive from ch</comment>
+
+    fmt.Println(v)</pre>
+  </div>
+  <span class='pagenumber'>2</span>
+</article>
+<article>
+  <h1>Unbuffered channels</h1>
+  <span class='pagenumber'>3</span>
+</article>
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+  </body>
+</html>

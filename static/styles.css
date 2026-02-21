@@ -28,7 +28,12 @@
     overflow: hidden;
 
     background: rgb(19, 168, 192);
+    transition: background 0.3s ease-out;
     -webkit-font-smoothing: antialiased;
+  }
+
+  body.problem-bg {
+    background: rgb(192, 50, 50);
   }
 
   .slides {
@@ -261,6 +266,10 @@ div.code2col pre {
   flex: 1;
   margin-top: 20px;
   margin-bottom: 20px;
+}
+
+div.code.bad pre {
+  background: rgb(255, 230, 230);
 }
 
 pre {

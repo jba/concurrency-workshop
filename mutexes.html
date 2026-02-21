@@ -177,7 +177,7 @@ c = R0
 
 <!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/40/m.go -->
 <article>
-  <h1>Enter the mutex</h1>
+  <h1>Using a mutex</h1>
   <div class="flex">
   <div class='code'><pre>
 import (
@@ -207,11 +207,79 @@ func <defn>count</defn>() {
 </pre>
   </div>
   <div class='text'>
-<p>Only on goroutine between <code>Lock</code> and <code>Unlock</code></p>
+<p>Only one goroutine between <code>Lock</code> and <code>Unlock</code></p>
+<p>The zero mutex is unlocked and ready to use</p>
 <p>A mutex limits interleavings</p>
   </div>
   </div> <!-- flex -->
   <span class='pagenumber'>4</span>
+</article>
+
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/50/m.go -->
+<article>
+  <h1>m.go</h1>
+  <div class="flex">
+  <div class='code'><pre>
+
+type <defn>IDGenerator</defn> struct {
+    prefix string
+    mu     sync.Mutex
+    num    int
+}
+
+func <defn>NewIDGenerator</defn>(prefix string) *IDGenerator {
+    return &amp;IDGenerator{prefix: prefix}
+}
+
+func (g *IDGenerator) <defn>NewID</defn>() string {
+    g.mu.Lock()
+    defer g.mu.Unlock()
+    g.num++
+    return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
+}
+</pre>
+  </div>
+  <div class='text'>
+<p><code>num</code> must be synchronized to make <code>NewID</code> concurrency-safe</p>
+<p><code>prefix</code> is written <em>before</em> all calls to <code>NewID</code></p>
+<p>The &quot;mutex hat&quot; convention: declare the mutex field
+above the fields it protects</p>
+<p><img src="mutex-hat.png" alt="mutex hat" /></p>
+  </div>
+  </div> <!-- flex -->
+  <span class='pagenumber'>5</span>
+</article>
+
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/60/m.go -->
+<article>
+  <h1>Atomics</h1>
+  <div class="flex">
+  <div class='code'><pre>
+
+type <defn>IDGenerator</defn> struct {
+    prefix string
+<b>    num atomic.Int64</b>
+}
+
+func <defn>NewIDGenerator</defn>(prefix string) *IDGenerator {
+    return &amp;IDGenerator{prefix: prefix}
+}
+
+func (g *IDGenerator) <defn>NewID</defn>() string {
+    n := g.num.Add(1)
+    return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, n)
+}
+</pre>
+  </div>
+  <div class='text'>
+<p><code>num</code> must be synchronized to make <code>NewID</code> concurrency-safe</p>
+<p><code>prefix</code> is written <em>before</em> all calls to <code>NewID</code></p>
+<p>The &quot;mutex hat&quot; convention: declare the mutex field
+above the fields it protects</p>
+<p><img src="mutex-hat.png" alt="mutex hat" /></p>
+  </div>
+  </div> <!-- flex -->
+  <span class='pagenumber'>6</span>
 </article>
 
     <div id="help">
