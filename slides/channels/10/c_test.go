@@ -14,7 +14,7 @@ import (
 // heading Passing a value between goroutines
 
 // text
-// We know a way to do this.
+// We can pass a value between goroutines with a WaitGroup.
 // !text
 
 func f1() {
@@ -34,14 +34,14 @@ func Test_f1(t *testing.T) {
 }
 
 // text
-// But there is a more flexible way.
+// But there is a more flexible way: channels.
 // !text
 
 // heading Unbuffered channels
 
 // text
-// - An unbuffered channel lets two goroutines rendezvous
-// - It doesn't matter which happens first, the send or the receive
+// - An unbuffered channel lets two goroutines rendezvous.
+// - It doesn't matter which happens first, the send or the receive.
 // !text
 
 func f2() {
@@ -108,10 +108,12 @@ func f3() {
 // 	}
 // }
 
+////////////////////////////////////
+
 // heading Timeout, v1
 
 // text
-// The select statement blocks until one of the cases is ready.
+// The `select` statement blocks until one of the cases is ready.
 // !text
 
 // problem
@@ -148,6 +150,9 @@ func Test_f4(t *testing.T) {
 }
 
 // heading Timeout, v2
+
+// text Use `time.After` for timeouts.
+
 func f5() {
 	// code
 	ch := make(chan int)
@@ -325,31 +330,30 @@ func TestNotifications(t *testing.T) {
 // - Every receiver is notified.
 // !text
 
-// code
-type node struct {
-	val int
-	left, right *node
-}
+// // code
+// type node struct {
+// 	val int
+// 	left, right *node
+// }
 
-// Return a channel 
-func valuesChannel(root *node) chan int
-func sendValues(n *node, ch chan int){
-	if n == nil {return}
-	ch <- n.val
-	sendValues(n.left, ch)
-	sendValues(n.right, ch)
-}
+// // Return a channel
+// func valuesChannel(root *node) chan int
+// func sendValues(n *node, ch chan int){
+// 	if n == nil {return}
+// 	ch <- n.val
+// 	sendValues(n.left, ch)
+// 	sendValues(n.right, ch)
+// }
 
-	close(ch)
-	// !em
-	}
-	return ch
-}
+// 	close(ch)
+// 	// !em
+// 	}
+// 	return ch
+// }
 
-func runCollatz() {
-	ch := collatzChannel(28)
-	
-}
+// func runCollatz() {
+// 	ch := collatzChannel(28)
+// }
 
 ////////////////////////////////////
 
