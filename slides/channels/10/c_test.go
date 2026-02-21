@@ -180,18 +180,6 @@ func Test_f5(t *testing.T) {
 ////////////////////////////////////
 // heading Goroutine leaks
 
-// question
-// - What happens to the first goroutine if there is a timeout?
-// - (Assume nothing else receives from `ch`)
-// answer
-// 1. `time.After` case executes
-// 2. `select` finishes
-// 3. goroutine tries to send to `ch`
-//
-// - The GC does not collect `ch`: there is still a reference to it.
-// - The GC does not collect goroutines: they must terminate.
-// !question
-
 func f5a() {
 	// code
 	ch := make(chan int)
@@ -201,13 +189,23 @@ func f5a() {
 	select {
 	case v := <-ch:
 		fmt.Println(v)
-		// em
 	case <-time.After(20 * time.Millisecond):
-		// !em
 		fmt.Println("timed out")
 	}
 	// !code
 }
+
+// question
+// - What happens to the first goroutine if there is a timeout?
+// - Assume nothing else receives from `ch`
+// answer
+// 1. `time.After` case executes
+// 2. `select` finishes
+// 3. goroutine tries to send to `ch`
+//
+// - The GC does not collect `ch`: there is still a reference to it.
+// - The GC does not collect goroutines: they must terminate.
+// !question
 
 ////////////////////////////////////
 // heading Buffered goroutines
