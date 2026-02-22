@@ -324,13 +324,10 @@ func TestNotifications(t *testing.T) {
 ////////////////////////////////////
 // heading Closing channels
 
-// text
-// - Close a channel when it will never be sent to again.
-// - Every receiver is notified.
-// !text
+// text Close a channel when it will never be sent to again.
 
 // cols
-// code bad
+// code weak
 type node struct {
 	val         int
 	left, right *node
@@ -346,8 +343,9 @@ func sendValues(n *node, ch chan int) {
 }
 
 // !code
+// text (In modern Go, we would use an iterator.)
 // nextcol
-// code
+// code weak
 func printTree(root *node) {
 	c := make(chan int)
 	go func() {
@@ -358,8 +356,9 @@ func printTree(root *node) {
 	}()
 
 	for {
-		v, ok := <-c // em ok
-		if !ok {     // c is closed
+		v, ok := <-c // distinguish closed from zero value // em ok
+		if !ok {
+			// c is closed
 			break
 		}
 		fmt.Println(v)
@@ -369,26 +368,154 @@ func printTree(root *node) {
 // !code
 // !cols
 
+// heading for...range with a channel
+
+// code
+func printTree_1(root *node) {
+	c := make(chan int)
+	go func() {
+		sendValues(root, c)
+		close(c)
+	}()
+
+	// em
+	for v := range c {
+		// !em
+		fmt.Println(v)
+	}
+}
+
+// !code
+
+var aTree = &node{
+	val:  2,
+	left: &node{val: 1},
+	right: &node{
+		val:   4,
+		left:  &node{val: 3},
+		right: &node{val: 5},
+	},
+}
+
 func TestPrintTree(t *testing.T) {
-	n := &node{
-		val:  2,
-		left: &node{val: 1},
-		right: &node{
-			val:   4,
-			left:  &node{val: 3},
-			right: &node{val: 5},
-		},
-	}
-	got := stdout(func() { printTree(n) })
-	want := "1\n2\n3\n4\n5"
-	if got != want {
-		t.Errorf("got %s, want %s", got, want)
-	}
+	wantStdout(t, "1\n2\n3\n4\n5", func() { printTree(aTree) })
+}
+
+////////////////////////////////////
+// heading close broadcasts
+
+// text `close` affects every receiver
+
+// // cols
+// // code
+// func printTree_2(root *node) {
+// 	c := make(chan int)
+// 	go func() {
+// 		sendValues(root, c)
+// 		close(c)
+// 	}()
+
+// 	var wg sync.WaitGroup
+// 	wg.Go(func() {
+// 		for v := range c {
+// 			fmt.Println(v)
+// 		}
+// 	})
+
+// 	for v := range c {
+// 		fmt.Println(v)
+// 	}
+// 	wg.Wait()
+// }
+
+// // !code
+
+// // question What will this function do?
+// // answer
+// // - Print all the values of the tree in some order.
+// // - Then return.
+
+// // nextcol
+
+// // code
+// func printTree_3(root *node) {
+// 	c := make(chan int)
+// 	go func() {
+// 		sendValues(root, c)
+// 		c <- -1 // signal done with -1
+// 	}()
+
+// 	var wg sync.WaitGroup
+// 	wg.Go(func() {
+// 		for v := range c {
+// 			fmt.Println(v)
+// 		}
+// 	})
+
+// 	for v := range c {
+// 		fmt.Println(v)
+// 	}
+// 	wg.Wait()
+// }
+
+// // !code
+
+// func TestPrintTree2(t *testing.T) {
+// 	got := stdout(func() { printTree_2(aTree) })
+// 	fmt.Println(got)
+// }
+
+// cols
+func send1() {
+	// code bad
+	c := make(chan int)
+	var wg sync.WaitGroup
+	wg.Go(func() { c <- 1 }) // em c <- 1
+	wg.Go(func() { fmt.Println(<-c) })
+	wg.Go(func() { fmt.Println(<-c) })
+	wg.Wait()
+	// !code
+}
+
+// question What does this do?
+// answer Print 1, then hang.
+// nextcol
+func send2() {
+	// code
+	c := make(chan int)
+	var wg sync.WaitGroup
+	wg.Go(func() { close(c) }) // em close\(c\)
+	wg.Go(func() { fmt.Println(<-c) })
+	wg.Go(func() { fmt.Println(<-c) })
+	wg.Wait()
+	// !code
+}
+
+// question What does this do?
+// answer Print 0 twice, then finish.
+
+// !cols
+
+func TestSend(t *testing.T) {
+	// t.Run("send1", func(t *testing.T){
+	// TODO: use synctest
+	// })
+	t.Run("send2", func(t *testing.T) {
+		wantStdout(t, "0\n0", send2)
+	})
 }
 
 ////////////////////////////////////
 
 func compute(x int) int { return x * x }
+
+func wantStdout(t *testing.T, want string, f func()) {
+	t.Helper()
+	got := stdout(f)
+	if got != want {
+		t.Errorf("\ngot  %s\nwant %s", got, want)
+	}
+}
 
 func stdout(f func()) string {
 	defer func(out *os.File) { os.Stdout = out }(os.Stdout)

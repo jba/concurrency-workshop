@@ -285,6 +285,10 @@ div.code.bad pre {
   border: 3px solid rgb(255, 128, 128);
 }
 
+div.code.weak pre {
+  border: 3px solid rgb(255, 200, 0);
+}
+
 pre {
   padding: 20px 20px;
   margin-top: 20px;

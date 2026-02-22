@@ -116,6 +116,7 @@ const (
 	sectionNote
 	sectionCode
 	sectionCodeBad
+	sectionCodeWeak
 	sectionQuestion
 	sectionAnswer
 	sectionText
@@ -131,6 +132,8 @@ func (k sectionKind) String() string {
 		return "code"
 	case sectionCodeBad:
 		return "code bad"
+	case sectionCodeWeak:
+		return "code weak"
 	case sectionQuestion:
 		return "question"
 	case sectionAnswer:
@@ -147,10 +150,9 @@ func (k sectionKind) String() string {
 }
 
 var simpleKinds = map[string]sectionKind{
-	"note":     sectionNote,
-	"code":     sectionCode,
-	"output":   sectionOutput,
-	"question": sectionQuestion,
+	"note":   sectionNote,
+	"code":   sectionCode,
+	"output": sectionOutput,
 }
 
 type section struct {
@@ -320,12 +322,19 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		line := scanner.Text()
 		first, rest, _ := splitFirstWord(line)
 		matchFirst := true
-		// Handle "code bad" before simpleKinds
+		// Handle "code bad" and "code weak" before simpleKinds
 		if first == "code" && rest == "bad" {
 			if kind != sectionUndefined {
 				return nil, fmt.Errorf("code bad inside %s", kind)
 			}
 			kind = sectionCodeBad
+			continue
+		}
+		if first == "code" && rest == "weak" {
+			if kind != sectionUndefined {
+				return nil, fmt.Errorf("code weak inside %s", kind)
+			}
+			kind = sectionCodeWeak
 			continue
 		}
 		if sec, ok := simpleKinds[first]; ok {
@@ -364,7 +373,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			add(sectionHTML, rest)
 
 		case "!code":
-			if kind != sectionCode && kind != sectionCodeBad {
+			if kind != sectionCode && kind != sectionCodeBad && kind != sectionCodeWeak {
 				return nil, errors.New("!code without matching code")
 			}
 			// Trim trailing blank line
@@ -391,12 +400,27 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			addCurrent(sectionOutput)
 			kind = sectionUndefined
 
-		case "answer":
-			if kind != sectionQuestion {
-				return nil, errors.New("answer without matching question")
+		case "question":
+			if kind != sectionUndefined {
+				return nil, fmt.Errorf("question inside %s", kind)
 			}
-			addCurrent(sectionQuestion)
-			kind = sectionAnswer
+			if rest != "" {
+				add(sectionQuestion, rest+"\n")
+			} else {
+				kind = sectionQuestion
+			}
+
+		case "answer":
+			if kind == sectionQuestion {
+				addCurrent(sectionQuestion)
+			} else if kind != sectionUndefined {
+				return nil, fmt.Errorf("answer inside %s", kind)
+			}
+			if rest != "" {
+				add(sectionAnswer, rest+"\n")
+			} else {
+				kind = sectionAnswer
+			}
 
 		case "!question":
 			if kind != sectionQuestion && kind != sectionAnswer {
@@ -445,7 +469,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				}
 				fallthrough
 			default:
-				if kind == sectionCode || kind == sectionCodeBad {
+				if kind == sectionCode || kind == sectionCodeBad || kind == sectionCodeWeak {
 					trimmed := strings.TrimLeft(line, " \t")
 					switch trimmed {
 					case "// em":
@@ -530,6 +554,11 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 			w.close("</div>")
 		case sectionCodeBad:
 			w.open("<div class='code bad'><pre>")
+			fmt.Fprint(w, renderCode(sec.content))
+			fmt.Fprintln(w, "</pre>")
+			w.close("</div>")
+		case sectionCodeWeak:
+			w.open("<div class='code weak'><pre>")
 			fmt.Fprint(w, renderCode(sec.content))
 			fmt.Fprintln(w, "</pre>")
 			w.close("</div>")

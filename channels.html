@@ -245,13 +245,10 @@ func <defn>receiveNotification</defn>() string {
 <article>
   <h1>Closing channels</h1>
   <div class='text'>
-<ul>
-<li>Close a channel when it will never be sent to again.</li>
-<li>Every receiver is notified.</li>
-</ul>
+<p>Close a channel when it will never be sent to again.</p>
   </div>
   <div class="flex"><div>
-  <div class='code bad'><pre>
+  <div class='code weak'><pre>
 type <defn>node</defn> struct {
     val         int
     left, right *node
@@ -267,8 +264,11 @@ func <defn>sendValues</defn>(n *node, ch chan int) {
 }
 </pre>
   </div>
+  <div class='text'>
+<p>(In modern Go, we would use an iterator.)</p>
+  </div>
   </div><div>
-  <div class='code'><pre>
+  <div class='code weak'><pre>
 func <defn>printTree</defn>(root *node) {
     c := make(chan int)
     go func() {
@@ -277,8 +277,9 @@ func <defn>printTree</defn>(root *node) {
     }()
 
     for {
-        v, <span class="em">ok</span> := &lt;-c
-        if !ok {     <comment>// c is closed</comment>
+        v, <span class="em">ok</span> := &lt;-c <comment>// distinguish closed from zero value</comment>
+        if !ok {
+            <comment>// c is closed</comment>
             break
         }
         fmt.Println(v)
@@ -288,6 +289,58 @@ func <defn>printTree</defn>(root *node) {
   </div>
   </div></div> <!-- flex -->
   <span class='pagenumber'>12</span>
+</article>
+<article>
+  <h1>for...range with a channel</h1>
+  <div class='code'><pre>
+func <defn>printTree</defn>(root *node) {
+    c := make(chan int)
+    go func() {
+        sendValues(root, c)
+        close(c)
+    }()
+
+<span class="em">    for v := range c {</span>
+        fmt.Println(v)
+    }
+}
+</pre>
+  </div>
+  <span class='pagenumber'>13</span>
+</article>
+<article>
+  <h1>close broadcasts</h1>
+  <div class='text'>
+<p><code>close</code> affects every receiver</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code bad'><pre>
+c := make(chan int)
+var wg sync.WaitGroup
+wg.Go(func() { <span class="em">c &lt;- 1</span> })
+wg.Go(func() { fmt.Println(&lt;-c) })
+wg.Go(func() { fmt.Println(&lt;-c) })
+wg.Wait()</pre>
+  </div>
+<p>What does this do?</p>
+  <details><summary></summary>
+<p>Print 1, then hang.</p>
+  </details>
+  </div><div>
+  <div class='code'><pre>
+c := make(chan int)
+var wg sync.WaitGroup
+wg.Go(func() { <span class="em">close(c)</span> })
+wg.Go(func() { fmt.Println(&lt;-c) })
+wg.Go(func() { fmt.Println(&lt;-c) })
+wg.Wait()</pre>
+  </div>
+<p>What does this do?</p>
+  <details><summary></summary>
+<p>Print 0 twice, then finish.</p>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>14</span>
 </article>
 
     <div id="help">
