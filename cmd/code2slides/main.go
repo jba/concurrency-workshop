@@ -13,11 +13,6 @@
 //
 //	Set the slide's heading to TEXT. Each heading starts a new slide.
 //
-// problem
-//
-//	Mark the current slide as a problem slide. The area around the slide
-//	turns red when this slide is displayed.
-//
 // code / !code
 //
 //	Begin and end a code block. Lines between these directives are rendered
@@ -96,8 +91,8 @@ import (
 )
 
 type Slide struct {
-	heading  string
-	problem  bool
+	isTitle  bool
+	heading  string // or main title
 	sections []section
 }
 
@@ -122,6 +117,7 @@ const (
 	sectionText
 	sectionHTML
 	sectionOutput
+	sectionSubtitle
 )
 
 func (k sectionKind) String() string {
@@ -144,15 +140,25 @@ func (k sectionKind) String() string {
 		return "html"
 	case sectionOutput:
 		return "output"
+	case sectionSubtitle:
+		return "subtitle"
 	default:
 		return "unknown"
 	}
 }
 
-var simpleKinds = map[string]sectionKind{
-	"note":   sectionNote,
-	"code":   sectionCode,
-	"output": sectionOutput,
+var simpleOpens = map[string]sectionKind{
+	"note":     sectionNote,
+	"code":     sectionCode,
+	"output":   sectionOutput,
+	"subtitle": sectionSubtitle,
+}
+
+var simpleCloses = map[string]sectionKind{
+	"note":     sectionNote,
+	"text":     sectionText,
+	"output":   sectionOutput,
+	"subtitle": sectionSubtitle,
 }
 
 type section struct {
@@ -173,7 +179,7 @@ var (
 
 func main() {
 	outputFile := flag.String("o", "output.html", "output file name")
-	title := flag.String("title", "Title", "presentation title")
+	title := flag.String("title", "Title", "HTML page title")
 	flag.BoolVar(&includeNotes, "notes", false, "include notes and answers in output")
 	flag.BoolVar(&debug, "debug", false, "debug output")
 	flag.Parse()
@@ -245,12 +251,7 @@ func run(outputFile, title string, files []string) (err error) {
 
 	fmt.Fprintf(iw, top, title)
 
-	// Write title slide
-	iw.open("<article class='title-slide'>")
-	iw.linef("<div class='title-text'>%s</div>", html.EscapeString(title))
-	iw.close("</article>")
-
-	pageNum := 2
+	pageNum := 1
 	for _, filename := range files {
 		var err error
 		pageNum, err = processFile(iw, filename, pageNum)
@@ -337,15 +338,26 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			kind = sectionCodeWeak
 			continue
 		}
-		if sec, ok := simpleKinds[first]; ok {
+		if sec, ok := simpleOpens[first]; ok {
 			if kind != sectionUndefined {
 				return nil, fmt.Errorf("%s inside %s", sec, kind)
 			}
 			kind = sec
 			continue
 		}
+		if strings.HasPrefix(first, "!") {
+			if sec, ok := simpleCloses[first[1:]]; ok {
+				if kind != sec {
+					return nil, fmt.Errorf("%s without matching %s", first, first[1:])
+				}
+				addCurrent(sec)
+				kind = sectionUndefined
+				continue
+			}
+		}
+
 		switch first {
-		case "heading":
+		case "title":
 			if rest == "" {
 				return nil, errors.New("missing heading")
 			}
@@ -353,11 +365,18 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				slides = append(slides, slide)
 				slide = &Slide{}
 			}
+			slide.isTitle = true
 			slide.heading = rest
 
-		case "problem":
-			return nil, errors.New("'problem' temporarily not supported")
-			// slide.problem = true
+		case "heading":
+			if rest == "" {
+				return nil, errors.New("missing heading")
+			}
+			if slide.isTitle || len(slide.sections) > 0 {
+				slides = append(slides, slide)
+				slide = &Slide{}
+			}
+			slide.heading = rest
 
 		case "text":
 			if kind != sectionUndefined {
@@ -379,25 +398,6 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			// Trim trailing blank line
 			add(kind, strings.TrimSuffix(current.String(), "\n"))
 			current.Reset()
-			kind = sectionUndefined
-		case "!note":
-			if kind != sectionNote {
-				return nil, errors.New("!note without matching note")
-			}
-			addCurrent(sectionNote)
-			kind = sectionUndefined
-
-		case "!text":
-			if kind != sectionText {
-				return nil, errors.New("!text without matching text")
-			}
-			addCurrent(sectionText)
-			kind = sectionUndefined
-		case "!output":
-			if kind != sectionOutput {
-				return nil, fmt.Errorf("output inside %s", kind)
-			}
-			addCurrent(sectionOutput)
 			kind = sectionUndefined
 
 		case "question":
@@ -539,12 +539,21 @@ func splitFirstWord(s string) (string, string, bool) {
 }
 
 func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
-	if slide.problem {
-		w.open("<article class='problem'>")
+	// 	for _, st := range slide.subtitles {
+	// 		w.linef("<div class='subtitle-text'>%s<br/></div>", html.EscapeString(st))
+	// 	}
+	// 	w.close("</article>")
+	// 	return
+	// }
+
+	eh := html.EscapeString(slide.heading)
+	if slide.isTitle {
+		w.open("<article class='title-slide'>")
+		w.linef("<div class='title-text'>%s</div>", eh)
 	} else {
 		w.open("<article>")
+		w.linef("<h1>%s</h1>", eh)
 	}
-	w.linef("<h1>%s</h1>", html.EscapeString(slide.heading))
 	for _, sec := range slide.sections {
 		switch sec.kind {
 		case sectionCode:
@@ -586,6 +595,10 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 			}
 		case sectionHTML:
 			w.linef("%s", sec.content)
+		case sectionSubtitle:
+			w.open("<div class='subtitle-text'")
+			fmt.Fprint(w, renderMarkdown(sec.content))
+			w.close("</div>")
 		}
 	}
 	w.linef("<span class='pagenumber'>%d</span>", pageNum)

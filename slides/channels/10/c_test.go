@@ -11,6 +11,13 @@ import (
 	"time"
 )
 
+// title Introduction to Channels
+// subtitle
+// Demystifying Concurrency
+
+// GopherCon Europe 2026
+// !subtitle
+
 // heading Passing a value between goroutines
 
 // text
