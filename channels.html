@@ -134,8 +134,11 @@ case &lt;-time.After(20 * time.Millisecond):
 <comment>// program continues</comment></pre>
   </div>
   </div><div>
-<p>What happens to the first goroutine if there is a timeout?</p>
-  <details><summary></summary>
+  <details>
+    <summary>
+What happens to the first goroutine if there is a timeout?</p>
+    </summary>
+    <div class='answer'>
 <ol>
 <li><code>time.After</code> case executes</li>
 <li><code>select</code> finishes</li>
@@ -145,6 +148,7 @@ case &lt;-time.After(20 * time.Millisecond):
 <li>The GC does not collect <code>c</code>: there is still a reference to it.</li>
 <li>The GC does not collect goroutines: they must terminate.</li>
 </ul>
+    </div>
   </details>
   </div></div> <!-- flex -->
   <span class='pagenumber'>7</span>
@@ -172,16 +176,21 @@ case &lt;-time.After(20 * time.Millisecond):
 </ul>
   </div>
   </div><div>
-<p>And now?</p>
-  <details><summary></summary>
+  <details>
+    <summary>
+Now what happens to the first goroutine if there is a timeout?</p>
+    </summary>
+    <div class='answer'>
 <ol>
 <li><code>time.After</code> case executes</li>
 <li><code>select</code> finishes</li>
 <li>goroutine tries to send to <code>c</code></li>
-<li><span style="color:purple">value is enqueued</span></li>
+<li><span style="color:purple">value is enqueued in channel</span></li>
 <li>goroutine exits</li>
 </ol>
-<p>no leaks, no garbage</p>
+<p>No leaks: goroutine terminates
+No garbage: Nothing refers to <code>c</code></p>
+    </div>
   </details>
   </div></div> <!-- flex -->
   <span class='pagenumber'>8</span>
@@ -215,12 +224,23 @@ func <defn>sendNotification</defn>(s string) { nc &lt;- s }
 func <defn>receiveNotification</defn>() string { return &lt;-nc }
 </pre>
   </div>
-  <div class='text'>
-<p>What happens here?</p>
-  </div>
-  <div class='text'>
-<p>What if we add buffering?</p>
-  </div>
+  <details>
+    <summary>
+What can happen here?</p>
+    </summary>
+    <div class='answer'>
+<p>Both functions can block.</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+What if we add buffering?</p>
+    </summary>
+    <div class='answer'>
+<p>It helps until the buffer fills (send) or is empty (receive).
+Then they block again.</p>
+    </div>
+  </details>
   <span class='pagenumber'>10</span>
 </article>
 <article>
@@ -327,9 +347,13 @@ wg.Go(func() { fmt.Println(&lt;-c) })
 wg.Go(func() { fmt.Println(&lt;-c) })
 wg.Wait()</pre>
   </div>
-<p>What does this do?</p>
-  <details><summary></summary>
+  <details>
+    <summary>
+What does this do?</p>
+    </summary>
+    <div class='answer'>
 <p>Print 1, then hang.</p>
+    </div>
   </details>
   </div><div>
   <div class='code'><pre>
@@ -340,9 +364,13 @@ wg.Go(func() { fmt.Println(&lt;-c) })
 wg.Go(func() { fmt.Println(&lt;-c) })
 wg.Wait()</pre>
   </div>
-<p>What does this do?</p>
-  <details><summary></summary>
+  <details>
+    <summary>
+What does this do?</p>
+    </summary>
+    <div class='answer'>
 <p>Print 0 twice, then finish.</p>
+    </div>
   </details>
   </div></div> <!-- flex -->
   <span class='pagenumber'>14</span>

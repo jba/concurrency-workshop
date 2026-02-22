@@ -290,6 +290,10 @@ div.code.weak pre {
   border: 3px solid rgb(255, 200, 0);
 }
 
+div.answer {
+  padding: 0 2rem;
+}
+
 pre {
   padding: 20px 20px;
   margin-top: 20px;

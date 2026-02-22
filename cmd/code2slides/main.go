@@ -576,11 +576,15 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 			fmt.Fprint(w, renderMarkdown(sec.content))
 			w.close("</div>")
 		case sectionQuestion:
-			fmt.Fprint(w, renderMarkdown(sec.content))
-			fmt.Fprintln(w, "  <details><summary></summary>")
+			w.open("<details>")
+			w.open("<summary>")
+			fmt.Fprint(w, stripPara(renderMarkdown(sec.content)))
+			w.close("</summary>")
 		case sectionAnswer:
+			w.open("<div class='answer'>")
 			fmt.Fprint(w, renderMarkdown(sec.content))
-			fmt.Fprintln(w, "  </details>")
+			w.close("</div>")
+			w.close("</details>")
 		case sectionOutput:
 			// Avoid two consecutive inline-block divs from appearing
 			// next to each other.
@@ -748,6 +752,11 @@ func renderMarkdown(s string) string {
 	p.Table = true
 	doc := p.Parse(s)
 	return markdown.ToHTML(doc)
+}
+
+func stripPara(s string) string {
+	s = strings.TrimPrefix(s, "<p>")
+	return strings.TrimSuffix(s, "</p>")
 }
 
 const top = `<!DOCTYPE html>

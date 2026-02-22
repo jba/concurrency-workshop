@@ -238,15 +238,17 @@ func f6() {
 // nextcol
 
 // question
-// And now?
+// Now what happens to the first goroutine if there is a timeout?
 // answer
 // 1. `time.After` case executes
 // 2. `select` finishes
 // 3. goroutine tries to send to `c`
-// 4. <span style="color:purple">value is enqueued</span>
+// 4. <span style="color:purple">value is enqueued in channel</span>
 // 5. goroutine exits
 //
-// no leaks, no garbage
+// No leaks: goroutine terminates
+// No garbage: Nothing refers to `c`
+
 // !question
 // !cols
 
@@ -281,9 +283,17 @@ func receiveNotification_1() string { return <-nc_1 }
 
 // !code
 
-// text What happens here?
+// question
+// What can happen here?
+// answer
+// Both functions can block.
+// !question
 
-// text What if we add buffering?
+// question What if we add buffering?
+// answer
+// It helps until the buffer fills (send) or is empty (receive).
+// Then they block again.
+// !question
 
 // heading Notifications: solution
 // code
