@@ -349,6 +349,9 @@ are ready.</p>
 <article>
   <h1>Closing channels</h1>
   <div class="flex"><div>
+  <div class='text'>
+<p>Close a channel when it will never be sent to again.</p>
+  </div>
   <div class='code weak'><pre>
 <span class='codenum'>1</span>type <defn>node</defn> struct {
 <span class='codenum'>2</span>   val         int
@@ -357,21 +360,38 @@ are ready.</p>
 
 <span class='codenum'>5</span>func (n *node) <defn>values</defn>() chan int {
 <span class='codenum'>6</span>   c := make(chan int)
-<span class='codenum'>7</span>   go func() { sendValues(n, c); <span class="em">close(c)</span> }()
-<span class='codenum'>8</span>   return c
-<span class='codenum'>9</span>}
-
-<span class='codenum'>10</span>func <defn>sendValues</defn>(n *node, ch chan int) {
-<span class='codenum'>11</span>   if n == nil {
-<span class='codenum'>12</span>      return
-<span class='codenum'>13</span>   }
-<span class='codenum'>14</span>   sendValues(n.left, ch)
-<span class='codenum'>15</span>   ch &lt;- n.val
-<span class='codenum'>16</span>   sendValues(n.right, ch)
-<span class='codenum'>17</span>}
+<span class='codenum'>7</span>   go func() {
+<span class='codenum'>8</span>      sendValues(n, c)
+<span class='codenum'>9</span><span class="em">      close(c)</span>
+<span class='codenum'>10</span>   }()
+<span class='codenum'>11</span>   return c
+<span class='codenum'>12</span>}
 </pre>
   </div>
   </div><div>
+  <div class='text'>
+<p> </p>
+  </div>
+  <div class='code weak'><pre>
+<span class='codenum'>1</span>func <defn>sendValues</defn>(n *node, ch chan int) {
+<span class='codenum'>2</span>   if n == nil {
+<span class='codenum'>3</span>      return
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span>   sendValues(n.left, ch)
+<span class='codenum'>6</span>   ch &lt;- n.val
+<span class='codenum'>7</span>   sendValues(n.right, ch)
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>In modern Go, we would use an iterator.</p>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>16</span>
+</article>
+<article>
+  <h1>Closing channels, continued</h1>
+  <div class="flex"><div>
   <div class='code weak'><pre>
 <span class='codenum'>1</span>func <defn>printTree</defn>(root *node) {
 <span class='codenum'>2</span>   c := root.values()
@@ -387,29 +407,22 @@ are ready.</p>
 </pre>
   </div>
   <div class='text'>
-<p>Close a channel when it will never be sent to again.</p>
-<p>In modern Go, we would use an iterator.</p>
 <p>Two-value receive distinguishes closed from zero value.</p>
   </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>16</span>
-</article>
-<article>
-  <h1>for...range with a channel</h1>
+  </div><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>func <defn>printTree</defn>(root *node) {
-<span class='codenum'>2</span>   c := make(chan int)
-<span class='codenum'>3</span>   go func() {
-<span class='codenum'>4</span>      sendValues(root, c)
-<span class='codenum'>5</span>      close(c)
-<span class='codenum'>6</span>   }()
-
-<span class='codenum'>7</span><span class="em">   for v := range c {</span>
-<span class='codenum'>8</span>      fmt.Println(v)
-<span class='codenum'>9</span>   }
-<span class='codenum'>10</span>}
+<span class='codenum'>2</span>   c := root.values()
+<span class='codenum'>3</span><span class="em">   for v := range c {</span>
+<span class='codenum'>4</span>      fmt.Println(v)
+<span class='codenum'>5</span>   }
+<span class='codenum'>6</span>}
 </pre>
   </div>
+  <div class='text'>
+<p>for...range with a channel ends when closed</p>
+  </div>
+  </div></div> <!-- flex -->
   <span class='pagenumber'>17</span>
 </article>
 <article>
@@ -640,14 +653,29 @@ channel.</p>
   <div class='text'>
 <p> </p>
 <p><code>userCancels</code> returns a channel that is closed when a button is clicked.</p>
-<p>Still defer <code>cancel</code> so it's always called.</p>
-<p>Still select <code>ctx.Done</code>: arg context may become done.</p>
   </div>
+  <details>
+    <summary>
+Why do we still need to defer <code>cancel</code>?</p>
+    </summary>
+    <div class='answer'>
+<p>It must always be called, and it isn't in two of the cases.</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+Why do we still need to check <code>ctx.Done</code>?</p>
+    </summary>
+    <div class='answer'>
+<p>The argument context might be canceled or time out.</p>
+    </div>
+  </details>
   </div></div> <!-- flex -->
   <span class='pagenumber'>23</span>
 </article>
 <article>
   <h1>Exercise: Hedging</h1>
+  <div class="flex"><div>
   <div class='text'>
 <p>Your server has two methods of performing a computation, or
 two backends that it can query for a result.</p>
@@ -663,6 +691,7 @@ two backends that it can query for a result.</p>
 <span class='codenum'>7</span>}
 </pre>
   </div>
+  </div><div>
   <div class='text'>
 <p>Or you could try them both in parallel, and take the first result
 you get. This is <em>hedging</em>.</p>
@@ -674,6 +703,7 @@ concurrently.</li>
 <li>Before returning, it should cancel the other computation.</li>
 </ul>
   </div>
+  </div></div> <!-- flex -->
   <span class='pagenumber'>24</span>
 </article>
 

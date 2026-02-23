@@ -437,6 +437,9 @@ func TestNotifications(t *testing.T) {
 // heading Closing channels
 
 // cols
+
+// text Close a channel when it will never be sent to again.
+
 // code weak
 type node struct {
 	val         int
@@ -445,10 +448,22 @@ type node struct {
 
 func (n *node) values() chan int {
 	c := make(chan int)
-	go func() { sendValues(n, c); close(c) }() // em close\(c\)
+	go func() {
+		sendValues(n, c)
+		// em
+		close(c)
+		// !em
+	}()
 	return c
 }
 
+// !code
+
+// nextcol
+
+// text &nbsp;
+
+// code weak
 func sendValues(n *node, ch chan int) {
 	if n == nil {
 		return
@@ -459,7 +474,15 @@ func sendValues(n *node, ch chan int) {
 }
 
 // !code
-// nextcol
+
+// text In modern Go, we would use an iterator.
+
+// !cols
+
+// heading Closing channels, continued
+
+// cols
+
 // code weak
 func printTree(root *node) {
 	c := root.values()
@@ -474,27 +497,13 @@ func printTree(root *node) {
 }
 
 // !code
+// text Two-value receive distinguishes closed from zero value.
 
-// text
-// Close a channel when it will never be sent to again.
-
-// In modern Go, we would use an iterator.
-
-// Two-value receive distinguishes closed from zero value.
-// !text
-
-// !cols
-
-// heading for...range with a channel
+// nextcol
 
 // code
 func printTree_1(root *node) {
-	c := make(chan int)
-	go func() {
-		sendValues(root, c)
-		close(c)
-	}()
-
+	c := root.values()
 	// em
 	for v := range c {
 		// !em
@@ -503,6 +512,10 @@ func printTree_1(root *node) {
 }
 
 // !code
+
+// text for...range with a channel ends when closed
+
+// !cols
 
 var aTree = &node{
 	val:  2,
@@ -842,11 +855,17 @@ func computeWithCancel(ctx context.Context, arg int) (
 // &nbsp;
 
 // `userCancels` returns a channel that is closed when a button is clicked.
-
-// Still defer `cancel` so it's always called.
-
-// Still select `ctx.Done`: arg context may become done.
 // !text
+
+// question Why do we still need to defer `cancel`?
+// answer
+// It must always be called, and it isn't in two of the cases.
+// !question
+
+// question Why do we still need to check `ctx.Done`?
+// answer
+// The argument context might be canceled or time out.
+// !question
 
 // !cols
 
@@ -854,6 +873,8 @@ func userCancels() chan int { return nil }
 
 ////////////////////////////////////
 // heading Exercise: Hedging
+
+// cols
 
 // text
 // Your server has two methods of performing a computation, or
@@ -872,7 +893,7 @@ func getResult(input string) string {
 }
 
 // !code
-
+// nextcol
 // text
 // Or you could try them both in parallel, and take the first result
 // you get. This is _hedging_.
@@ -883,6 +904,8 @@ func getResult(input string) string {
 // - It should return the first result it gets.
 // - Before returning, it should cancel the other computation.
 // !text
+
+// !cols
 
 func method1(string) string { return "" }
 func method2(string) string { return "" }
