@@ -669,6 +669,7 @@ func renderCode(s string) string {
 	}
 
 	var result strings.Builder
+	nonBlankLineNum := 0
 	for i, line := range lines {
 		if i > 0 {
 			result.WriteByte('\n')
@@ -680,7 +681,11 @@ func renderCode(s string) string {
 			code, comment = line[:idx], line[idx:]
 		}
 		// Render code portion with definition highlighting
-		result.WriteString(renderCodeLine(code))
+		// and line numbers.
+		if len(code) > 0 {
+			nonBlankLineNum++
+		}
+		result.WriteString(renderCodeLine(code, nonBlankLineNum))
 		// Render comment if present
 		if comment != "" {
 			result.WriteString("<comment>")
@@ -694,14 +699,18 @@ func renderCode(s string) string {
 	return out
 }
 
-func renderCodeLine(line string) string {
-	// Handle emphasis markers that may prefix the line
+func renderCodeLine(line string, num int) string {
 	prefix := ""
+	// Non-blank lines begin with a line number.
+	if len(line) > 0 {
+		prefix = fmt.Sprintf("<span class='codenum'>%d</span>", num)
+	}
+	// Handle emphasis markers that may prefix the line.
 	if strings.HasPrefix(line, "\x00em\x00") {
-		prefix = "\x00em\x00"
+		prefix += "\x00em\x00"
 		line = strings.TrimPrefix(line, "\x00em\x00")
 	} else if strings.HasPrefix(line, "\x00/em\x00") {
-		prefix = "\x00/em\x00"
+		prefix += "\x00/em\x00"
 		line = strings.TrimPrefix(line, "\x00/em\x00")
 	}
 

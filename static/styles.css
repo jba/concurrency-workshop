@@ -282,6 +282,15 @@ div.code pre {
   border: 3px solid gray;
 }
 
+span.codenum {
+  display: inline-block;
+  width: 1em;
+  text-align: right;
+  font-size: smaller;
+  color: rgb(180, 180, 180);
+  padding-right: 24px;
+}
+
 div.code.bad pre {
   border: 3px solid rgb(255, 128, 128);
 }

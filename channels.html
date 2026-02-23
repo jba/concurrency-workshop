@@ -13,7 +13,7 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/channels/10/c_test.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/channels/channels_test.go -->
 <article class='title-slide'>
   <div class='title-text'>Introduction to Channels</div>
   <div class='subtitle-text'
@@ -28,11 +28,11 @@
 <p>We can pass a value between goroutines with a <code>WaitGroup</code>.</p>
   </div>
   <div class='code'><pre>
-var wg sync.WaitGroup
-var v int
-wg.Go(func() { v = compute(7) })
-wg.Wait()
-fmt.Println(v)</pre>
+<span class='codenum'>1</span>var wg sync.WaitGroup
+<span class='codenum'>2</span>var v int
+<span class='codenum'>3</span>wg.Go(func() { v = compute(7) })
+<span class='codenum'>4</span>wg.Wait()
+<span class='codenum'>5</span>fmt.Println(v)</pre>
   </div>
   <div class='text'>
 <p>But there is a more flexible way: channels.</p>
@@ -45,16 +45,19 @@ fmt.Println(v)</pre>
 <p>An unbuffered channel lets two goroutines rendezvous.</p>
   </div>
   <div class='code'><pre>
-c := make(chan int) <comment>// create a channel</comment>
+<span class='codenum'>1</span>c := make(chan int) <comment>// create a channel</comment>
 
-go func() { c &lt;- compute(7) }() <comment>// send to c</comment>
+<span class='codenum'>2</span>go func() { c &lt;- compute(7) }() <comment>// send to c</comment>
 
-v := &lt;-c <comment>// receive from c</comment>
+<span class='codenum'>3</span>v := &lt;-c <comment>// receive from c</comment>
 
-fmt.Println(v)</pre>
+<span class='codenum'>4</span>fmt.Println(v)</pre>
   </div>
   <div class='text'>
 <p>It doesn't matter which happens first, the send or the receive.</p>
+  </div>
+  <div class='text'>
+<p>Sends and receives are thread-safe.</p>
   </div>
   <span class='pagenumber'>3</span>
 </article>
@@ -64,73 +67,145 @@ fmt.Println(v)</pre>
 <p>You can have many senders, and many receivers.</p>
   </div>
   <div class='code'><pre>
-c := make(chan int)
-for i := range 5 {
-    go func() { c &lt;- compute(i) }()
-}
-for range 5 {
-    go func() {
-        fmt.Println(&lt;-c)
-    }()
-}
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span>for i := range 5 {
+<span class='codenum'>3</span>    go func() { c &lt;- compute(i) }()
+<span class='codenum'>4</span>}
+<span class='codenum'>5</span>for range 5 {
+<span class='codenum'>6</span>    go func() {
+<span class='codenum'>7</span>        fmt.Println(&lt;-c)
+<span class='codenum'>8</span>    }()
+<span class='codenum'>9</span>}
 <comment>// Wait for all goroutines here.</comment></pre>
   </div>
   <span class='pagenumber'>4</span>
 </article>
 <article>
-  <h1>Timeout, v1</h1>
+  <h1>The select statement</h1>
   <div class='text'>
-<p>The <code>select</code> statement blocks until one of the cases is ready.</p>
-  </div>
-  <div class='code bad'><pre>
-c := make(chan int)
-timeout := make(chan bool)
-go func() { c &lt;- compute(7) }()
-go func() {
-    time.Sleep(20 * time.Millisecond)
-    timeout &lt;- true
-}()
-select {
-case v := &lt;-c:
-    fmt.Println(v)
-case &lt;-timeout:
-    fmt.Println(&#34;timed out&#34;)
-}</pre>
-  </div>
-  <div class='text'>
-<p>We'll get to the problem after the next slide.</p>
+<p>Task: run a goroutine, timing out after a fixed duration.</p>
   </div>
   <span class='pagenumber'>5</span>
+</article>
+<article>
+  <h1>Timeout, v1</h1>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span>timeout := make(chan bool)
+<span class='codenum'>3</span>go func() { c &lt;- compute(7) }()
+<span class='codenum'>4</span>go func() {
+<span class='codenum'>5</span>    time.Sleep(20 * time.Millisecond)
+<span class='codenum'>6</span>    timeout &lt;- true
+<span class='codenum'>7</span>}()
+<span class='codenum'>8</span>select {
+<span class='codenum'>9</span>case v := &lt;-c:
+<span class='codenum'>10</span>    fmt.Println(v)
+<span class='codenum'>11</span>case &lt;-timeout:
+<span class='codenum'>12</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>13</span>}</pre>
+  </div>
+  <div class='text'>
+<p>red border =&gt; something's wrong; we'll discuss soon.</p>
+  </div>
+  <span class='pagenumber'>6</span>
+</article>
+<article>
+  <h1>Timeout, v1</h1>
+  <div class='text'>
+<p>The part we've seen before.</p>
+  </div>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span><span class="em">c := make(chan int)</span>
+<span class='codenum'>2</span>timeout := make(chan bool)
+<span class='codenum'>3</span><span class="em">go func() { c &lt;- compute(7) }()</span>
+<span class='codenum'>4</span>go func() {
+<span class='codenum'>5</span>    time.Sleep(20 * time.Millisecond)
+<span class='codenum'>6</span>    timeout &lt;- true
+<span class='codenum'>7</span>}()
+<span class='codenum'>8</span>select {
+<span class='codenum'>9</span><span class="em">case v := &lt;-c:
+<span class='codenum'>10</span>    fmt.Println(v)</span>
+<span class='codenum'>11</span>case &lt;-timeout:
+<span class='codenum'>12</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>13</span>}</pre>
+  </div>
+  <span class='pagenumber'>7</span>
+</article>
+<article>
+  <h1>Timeout, v1</h1>
+  <div class='text'>
+<p>The timeout part.</p>
+  </div>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span><span class="em">timeout := make(chan bool)</span>
+<span class='codenum'>3</span>go func() { c &lt;- compute(7) }()
+<span class='codenum'>4</span><span class="em">go func() {
+<span class='codenum'>5</span>    time.Sleep(20 * time.Millisecond)
+<span class='codenum'>6</span>    timeout &lt;- true
+<span class='codenum'>7</span>}()</span>
+<span class='codenum'>8</span>select {
+<span class='codenum'>9</span>case v := &lt;-c:
+<span class='codenum'>10</span>    fmt.Println(v)
+<span class='codenum'>11</span><span class="em">case &lt;-timeout:
+<span class='codenum'>12</span>    fmt.Println(&#34;timed out&#34;)</span>
+<span class='codenum'>13</span>}</pre>
+  </div>
+  <span class='pagenumber'>8</span>
+</article>
+<article>
+  <h1>Timeout, v1</h1>
+  <div class='text'>
+<p>Each case in a <code>select</code> statement is a channel operation:
+a send or a receive.</p>
+<p>The <code>select</code> blocks until one of the cases is ready.</p>
+  </div>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span>timeout := make(chan bool)
+<span class='codenum'>3</span>go func() { c &lt;- compute(7) }()
+<span class='codenum'>4</span>go func() {
+<span class='codenum'>5</span>    time.Sleep(20 * time.Millisecond)
+<span class='codenum'>6</span>    timeout &lt;- true
+<span class='codenum'>7</span>}()
+<span class='codenum'>8</span><span class="em">select {
+<span class='codenum'>9</span>case v := &lt;-c:
+<span class='codenum'>10</span>    fmt.Println(v)
+<span class='codenum'>11</span>case &lt;-timeout:
+<span class='codenum'>12</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>13</span>}</span></pre>
+  </div>
+  <span class='pagenumber'>9</span>
 </article>
 <article>
   <h1>Timeout, v2</h1>
   <div class='text'>
 <p>Use <code>time.After</code> for timeouts.</p>
   </div>
-  <div class='code'><pre>
-c := make(chan int)
-go func() { c &lt;- compute(7) }()
-select {
-case v := &lt;-c:
-    fmt.Println(v)
-<span class="em">case &lt;-time.After(20 * time.Millisecond):</span>
-    fmt.Println(&#34;timed out&#34;)
-}</pre>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span>go func() { c &lt;- compute(7) }()
+<span class='codenum'>3</span>select {
+<span class='codenum'>4</span>case v := &lt;-c:
+<span class='codenum'>5</span>    fmt.Println(v)
+<span class='codenum'>6</span><span class="em">case &lt;-time.After(20 * time.Millisecond):</span>
+<span class='codenum'>7</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>8</span>}</pre>
   </div>
-  <span class='pagenumber'>6</span>
+  <span class='pagenumber'>10</span>
 </article>
 <article>
   <h1>Goroutine leaks</h1>
   <div class="flex"><div>
   <div class='code bad'><pre>
-c := make(chan int)
-go func() { c &lt;- compute(7) }()
-select {
-case v := &lt;-c:
-    fmt.Println(v)
-case &lt;-time.After(20 * time.Millisecond):
-    fmt.Println(&#34;timed out&#34;)
-}
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span>go func() { c &lt;- compute(7) }()
+<span class='codenum'>3</span>select {
+<span class='codenum'>4</span>case v := &lt;-c:
+<span class='codenum'>5</span>    fmt.Println(v)
+<span class='codenum'>6</span>case &lt;-time.After(20 * time.Millisecond):
+<span class='codenum'>7</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>8</span>}
 <comment>// program continues</comment></pre>
   </div>
   </div><div>
@@ -151,20 +226,20 @@ What happens to the first goroutine if there is a timeout?</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>7</span>
+  <span class='pagenumber'>11</span>
 </article>
 <article>
-  <h1>Buffered goroutines</h1>
+  <h1>Buffered channels</h1>
   <div class="flex"><div>
   <div class='code'><pre>
-c := make(chan int<span class="em">, 1</span>)
-go func() { c &lt;- compute(7) }()
-select {
-case v := &lt;-c:
-    fmt.Println(v)
-case &lt;-time.After(20 * time.Millisecond):
-    fmt.Println(&#34;timed out&#34;)
-}
+<span class='codenum'>1</span>c := make(chan int, <span class="em">1</span>)
+<span class='codenum'>2</span>go func() { c &lt;- compute(7) }()
+<span class='codenum'>3</span>select {
+<span class='codenum'>4</span>case v := &lt;-c:
+<span class='codenum'>5</span>    fmt.Println(v)
+<span class='codenum'>6</span>case &lt;-time.After(20 * time.Millisecond):
+<span class='codenum'>7</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>8</span>}
 <comment>// program continues</comment></pre>
   </div>
   <div class='text'>
@@ -188,48 +263,48 @@ Now what happens to the first goroutine if there is a timeout?</p>
 <li><span style="color:purple">value is enqueued in channel</span></li>
 <li>goroutine exits</li>
 </ol>
-<p>No leaks: goroutine terminates
-No garbage: Nothing refers to <code>c</code></p>
+<p>No leaks: goroutine terminates</p>
+<p>No garbage: Nothing refers to <code>c</code></p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>8</span>
+  <span class='pagenumber'>12</span>
 </article>
 <article>
   <h1>Non-blocking select</h1>
   <div class='text'>
-<p>Let's implement this:</p>
+<p>Let's implement an in-process notification service:</p>
   </div>
   <div class='code'><pre>
 <comment>// sendNotification optionally sends a notification without</comment>
 <comment>// blocking the current goroutine.</comment>
 <comment>// To avoid blocking, the notification might be dropped.</comment>
-func <defn>sendNotification</defn>(string) {}
+<span class='codenum'>1</span>func <defn>sendNotification</defn>(string) {}
 
 <comment>// receiveNotification receives a notification if there is one.</comment>
 <comment>// It returns &#34;&#34; if there isn&#39;t.</comment>
 <comment>// It never blocks.</comment>
-func <defn>receiveNotification</defn>() string { return &#34;&#34; }
+<span class='codenum'>2</span>func <defn>receiveNotification</defn>() string { return &#34;&#34; }
 </pre>
   </div>
-  <span class='pagenumber'>9</span>
+  <span class='pagenumber'>13</span>
 </article>
 <article>
   <h1>Notifications: first attempt</h1>
   <div class='code'><pre>
-var nc = make(chan string)
+<span class='codenum'>1</span>var nc = make(chan string)
 
-func <defn>sendNotification</defn>(s string) { nc &lt;- s }
+<span class='codenum'>2</span>func <defn>sendNotification</defn>(s string) { nc &lt;- s }
 
-func <defn>receiveNotification</defn>() string { return &lt;-nc }
+<span class='codenum'>3</span>func <defn>receiveNotification</defn>() string { return &lt;-nc }
 </pre>
   </div>
   <details>
     <summary>
-What can happen here?</p>
+Does this implementation satisfy our spec?</p>
     </summary>
     <div class='answer'>
-<p>Both functions can block.</p>
+<p>No. Both functions can block.</p>
     </div>
   </details>
   <details>
@@ -241,31 +316,35 @@ What if we add buffering?</p>
 Then they block again.</p>
     </div>
   </details>
-  <span class='pagenumber'>10</span>
+  <span class='pagenumber'>14</span>
 </article>
 <article>
   <h1>Notifications: solution</h1>
+  <div class='text'>
+<p>The default case of a <code>select</code> executes when no channel operations
+are ready.</p>
+  </div>
   <div class='code'><pre>
-var nc = make(chan string<span class="em">, 10</span>)
+<span class='codenum'>1</span>var nc = make(chan string, <span class="em">10</span>)
 
-func <defn>sendNotification</defn>(s string) {
-<span class="em">    select {
-    case nc &lt;- s:
-    default: <comment>// if we can&#39;t send, drop s</comment>
-    }</span>
-}
+<span class='codenum'>2</span>func <defn>sendNotification</defn>(s string) {
+<span class='codenum'>3</span>    select {
+<span class='codenum'>4</span>    case nc &lt;- s:
+<span class='codenum'>5</span><span class="em">    default: <comment>// if we can&#39;t send, drop s</span></comment>
+<span class='codenum'>6</span>    }
+<span class='codenum'>7</span>}
 
-func <defn>receiveNotification</defn>() string {
-<span class="em">    select {
-    case s := &lt;-nc:
-        return s
-    default:
-        return &#34;&#34;
-    }
-}
+<span class='codenum'>8</span>func <defn>receiveNotification</defn>() string {
+<span class='codenum'>9</span>    select {
+<span class='codenum'>10</span>    case s := &lt;-nc:
+<span class='codenum'>11</span>        return s
+<span class='codenum'>12</span><span class="em">    default:
+<span class='codenum'>13</span>        return &#34;&#34;</span>
+<span class='codenum'>14</span>    }
+<span class='codenum'>15</span>}
 </pre>
   </div>
-  <span class='pagenumber'>11</span>
+  <span class='pagenumber'>15</span>
 </article>
 <article>
   <h1>Closing channels</h1>
@@ -274,19 +353,19 @@ func <defn>receiveNotification</defn>() string {
   </div>
   <div class="flex"><div>
   <div class='code weak'><pre>
-type <defn>node</defn> struct {
-    val         int
-    left, right *node
-}
+<span class='codenum'>1</span>type <defn>node</defn> struct {
+<span class='codenum'>2</span>    val         int
+<span class='codenum'>3</span>    left, right *node
+<span class='codenum'>4</span>}
 
-func <defn>sendValues</defn>(n *node, ch chan int) {
-    if n == nil {
-        return
-    }
-    sendValues(n.left, ch)
-    ch &lt;- n.val
-    sendValues(n.right, ch)
-}
+<span class='codenum'>5</span>func <defn>sendValues</defn>(n *node, ch chan int) {
+<span class='codenum'>6</span>    if n == nil {
+<span class='codenum'>7</span>        return
+<span class='codenum'>8</span>    }
+<span class='codenum'>9</span>    sendValues(n.left, ch)
+<span class='codenum'>10</span>    ch &lt;- n.val
+<span class='codenum'>11</span>    sendValues(n.right, ch)
+<span class='codenum'>12</span>}
 </pre>
   </div>
   <div class='text'>
@@ -294,44 +373,44 @@ func <defn>sendValues</defn>(n *node, ch chan int) {
   </div>
   </div><div>
   <div class='code weak'><pre>
-func <defn>printTree</defn>(root *node) {
-    c := make(chan int)
-    go func() {
-        sendValues(root, c)
-<span class="em">        close(c)</span>
-    }()
+<span class='codenum'>1</span>func <defn>printTree</defn>(root *node) {
+<span class='codenum'>2</span>    c := make(chan int)
+<span class='codenum'>3</span>    go func() {
+<span class='codenum'>4</span>        sendValues(root, c)
+<span class='codenum'>5</span><span class="em">        close(c)</span>
+<span class='codenum'>6</span>    }()
 
-    for {
-        v, <span class="em">ok</span> := &lt;-c <comment>// distinguish closed from zero value</comment>
-        if !ok {
-            <comment>// c is closed</comment>
-            break
-        }
-        fmt.Println(v)
-    }
-}
+<span class='codenum'>7</span>    for {
+<span class='codenum'>8</span>        v, <span class="em">ok</span> := &lt;-c <comment>// distinguish closed from zero value</comment>
+<span class='codenum'>9</span>        if !ok {
+<span class='codenum'>10</span>            <comment>// c is closed</comment>
+<span class='codenum'>11</span>            break
+<span class='codenum'>12</span>        }
+<span class='codenum'>13</span>        fmt.Println(v)
+<span class='codenum'>14</span>    }
+<span class='codenum'>15</span>}
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>12</span>
+  <span class='pagenumber'>16</span>
 </article>
 <article>
   <h1>for...range with a channel</h1>
   <div class='code'><pre>
-func <defn>printTree</defn>(root *node) {
-    c := make(chan int)
-    go func() {
-        sendValues(root, c)
-        close(c)
-    }()
+<span class='codenum'>1</span>func <defn>printTree</defn>(root *node) {
+<span class='codenum'>2</span>    c := make(chan int)
+<span class='codenum'>3</span>    go func() {
+<span class='codenum'>4</span>        sendValues(root, c)
+<span class='codenum'>5</span>        close(c)
+<span class='codenum'>6</span>    }()
 
-<span class="em">    for v := range c {</span>
-        fmt.Println(v)
-    }
-}
+<span class='codenum'>7</span><span class="em">    for v := range c {</span>
+<span class='codenum'>8</span>        fmt.Println(v)
+<span class='codenum'>9</span>    }
+<span class='codenum'>10</span>}
 </pre>
   </div>
-  <span class='pagenumber'>13</span>
+  <span class='pagenumber'>17</span>
 </article>
 <article>
   <h1>close broadcasts</h1>
@@ -340,12 +419,12 @@ func <defn>printTree</defn>(root *node) {
   </div>
   <div class="flex"><div>
   <div class='code bad'><pre>
-c := make(chan int)
-var wg sync.WaitGroup
-wg.Go(func() { <span class="em">c &lt;- 1</span> })
-wg.Go(func() { fmt.Println(&lt;-c) })
-wg.Go(func() { fmt.Println(&lt;-c) })
-wg.Wait()</pre>
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span>var wg sync.WaitGroup
+<span class='codenum'>3</span>wg.Go(func() { <span class="em">c &lt;- 1</span> })
+<span class='codenum'>4</span>wg.Go(func() { fmt.Println(&lt;-c) })
+<span class='codenum'>5</span>wg.Go(func() { fmt.Println(&lt;-c) })
+<span class='codenum'>6</span>wg.Wait()</pre>
   </div>
   <details>
     <summary>
@@ -357,12 +436,12 @@ What does this do?</p>
   </details>
   </div><div>
   <div class='code'><pre>
-c := make(chan int)
-var wg sync.WaitGroup
-wg.Go(func() { <span class="em">close(c)</span> })
-wg.Go(func() { fmt.Println(&lt;-c) })
-wg.Go(func() { fmt.Println(&lt;-c) })
-wg.Wait()</pre>
+<span class='codenum'>1</span>c := make(chan int)
+<span class='codenum'>2</span>var wg sync.WaitGroup
+<span class='codenum'>3</span>wg.Go(func() { <span class="em">close(c)</span> })
+<span class='codenum'>4</span>wg.Go(func() { fmt.Println(&lt;-c) })
+<span class='codenum'>5</span>wg.Go(func() { fmt.Println(&lt;-c) })
+<span class='codenum'>6</span>wg.Wait()</pre>
   </div>
   <details>
     <summary>
@@ -373,7 +452,192 @@ What does this do?</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>14</span>
+  <span class='pagenumber'>18</span>
+</article>
+<article>
+  <h1>Interrupting goroutines</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c := make(chan int, 1)
+<span class='codenum'>2</span>go func() { c &lt;- compute(7) }()
+<span class='codenum'>3</span>select {
+<span class='codenum'>4</span>case v := &lt;-c:
+<span class='codenum'>5</span>    fmt.Println(v)
+<span class='codenum'>6</span>case &lt;-time.After(20 * time.Millisecond):
+<span class='codenum'>7</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>8</span>}
+<comment>// program continues</comment></pre>
+  </div>
+  </div><div>
+  <div class='text'>
+<p> </p>
+<p><code>compute(7)</code> will keep running until it's done, consuming resources.</p>
+<p>You can't interrupt an arbitrary goroutine.</p>
+<p>It has to check.</p>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>19</span>
+</article>
+<article>
+  <h1>Asking a goroutine to stop</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c := make(chan int, 1)
+<span class='codenum'>2</span><span class="em">done := make(chan struct{}) <comment>// no value to send</span></comment>
+<span class='codenum'>3</span>go func() { c &lt;- compute(7, <span class="em">done</span>) }()
+<span class='codenum'>4</span>select {
+<span class='codenum'>5</span>case v := &lt;-c:
+<span class='codenum'>6</span>    fmt.Println(v)
+<span class='codenum'>7</span>case &lt;-time.After(20 * time.Millisecond):
+<span class='codenum'>8</span>    fmt.Println(&#34;timed out&#34;)
+<span class='codenum'>9</span><span class="em">    close(done)</span>
+<span class='codenum'>10</span>}</pre>
+  </div>
+  <div class='text'>
+<p>Fun fact: most real-world <code>close</code>s broadcast when something is
+finished, like this one.</p>
+  </div>
+  </div><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>compute</defn>(x int, <span class="em">done chan struct{}</span>) int {
+<span class='codenum'>2</span>    t := 0
+<span class='codenum'>3</span>    for {
+<span class='codenum'>4</span>        select {
+<span class='codenum'>5</span><span class="em">        case &lt;-done:
+<span class='codenum'>6</span>            return -1</span>
+<span class='codenum'>7</span>        default:
+<span class='codenum'>8</span>            x, ok := computeALittle(t)
+<span class='codenum'>9</span>            if !ok {
+<span class='codenum'>10</span>                return t
+<span class='codenum'>11</span>            }
+<span class='codenum'>12</span>            t += x
+<span class='codenum'>13</span>        }
+<span class='codenum'>14</span>    }
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>20</span>
+</article>
+<article>
+  <h1>Contexts</h1>
+  <div class='text'>
+<p>Use <code>context.Context</code> for timeouts.</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c := make(chan int) <comment>// unbuffered</comment>
+<span class='codenum'>2</span><span class="em">ctx, cancel := context.WithTimeout(
+<span class='codenum'>3</span>    context.Background(),
+<span class='codenum'>4</span>    20*time.Millisecond)
+<span class='codenum'>5</span>defer cancel() <comment>// always defer cancel</span></comment>
+<span class='codenum'>6</span>go func() { c &lt;- compute(<span class="em">ctx</span>, 7) }()
+<span class='codenum'>7</span><span class="em">fmt.Println(&lt;-c) <comment>// prints -1 on timeout</span></comment></pre>
+  </div>
+  </div><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>compute</defn>(ctx context.Context, x int) int {
+<span class='codenum'>2</span>    t := 0
+<span class='codenum'>3</span>    for {
+<span class='codenum'>4</span>        select {
+<span class='codenum'>5</span><span class="em">        case &lt;-ctx.Done():</span>
+<span class='codenum'>6</span>            return -1
+<span class='codenum'>7</span>        default:
+<span class='codenum'>8</span>            x, ok := computeALittle(t)
+<span class='codenum'>9</span>            if !ok {
+<span class='codenum'>10</span>                return t
+<span class='codenum'>11</span>            }
+<span class='codenum'>12</span>            t += x
+<span class='codenum'>13</span>        }
+<span class='codenum'>14</span>    }
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>21</span>
+</article>
+<article>
+  <h1>Contexts, continued</h1>
+  <div class='text'>
+<p>What a &quot;real&quot; function might look like.</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>computeWithTimeout</defn>(ctx context.Context,
+<span class='codenum'>2</span>    tm time.Duration, arg int,
+<span class='codenum'>3</span>) (int, error) {
+<span class='codenum'>4</span>    c := make(chan int, 1)
+<span class='codenum'>5</span>    ctx, cancel := context.WithTimeout(ctx, tm)
+<span class='codenum'>6</span>    defer cancel()
+<span class='codenum'>7</span>    go func() { c &lt;- compute(ctx, arg) }()
+<span class='codenum'>8</span>    select {
+<span class='codenum'>9</span>    case v := &lt;-c:
+<span class='codenum'>10</span>        return v, nil
+<span class='codenum'>11</span>    case &lt;-ctx.Done():
+<span class='codenum'>12</span>        return 0, ctx.Err()
+<span class='codenum'>13</span>    }
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+  </div><div>
+  <details>
+    <summary>
+Do we still need a buffered channel?</p>
+    </summary>
+    <div class='answer'>
+<p>Yes. If the second select case is taken, the goroutine would be
+blocked forever sending to <code>c</code>, even if <code>compute</code> returns early.</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+Does the <code>select</code> need a default case?</p>
+    </summary>
+    <div class='answer'>
+<p>No. The only two possibilities are that <code>compute</code> finishes on time
+and sends to <code>c</code>, or that the context times out and closes its <code>Done</code>
+channel.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>22</span>
+</article>
+<article>
+  <h1>Contexts and cancellation</h1>
+  <div class='text'>
+<p>TODO</p>
+  </div>
+  <span class='pagenumber'>23</span>
+</article>
+<article>
+  <h1>Exercise: Hedging</h1>
+  <div class='text'>
+<p>Your server has two methods of performing a computation, or
+two backends that it can query for a result.</p>
+<p>You could try one at random (a kind of load-balancing):</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>getResult</defn>(input string) string {
+<span class='codenum'>2</span>    if rand.Int()%2 == 0 {
+<span class='codenum'>3</span>        return method1(input)
+<span class='codenum'>4</span>    } else {
+<span class='codenum'>5</span>        return method2(input)
+<span class='codenum'>6</span>    }
+<span class='codenum'>7</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>Or you could try them both in parallel, and take the first result
+you get. This is <em>hedging</em>.</p>
+<p>Start with the code above, in TODO, and modify it to implement hedging.</p>
+<ul>
+<li>Your <code>getResult</code> function should call both <code>method1</code> and <code>method2</code>
+concurrently.</li>
+<li>It should return the first result it gets.</li>
+<li>Before returning, it should cancel the other computation.</li>
+</ul>
+  </div>
+  <span class='pagenumber'>24</span>
 </article>
 
     <div id="help">

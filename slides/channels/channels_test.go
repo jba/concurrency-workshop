@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"slices"
 	"strconv"
@@ -61,6 +63,7 @@ func f2() {
 }
 
 // text It doesn't matter which happens first, the send or the receive.
+// text Sends and receives are thread-safe.
 
 func Test_f2(t *testing.T) {
 	if stdout(f2) != "49" {
@@ -116,11 +119,11 @@ func f3() {
 
 ////////////////////////////////////
 
-// heading Timeout, v1
+// heading The select statement
 
-// text
-// The `select` statement blocks until one of the cases is ready.
-// !text
+// text Task: run a goroutine, timing out after a fixed duration.
+
+// heading Timeout, v1
 
 func f4() {
 	// code bad
@@ -140,9 +143,7 @@ func f4() {
 	// !code
 }
 
-// text
-// We'll get to the problem after the next slide.
-// !text
+// text red border => something's wrong; we'll discuss soon.
 
 func Test_f4(t *testing.T) {
 	got := stdout(f4)
@@ -151,12 +152,97 @@ func Test_f4(t *testing.T) {
 	}
 }
 
+// heading Timeout, v1
+
+// text The part we've seen before.
+
+func f4a() {
+	// code bad
+	// em
+	c := make(chan int)
+	// !em
+	timeout := make(chan bool)
+	// em
+	go func() { c <- compute(7) }()
+	// !em
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		timeout <- true
+	}()
+	select {
+	// em
+	case v := <-c:
+		fmt.Println(v)
+		// !em
+	case <-timeout:
+		fmt.Println("timed out")
+	}
+	// !code
+}
+
+// heading Timeout, v1
+
+// text The timeout part.
+
+func f4b() {
+	// code bad
+	c := make(chan int)
+	// em
+	timeout := make(chan bool)
+	// !em
+	go func() { c <- compute(7) }()
+	// em
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		timeout <- true
+	}()
+	// !em
+	select {
+	case v := <-c:
+		fmt.Println(v)
+	// em
+	case <-timeout:
+		fmt.Println("timed out")
+		// !em
+	}
+	// !code
+}
+
+// heading Timeout, v1
+
+// text
+// Each case in a `select` statement is a channel operation:
+// a send or a receive.
+//
+// The `select` blocks until one of the cases is ready.
+// !text
+
+func f4c() {
+	// code bad
+	c := make(chan int)
+	timeout := make(chan bool)
+	go func() { c <- compute(7) }()
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		timeout <- true
+	}()
+	// em
+	select {
+	case v := <-c:
+		fmt.Println(v)
+	case <-timeout:
+		fmt.Println("timed out")
+	}
+	// !em
+	// !code
+}
+
 // heading Timeout, v2
 
 // text Use `time.After` for timeouts.
 
 func f5() {
-	// code
+	// code bad
 	c := make(chan int)
 	go func() { c <- compute(7) }()
 	select {
@@ -210,13 +296,13 @@ func f5a() {
 // !cols
 
 ////////////////////////////////////
-// heading Buffered goroutines
+// heading Buffered channels
 
 // cols
 
 func f6() {
 	// code
-	c := make(chan int, 1) // em , 1
+	c := make(chan int, 1) // em 1
 	go func() { c <- compute(7) }()
 	select {
 	case v := <-c:
@@ -247,6 +333,7 @@ func f6() {
 // 5. goroutine exits
 //
 // No leaks: goroutine terminates
+
 // No garbage: Nothing refers to `c`
 
 // !question
@@ -256,7 +343,7 @@ func f6() {
 // heading Non-blocking select
 
 // text
-// Let's implement this:
+// Let's implement an in-process notification service:
 // !text
 
 // code
@@ -284,9 +371,9 @@ func receiveNotification_1() string { return <-nc_1 }
 // !code
 
 // question
-// What can happen here?
+// Does this implementation satisfy our spec?
 // answer
-// Both functions can block.
+// No. Both functions can block.
 // !question
 
 // question What if we add buffering?
@@ -295,26 +382,34 @@ func receiveNotification_1() string { return <-nc_1 }
 // Then they block again.
 // !question
 
+///////////////////////////////////////
 // heading Notifications: solution
+
+// text
+// The default case of a `select` executes when no channel operations
+// are ready.
+// !text
+
 // code
-var nc_2 = make(chan string, 10) // em , 10
+var nc_2 = make(chan string, 10) // em 10
 
 func sendNotification_2(s string) {
-	// em
 	select {
 	case nc_2 <- s:
+	// em
 	default: // if we can't send, drop s
+		// !em
 	}
-	// !em
 }
 
 func receiveNotification_2() string {
-	// em
 	select {
 	case s := <-nc_2:
 		return s
+	// em
 	default:
 		return ""
+		// !em
 	}
 }
 
@@ -523,8 +618,225 @@ func TestSend(t *testing.T) {
 }
 
 ////////////////////////////////////
+// heading Interrupting goroutines
+
+// cols
+
+func f6a() {
+	// code
+	c := make(chan int, 1)
+	go func() { c <- compute(7) }()
+	select {
+	case v := <-c:
+		fmt.Println(v)
+	case <-time.After(20 * time.Millisecond):
+		fmt.Println("timed out")
+	}
+	// program continues
+	// !code
+}
+
+// nextcol
+
+// text
+// &nbsp;
+
+// `compute(7)` will keep running until it's done, consuming resources.
+
+// You can't interrupt an arbitrary goroutine.
+
+// It has to check.
+// !text
+// !cols
+
+////////////////////////////////////
+// heading Asking a goroutine to stop
+
+// cols
+func f7() {
+	// code
+	c := make(chan int, 1)
+	// em
+	done := make(chan struct{}) // no value to send
+	// !em
+	go func() { c <- compute_1(7, done) }() // em done
+	select {
+	case v := <-c:
+		fmt.Println(v)
+	case <-time.After(20 * time.Millisecond):
+		fmt.Println("timed out")
+		// em
+		close(done)
+		// !em
+	}
+	// !code
+}
+
+// text
+// Fun fact: most real-world `close`s broadcast when something is
+// finished, like this one.
+// !text
+
+// nextcol
+// code
+func compute_1(x int, done chan struct{}) int { // em done chan struct\{\}
+	t := 0
+	for {
+		select {
+		// em
+		case <-done:
+			return -1
+			// !em
+		default:
+			x, ok := computeALittle(t)
+			if !ok {
+				return t
+			}
+			t += x
+		}
+	}
+}
+
+// !code
+// !cols
+
+func TestF7(t *testing.T) {
+	wantStdout(t, "15", f7)
+}
+
+////////////////////////////////////
+// heading Contexts
+
+// text Use `context.Context` for timeouts.
+
+// cols
+func f8(ctx context.Context) {
+	// code
+	c := make(chan int) // unbuffered
+	// em
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		20*time.Millisecond)
+	defer cancel() // always defer cancel
+	// !em
+	go func() { c <- compute_2(ctx, 7) }() // em ctx
+	// em
+	fmt.Println(<-c) // prints -1 on timeout
+	// !em
+	// !code
+}
+
+// nextcol
+// code
+func compute_2(ctx context.Context, x int) int {
+	t := 0
+	for {
+		select {
+		// em
+		case <-ctx.Done():
+			// !em
+			return -1
+		default:
+			x, ok := computeALittle(t)
+			if !ok {
+				return t
+			}
+			t += x
+		}
+	}
+}
+
+// !code
+// !cols
+
+////////////////////////////////////
+// heading Contexts for realz
+
+// text What a "real" function might look like.
+
+// cols
+// code
+func computeWithTimeout(ctx context.Context,
+	tm time.Duration, arg int,
+) (int, error) {
+	c := make(chan int, 1)
+	ctx, cancel := context.WithTimeout(ctx, tm)
+	defer cancel()
+	go func() { c <- compute_2(ctx, arg) }()
+	select {
+	case v := <-c:
+		return v, nil
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+// !code
+
+// nextcol
+
+// question Do we still need a buffered channel?
+// answer
+// Yes. If the second select case is taken, the goroutine would be
+// blocked forever sending to `c`, even if `compute` returns early.
+// !question
+
+// question Does the `select` need a default case?
+// answer
+// No. The only two possibilities are that `compute` finishes on time
+// and sends to `c`, or that the context times out and closes its `Done`
+// channel.
+// !question
+
+// !cols
+
+////////////////////////////////////
+// heading Contexts and cancellation
+
+// text TODO
+
+////////////////////////////////////
+// heading Exercise: Hedging
+
+// text
+// Your server has two methods of performing a computation, or
+// two backends that it can query for a result.
+//
+// You could try one at random (a kind of load-balancing):
+// !text
+
+// code
+func getResult(input string) string {
+	if rand.Int()%2 == 0 {
+		return method1(input)
+	} else {
+		return method2(input)
+	}
+}
+
+// !code
+
+// text
+// Or you could try them both in parallel, and take the first result
+// you get. This is _hedging_.
+//
+// Start with the code above, in TODO, and modify it to implement hedging.
+// - Your `getResult` function should call both `method1` and `method2`
+// concurrently.
+// - It should return the first result it gets.
+// - Before returning, it should cancel the other computation.
+// !text
+
+func method1(string) string { return "" }
+func method2(string) string { return "" }
+
+////////////////////////////////////
 
 func compute(x int) int { return x * x }
+
+func computeALittle(x int) (int, bool) {
+	return x + 1, x < 10
+}
 
 func wantStdout(t *testing.T, want string, f func()) {
 	t.Helper()
