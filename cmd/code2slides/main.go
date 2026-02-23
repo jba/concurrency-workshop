@@ -716,6 +716,16 @@ func renderCodeLine(line string, num int) string {
 
 	trimmed := strings.TrimLeft(line, " \t")
 	indent := line[:len(line)-len(trimmed)]
+	if strings.ContainsRune(indent, '\t') {
+		panic(fmt.Sprintf("tab in indent: %q", line))
+	}
+	if len(indent)%4 != 0 {
+		panic(fmt.Sprintf("indent length not a multiple of 4: %q", line))
+	}
+	if indent != "" {
+		// 3 spaces per indent level
+		line = indent[len(indent)/4:] + trimmed
+	}
 
 	// Check for type definition: "type NAME"
 	if name, ok := strings.CutPrefix(trimmed, "type "); ok {

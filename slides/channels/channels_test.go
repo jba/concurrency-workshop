@@ -436,13 +436,17 @@ func TestNotifications(t *testing.T) {
 ////////////////////////////////////
 // heading Closing channels
 
-// text Close a channel when it will never be sent to again.
-
 // cols
 // code weak
 type node struct {
 	val         int
 	left, right *node
+}
+
+func (n *node) values() chan int {
+	c := make(chan int)
+	go func() { sendValues(n, c); close(c) }() // em close\(c\)
+	return c
 }
 
 func sendValues(n *node, ch chan int) {
@@ -455,20 +459,12 @@ func sendValues(n *node, ch chan int) {
 }
 
 // !code
-// text (In modern Go, we would use an iterator.)
 // nextcol
 // code weak
 func printTree(root *node) {
-	c := make(chan int)
-	go func() {
-		sendValues(root, c)
-		// em
-		close(c)
-		// !em
-	}()
-
+	c := root.values()
 	for {
-		v, ok := <-c // distinguish closed from zero value // em ok
+		v, ok := <-c // em ok
 		if !ok {
 			// c is closed
 			break
@@ -478,6 +474,15 @@ func printTree(root *node) {
 }
 
 // !code
+
+// text
+// Close a channel when it will never be sent to again.
+
+// In modern Go, we would use an iterator.
+
+// Two-value receive distinguishes closed from zero value.
+// !text
+
 // !cols
 
 // heading for...range with a channel
@@ -673,7 +678,7 @@ func f7() {
 }
 
 // text
-// Fun fact: most real-world `close`s broadcast when something is
+// Fun fact: many real-world `close`s broadcast when something is
 // finished, like this one.
 // !text
 
@@ -707,8 +712,6 @@ func TestF7(t *testing.T) {
 ////////////////////////////////////
 // heading Contexts
 
-// text Use `context.Context` for timeouts.
-
 // cols
 func f8(ctx context.Context) {
 	// code
@@ -717,7 +720,7 @@ func f8(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		20*time.Millisecond)
-	defer cancel() // always defer cancel
+	defer cancel()
 	// !em
 	go func() { c <- compute_2(ctx, 7) }() // em ctx
 	// em
@@ -725,6 +728,14 @@ func f8(ctx context.Context) {
 	// !em
 	// !code
 }
+
+// text
+// Use `context.Context` for timeouts.
+
+// Contexts inherit timeouts and cancellations from parents.
+
+// `cancel` must always be called to clean up resources.
+// !text
 
 // nextcol
 // code
@@ -747,10 +758,15 @@ func compute_2(ctx context.Context, x int) int {
 }
 
 // !code
+
+// text
+// `context.Done` channel closed when context times out or is canceled.
+// !text
+
 // !cols
 
 ////////////////////////////////////
-// heading Contexts for realz
+// heading Contexts for real
 
 // text What a "real" function might look like.
 
@@ -775,13 +791,15 @@ func computeWithTimeout(ctx context.Context,
 
 // nextcol
 
+// text &nbsp;
+
 // question Do we still need a buffered channel?
 // answer
 // Yes. If the second select case is taken, the goroutine would be
 // blocked forever sending to `c`, even if `compute` returns early.
 // !question
 
-// question Does the `select` need a default case?
+// question Should the `select` have a default case?
 // answer
 // No. The only two possibilities are that `compute` finishes on time
 // and sends to `c`, or that the context times out and closes its `Done`
@@ -793,7 +811,46 @@ func computeWithTimeout(ctx context.Context,
 ////////////////////////////////////
 // heading Contexts and cancellation
 
-// text TODO
+// text Use `Context` for cancelling for other reasons too.
+
+// cols
+// code
+func computeWithCancel(ctx context.Context, arg int) (
+	int, error,
+) {
+	c := make(chan int, 1)
+	ctx, cancel := context.WithCancel(ctx) // em context.WithCancel\(.*\)
+	defer cancel()
+	go func() { c <- compute_2(ctx, arg) }()
+	select {
+	case v := <-c:
+		return v, nil
+		// em
+	case <-userCancels():
+		cancel()
+		return 0, ctx.Err()
+		// !em
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
+}
+
+// !code
+// nextcol
+
+// text
+// &nbsp;
+
+// `userCancels` returns a channel that is closed when a button is clicked.
+
+// Still defer `cancel` so it's always called.
+
+// Still select `ctx.Done`: arg context may become done.
+// !text
+
+// !cols
+
+func userCancels() chan int { return nil }
 
 ////////////////////////////////////
 // heading Exercise: Hedging
