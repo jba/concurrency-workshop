@@ -58,6 +58,11 @@
 //
 //	Emit CONTENT as raw HTML in the slide.
 //
+// image FILENAME (or img FILENAME)
+//
+//	Emit an <img> tag with FILENAME as the source. FILENAME is interpreted
+//	relative to the directory containing the current source file.
+//
 // div.CLASS / !div.CLASS
 //
 //	Open and close a <div> with the given CSS class. The class must match
@@ -85,6 +90,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"rsc.io/markdown"
@@ -110,8 +116,6 @@ const (
 	sectionUndefined sectionKind = iota
 	sectionNote
 	sectionCode
-	sectionCodeBad
-	sectionCodeWeak
 	sectionQuestion
 	sectionAnswer
 	sectionText
@@ -126,10 +130,6 @@ func (k sectionKind) String() string {
 		return "note"
 	case sectionCode:
 		return "code"
-	case sectionCodeBad:
-		return "code bad"
-	case sectionCodeWeak:
-		return "code weak"
 	case sectionQuestion:
 		return "question"
 	case sectionAnswer:
@@ -163,6 +163,7 @@ var simpleCloses = map[string]sectionKind{
 
 type section struct {
 	kind    sectionKind
+	options []string
 	content string
 }
 
@@ -170,6 +171,12 @@ func (s section) dump() {
 	fmt.Printf("-- %s --\n", s.kind)
 	fmt.Printf("%s", s.content)
 	fmt.Printf("^^^^\n")
+}
+
+func (s section) equal(other section) bool {
+	return s.kind == other.kind &&
+		s.content == other.content &&
+		slices.Equal(s.options, other.options)
 }
 
 var (
@@ -297,6 +304,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 	var (
 		current  strings.Builder
 		kind     sectionKind
+		options  []string
 		divClass string
 	)
 	lineNum := 0
@@ -307,13 +315,17 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		}
 	}()
 
-	add := func(k sectionKind, c string) {
-		slide.sections = append(slide.sections, section{kind: k, content: c})
+	add := func(k sectionKind, opts []string, c string) {
+		slide.sections = append(slide.sections, section{
+			kind:    k,
+			options: opts,
+			content: c,
+		})
 	}
 
-	addCurrent := func(k sectionKind) {
+	addCurrent := func(k sectionKind, opts []string) {
 		if current.Len() > 0 {
-			add(k, current.String())
+			add(k, opts, current.String())
 			current.Reset()
 		}
 	}
@@ -323,26 +335,12 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		line := scanner.Text()
 		first, rest, _ := splitFirstWord(line)
 		matchFirst := true
-		// Handle "code bad" and "code weak" before simpleKinds
-		if first == "code" && rest == "bad" {
-			if kind != sectionUndefined {
-				return nil, fmt.Errorf("code bad inside %s", kind)
-			}
-			kind = sectionCodeBad
-			continue
-		}
-		if first == "code" && rest == "weak" {
-			if kind != sectionUndefined {
-				return nil, fmt.Errorf("code weak inside %s", kind)
-			}
-			kind = sectionCodeWeak
-			continue
-		}
 		if sec, ok := simpleOpens[first]; ok {
 			if kind != sectionUndefined {
 				return nil, fmt.Errorf("%s inside %s", sec, kind)
 			}
 			kind = sec
+			options = strings.Fields(rest)
 			continue
 		}
 		if strings.HasPrefix(first, "!") {
@@ -350,8 +348,9 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				if kind != sec {
 					return nil, fmt.Errorf("%s without matching %s", first, first[1:])
 				}
-				addCurrent(sec)
+				addCurrent(sec, options)
 				kind = sectionUndefined
+				options = nil
 				continue
 			}
 		}
@@ -383,41 +382,50 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				return nil, fmt.Errorf("text inside %s", kind)
 			}
 			if rest != "" {
-				add(sectionText, rest+"\n")
+				add(sectionText, nil, rest+"\n")
 			} else {
 				kind = sectionText
 			}
 
 		case "html":
-			add(sectionHTML, rest)
+			add(sectionHTML, nil, rest)
+
+		case "image", "img":
+			if rest == "" {
+				return nil, errors.New("missing image filename")
+			}
+			// Compute path relative to the directory containing the source file
+			imgPath := filepath.Join(filepath.Dir(filename), rest)
+			add(sectionHTML, nil, fmt.Sprintf("<img src=%q alt=%q />", imgPath, rest))
 
 		case "!code":
-			if kind != sectionCode && kind != sectionCodeBad && kind != sectionCodeWeak {
+			if kind != sectionCode {
 				return nil, errors.New("!code without matching code")
 			}
 			// Trim trailing blank line
-			add(kind, strings.TrimSuffix(current.String(), "\n"))
+			add(kind, options, strings.TrimSuffix(current.String(), "\n"))
 			current.Reset()
 			kind = sectionUndefined
+			options = nil
 
 		case "question":
 			if kind != sectionUndefined {
 				return nil, fmt.Errorf("question inside %s", kind)
 			}
 			if rest != "" {
-				add(sectionQuestion, rest+"\n")
+				add(sectionQuestion, nil, rest+"\n")
 			} else {
 				kind = sectionQuestion
 			}
 
 		case "answer":
 			if kind == sectionQuestion {
-				addCurrent(sectionQuestion)
+				addCurrent(sectionQuestion, nil)
 			} else if kind != sectionUndefined {
 				return nil, fmt.Errorf("answer inside %s", kind)
 			}
 			if rest != "" {
-				add(sectionAnswer, rest+"\n")
+				add(sectionAnswer, nil, rest+"\n")
 			} else {
 				kind = sectionAnswer
 			}
@@ -429,17 +437,18 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			if kind == sectionQuestion {
 				return nil, errors.New("!question without answer")
 			}
-			addCurrent(sectionAnswer)
+			addCurrent(sectionAnswer, options)
 			kind = sectionUndefined
+			options = nil
 
 		case "cols":
-			add(sectionHTML, "<div class=\"flex\"><div>")
+			add(sectionHTML, nil, "<div class=\"flex\"><div>")
 
 		case "!cols":
-			add(sectionHTML, "</div></div> <!-- flex -->")
+			add(sectionHTML, nil, "</div></div> <!-- flex -->")
 
 		case "nextcol":
-			add(sectionHTML, "</div><div>")
+			add(sectionHTML, nil, "</div><div>")
 
 		default:
 			matchFirst = false
@@ -447,14 +456,14 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		if !matchFirst {
 			if d, c, ok := strings.Cut(first, "."); ok {
 				if d == "div" {
-					add(sectionHTML, fmt.Sprintf("<div class=%q>", c))
+					add(sectionHTML, nil, fmt.Sprintf("<div class=%q>", c))
 					divClass = c
 					continue
 				} else if d == "!div" {
 					if c != divClass {
 						return nil, fmt.Errorf("mismatched div class: start %q, end %q", divClass, c)
 					}
-					add(sectionHTML, fmt.Sprintf("</div> <!-- %s -->", c))
+					add(sectionHTML, nil, fmt.Sprintf("</div> <!-- %s -->", c))
 					divClass = ""
 					// fmt.Printf("## !div %q\n", c)
 					continue
@@ -463,13 +472,14 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			switch line {
 			case "*/":
 				if kind == sectionText {
-					addCurrent(sectionText)
+					addCurrent(sectionText, options)
 					kind = sectionUndefined
+					options = nil
 					continue
 				}
 				fallthrough
 			default:
-				if kind == sectionCode || kind == sectionCodeBad || kind == sectionCodeWeak {
+				if kind == sectionCode {
 					trimmed := strings.TrimLeft(line, " \t")
 					switch trimmed {
 					case "// em":
@@ -525,6 +535,10 @@ func scanFile(filename string) (_ []*Slide, err error) {
 	return slides, nil
 }
 
+// splitFirst word splits s into a first word and the remaining part.
+// A word is a sequence of nonblank characters.
+// s must be a comment line, whose first nonblank characters are "//" or
+// "/*". If not, the third return value is false.
 func splitFirstWord(s string) (string, string, bool) {
 	s = strings.TrimSpace(s)
 	if !strings.HasPrefix(s, "//") && !strings.HasPrefix(s, "/*") {
@@ -557,19 +571,10 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 	for _, sec := range slide.sections {
 		switch sec.kind {
 		case sectionCode:
-			w.open("<div class='code'><pre>")
+			classes := append([]string{"code"}, sec.options...)
+			w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
 			fmt.Fprint(w, renderCode(sec.content))
 			fmt.Fprintln(w, "</pre>") // indenting adds a blank line
-			w.close("</div>")
-		case sectionCodeBad:
-			w.open("<div class='code bad'><pre>")
-			fmt.Fprint(w, renderCode(sec.content))
-			fmt.Fprintln(w, "</pre>")
-			w.close("</div>")
-		case sectionCodeWeak:
-			w.open("<div class='code weak'><pre>")
-			fmt.Fprint(w, renderCode(sec.content))
-			fmt.Fprintln(w, "</pre>")
 			w.close("</div>")
 		case sectionText:
 			w.open("<div class='text'>")

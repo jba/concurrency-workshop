@@ -1,10 +1,21 @@
 package main
 
 import (
-	"slices"
 	"strings"
 	"testing"
 )
+
+func sectionsEqual(a, b []section) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !a[i].equal(b[i]) {
+			return false
+		}
+	}
+	return true
+}
 
 func TestScanFileErrors(t *testing.T) {
 	tests := []struct {
@@ -60,7 +71,7 @@ func TestScanFile(t *testing.T) {
 		{kind: sectionNote, content: "Use `fmt.Println` to print.\n"},
 	}
 
-	if !slices.Equal(slide.sections, wantSections) {
+	if !sectionsEqual(slide.sections, wantSections) {
 		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
 	}
 }
@@ -114,7 +125,7 @@ func TestDivClass(t *testing.T) {
 		{kind: sectionHTML, content: "</div> <!-- flex -->"},
 	}
 
-	if !slices.Equal(slides[0].sections, wantSections) {
+	if !sectionsEqual(slides[0].sections, wantSections) {
 		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
 	}
 }
@@ -140,10 +151,10 @@ func TestCodeBad(t *testing.T) {
 	}
 
 	wantSections := []section{
-		{kind: sectionCodeBad, content: "x := 1 // wrong"},
+		{kind: sectionCode, options: []string{"bad"}, content: "x := 1 // wrong"},
 	}
 
-	if !slices.Equal(slides[0].sections, wantSections) {
+	if !sectionsEqual(slides[0].sections, wantSections) {
 		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
 	}
 }
@@ -162,7 +173,7 @@ func TestInlineEm(t *testing.T) {
 		{kind: sectionCode, content: "x := \x00em\x00foo\x00/em\x00()\ny := bar()"},
 	}
 
-	if !slices.Equal(slides[0].sections, wantSections) {
+	if !sectionsEqual(slides[0].sections, wantSections) {
 		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
 	}
 
@@ -173,6 +184,36 @@ func TestInlineEm(t *testing.T) {
 	}
 	if strings.Contains(got, "// em") {
 		t.Errorf("rendered code still contains // em: %s", got)
+	}
+}
+
+func TestImage(t *testing.T) {
+	slides, err := scanFile("testdata/image_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+
+	wantSections := []section{
+		{kind: sectionHTML, content: `<img src="testdata/diagram.png" alt="diagram.png" />`},
+		{kind: sectionHTML, content: `<img src="testdata/photo.jpg" alt="photo.jpg" />`},
+	}
+
+	if !sectionsEqual(slides[0].sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
+	}
+}
+
+func TestImageMissingFilename(t *testing.T) {
+	_, err := scanFile("testdata/image_missing.go")
+	if err == nil {
+		t.Fatal("expected error for missing image filename")
+	}
+	if !strings.Contains(err.Error(), "missing image filename") {
+		t.Errorf("error = %q, want error containing 'missing image filename'", err)
 	}
 }
 
