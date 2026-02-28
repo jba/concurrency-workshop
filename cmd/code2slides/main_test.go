@@ -217,6 +217,46 @@ func TestImageMissingFilename(t *testing.T) {
 	}
 }
 
+func TestLink(t *testing.T) {
+	slides, err := scanFile("testdata/link_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+
+	wantSections := []section{
+		{kind: sectionHTML, content: `<a href="testdata/doc.html">See the documentation</a>`},
+		{kind: sectionHTML, content: `<a href="testdata/other/file.go">View source code</a>`},
+	}
+
+	if !sectionsEqual(slides[0].sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
+	}
+}
+
+func TestLinkMissingFilename(t *testing.T) {
+	_, err := scanFile("testdata/link_missing_file.go")
+	if err == nil {
+		t.Fatal("expected error for missing link filename")
+	}
+	if !strings.Contains(err.Error(), "missing link filename") {
+		t.Errorf("error = %q, want error containing 'missing link filename'", err)
+	}
+}
+
+func TestLinkMissingText(t *testing.T) {
+	_, err := scanFile("testdata/link_missing_text.go")
+	if err == nil {
+		t.Fatal("expected error for missing link text")
+	}
+	if !strings.Contains(err.Error(), "missing link text") {
+		t.Errorf("error = %q, want error containing 'missing link text'", err)
+	}
+}
+
 func TestRenderCode(t *testing.T) {
 	tests := []struct {
 		input string

@@ -63,6 +63,11 @@
 //	Emit an <img> tag with FILENAME as the source. FILENAME is interpreted
 //	relative to the directory containing the current source file.
 //
+// link FILENAME TEXT
+//
+//	Emit an <a> tag linking to FILENAME with TEXT as the link text. FILENAME
+//	is interpreted relative to the directory containing the current source file.
+//
 // div.CLASS / !div.CLASS
 //
 //	Open and close a <div> with the given CSS class. The class must match
@@ -397,6 +402,18 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			// Compute path relative to the directory containing the source file
 			imgPath := filepath.Join(filepath.Dir(filename), rest)
 			add(sectionHTML, nil, fmt.Sprintf("<img src=%q alt=%q />", imgPath, rest))
+
+		case "link":
+			if rest == "" {
+				return nil, errors.New("missing link filename")
+			}
+			linkFile, linkText, _ := strings.Cut(rest, " ")
+			if linkText == "" {
+				return nil, errors.New("missing link text")
+			}
+			// Compute path relative to the directory containing the source file
+			linkPath := filepath.Join(filepath.Dir(filename), linkFile)
+			add(sectionHTML, nil, fmt.Sprintf("<a href=%q>%s</a>", linkPath, html.EscapeString(linkText)))
 
 		case "!code":
 			if kind != sectionCode {
