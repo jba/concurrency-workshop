@@ -50,6 +50,7 @@ func Test_f1(t *testing.T) {
 
 // text An unbuffered channel lets two goroutines rendezvous.
 
+TODO: use the word "wait"
 func f2() {
 	// code
 	c := make(chan int) // create a channel
@@ -76,7 +77,7 @@ func Test_f2(t *testing.T) {
 // text
 // You can have many senders, and many receivers.
 // !text
-
+TODO: show a diagram with "ping pong"
 func f3() {
 	// code
 	c := make(chan int)
@@ -121,6 +122,7 @@ func f3() {
 
 // heading The select statement
 
+TODO: make it fail first, or do os.Exit
 // text Task: run a goroutine, timing out after a fixed duration.
 
 // heading Timeout, v1
@@ -298,11 +300,12 @@ func f5a() {
 ////////////////////////////////////
 // heading Buffered channels
 
+// A buffered channel has a queue of values.
 // cols
 
 func f6() {
 	// code
-	c := make(chan int, 1) // em 1
+	c := make(chan int, 1) // cap(c) == 1 // em 1
 	go func() { c <- compute(7) }()
 	select {
 	case v := <-c:
@@ -315,7 +318,7 @@ func f6() {
 }
 
 // text
-// - A channel can have a queue of values.
+// - The size of the queue is the _capacity_ of the channel.
 // - Sending enqueues, blocks if full.
 // - Receiving dequeues, blocks if empty.
 // - Sender and receiver don't have to rendezvous.
@@ -339,9 +342,11 @@ func f6() {
 // !question
 // !cols
 
+TODO: exercise: implement time.After
 ////////////////////////////////////
 // heading Non-blocking select
 
+TODO: do this before the other select
 // text
 // Let's implement an in-process notification service:
 // !text
@@ -361,7 +366,7 @@ func receiveNotification() string { return "" }
 
 // heading Notifications: first attempt
 
-// code
+// code bad
 var nc_1 = make(chan string)
 
 func sendNotification_1(s string) { nc_1 <- s }
@@ -436,6 +441,7 @@ func TestNotifications(t *testing.T) {
 ////////////////////////////////////
 // heading Closing channels
 
+TODO: start with simple example
 // cols
 
 // text Close a channel when it will never be sent to again.
@@ -479,8 +485,8 @@ func sendValues(n *node, ch chan int) {
 
 // !cols
 
-// heading Closing channels, continued
-
+// heading Ranging over a channel
+TODO: don't write  to a closed channel
 // cols
 
 // code weak

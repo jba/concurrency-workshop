@@ -187,6 +187,34 @@ func TestInlineEm(t *testing.T) {
 	}
 }
 
+func TestInlineEmWholeLine(t *testing.T) {
+	slides, err := scanFile("testdata/inline_em_whole_line.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+
+	wantSections := []section{
+		{kind: sectionCode, content: "\x00em\x00x := foo()\x00/em\x00\ny := bar()"},
+	}
+
+	if !sectionsEqual(slides[0].sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slides[0].sections, wantSections)
+	}
+
+	// Verify rendered HTML
+	got := renderCode(slides[0].sections[0].content)
+	if !strings.Contains(got, "<span class=\"em\">x := foo()</span>") {
+		t.Errorf("rendered code does not contain whole line em: %s", got)
+	}
+	if strings.Contains(got, "// em") {
+		t.Errorf("rendered code still contains // em: %s", got)
+	}
+}
+
 func TestImage(t *testing.T) {
 	slides, err := scanFile("testdata/image_test.go")
 	if err != nil {

@@ -81,7 +81,8 @@
 //
 //	Inside a code block, a trailing "// em REGEXP" on a code line emphasizes
 //	all portions of that line (before the "// em") that match the regular
-//	expression. The "// em REGEXP" suffix is stripped from the output.
+//	expression. If no REGEXP is provided (just "// em"), the entire line is
+//	emphasized. The "// em ..." suffix is stripped from the output.
 //	There is no matching "// !em" for this form.
 package main
 
@@ -509,15 +510,22 @@ func scanFile(filename string) (_ []*Slide, err error) {
 						current.WriteString("\x00/em\x00")
 						current.WriteByte('\n')
 					default:
-						// Check for inline em: code // em PATTERN
-						if idx := strings.Index(line, "// em "); idx >= 0 {
-							pattern := strings.TrimSpace(line[idx+len("// em "):])
-							if pattern != "" {
+						// Check for inline em: code // em PATTERN or code // em (whole line)
+						if idx := strings.Index(line, "// em"); idx >= 0 {
+							suffix := line[idx+len("// em"):]
+							if suffix == "" || suffix[0] == ' ' || suffix[0] == '\t' {
+								codePart := strings.TrimRight(line[:idx], " \t")
+								pattern := strings.TrimSpace(suffix)
+								if pattern == "" {
+									// No pattern: highlight the whole line
+									current.WriteString("\x00em\x00" + codePart + "\x00/em\x00")
+									current.WriteByte('\n')
+									break
+								}
 								re, err := regexp.Compile(pattern)
 								if err != nil {
 									return nil, fmt.Errorf("invalid em regexp %q: %w", pattern, err)
 								}
-								codePart := strings.TrimRight(line[:idx], " \t")
 								marked := re.ReplaceAllStringFunc(codePart, func(m string) string {
 									return "\x00em\x00" + m + "\x00/em\x00"
 								})

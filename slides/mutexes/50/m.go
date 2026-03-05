@@ -39,11 +39,12 @@ func use() {
 }
 
 // !code
-/* output
-TODO CHECK
-gopher-1
-gopher-2
-*/
+// output
+// TODO CHECK
+// gopher-1
+// gopher-2
+// !output
+
 // html </div>
 
 // text

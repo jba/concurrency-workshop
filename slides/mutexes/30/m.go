@@ -1,24 +1,33 @@
 package m
 
+////////////////////////////////////
 // heading Interleavings
 
-// div.flex
+// cols
+
+func f1() {
+	var c int
+	// code
+	c++
+	// !code
+}
+
+// text is actually
+func f2() {
+	var R0, c int
+	// code
+	R0 = c
+	R0++
+	c = R0
+	// !code
+}
+
+// Make the column wider.
+// html <div style="width: 25vw"></div>
+
+// nextcol
 /* text
-<div class='code'><pre>
-c++
-</pre></div>
 
-is actually
-
-<div class='code'><pre>
-R0 = c
-R0++
-c = R0
-</pre></div>
-<div style="width: 30vw"></div>
-*/
-
-/* text
 What we want:
 
 <div class="interleave" style="font-size: 70%">
@@ -42,4 +51,4 @@ What we might get:
 </div>
 
 */
-// !div.flex
+// !cols

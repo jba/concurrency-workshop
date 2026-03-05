@@ -6,7 +6,10 @@
       "Bash(./code2html:*)",
       "Bash(cat:*)",
       "Bash(go test:*)",
-      "Bash(./code2slides:*)"
+      "Bash(./code2slides:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ncode2slides: add image/img directive, use options for code variants\n\nAdd image directive (with img alias) that generates <img> tags with\npaths relative to the source file directory.\n\nReplace sectionCodeBad/sectionCodeWeak with options field on section,\nallowing arbitrary code block variants via \"code bad\", \"code weak\", etc.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

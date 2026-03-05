@@ -47,6 +47,7 @@ func (g *IDGenerator) NewID() string {
 // 	g.mu.Unlock()
 // 	return fmt.Sprintf("%s%d", g.prefix, <b>n</b>)
 // }
+// !question
 
 // html </div>
 // !div.flex

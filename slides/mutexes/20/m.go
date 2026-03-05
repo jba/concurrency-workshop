@@ -7,17 +7,83 @@ import (
 
 // Code must match previous slide exactly.
 
-// heading The race detector
+////////////////////////////////////
+// heading Data races
 
 // text
-// Data race:
+// A data race happens when:
 // - Two goroutines access the same memory
 // - At least one writes to it
-// - _The accesses aren't synchronized_
+// - The accesses aren't synchronized
 // !text
 
-// div.flex
-// html <div> <!-- one child for flex -->
+// text &nbsp;
+
+// cols
+
+// text same goroutine
+func f1() {
+	var c int
+	// code
+	c++
+	fmt.Println(c)
+	// !code
+}
+
+// nextcol
+
+// text different memory
+func f2() {
+	var c1, c2 int
+	var wg sync.WaitGroup
+	// code
+	wg.Go(func() {
+		c1++
+	})
+	wg.Go(func() {
+		c2++
+	})
+	// !code
+	wg.Wait()
+}
+
+// nextcol
+
+// text no writes
+func f3() {
+	var c int
+	var wg sync.WaitGroup
+	// code
+	wg.Go(func() {
+		fmt.Println(c)
+	})
+	wg.Go(func() {
+		fmt.Println(c)
+	})
+	// !code
+	wg.Wait()
+}
+
+// nextcol
+// text data race
+
+func f4() {
+	var c int
+	var wg sync.WaitGroup
+	// code bad
+	wg.Go(func() { c++ })
+	wg.Go(func() { c++ })
+	// !code
+	wg.Wait()
+}
+
+// !cols
+
+////////////////////////////////////
+// heading The race detector
+
+// cols
+
 // code
 var c int
 
@@ -40,8 +106,9 @@ func count() {
 // output
 // 27357
 // !output
-// html </div>
-// html <div> <!-- one child for flex -->
+
+// nextcol
+
 // text
 // `go run -race .`
 // !text
@@ -60,5 +127,5 @@ func count() {
 //   sync.(*WaitGroup).Go.func1()
 //       jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
 // !output
-// html </div>
-// !div.flex
+
+// !cols

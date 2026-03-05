@@ -6,15 +6,11 @@ package main
 // code
 import (
 	"fmt"
-	// em
-	"sync"
-	// !em
+	"sync" // em
 )
 
-// em
-var mu sync.Mutex
+var mu sync.Mutex // em
 
-// !em
 var c int
 
 func main() {
@@ -27,13 +23,9 @@ func main() {
 
 func count() {
 	for range 20_000 {
-		// em
-		mu.Lock()
-		// !em
+		mu.Lock() // em
 		c++
-		// em
-		mu.Unlock()
-		// !em
+		mu.Unlock() // em
 	}
 }
 
