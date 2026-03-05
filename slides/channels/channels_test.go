@@ -49,8 +49,8 @@ func Test_f1(t *testing.T) {
 // heading Unbuffered channels
 
 // text An unbuffered channel lets two goroutines rendezvous.
+// text They wait for each other.
 
-TODO: use the word "wait"
 func f2() {
 	// code
 	c := make(chan int) // create a channel
@@ -77,14 +77,14 @@ func Test_f2(t *testing.T) {
 // text
 // You can have many senders, and many receivers.
 // !text
-TODO: show a diagram with "ping pong"
+// TODO: show a diagram with "ping pong"
 func f3() {
 	// code
 	c := make(chan int)
-	for i := range 5 {
+	for i := range 3{
 		go func() { c <- compute(i) }()
 	}
-	for range 5 {
+	for range 3{
 		go func() {
 			fmt.Println(<-c)
 		}()
