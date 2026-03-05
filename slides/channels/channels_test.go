@@ -81,10 +81,10 @@ func Test_f2(t *testing.T) {
 func f3() {
 	// code
 	c := make(chan int)
-	for i := range 3{
+	for i := range 3 {
 		go func() { c <- compute(i) }()
 	}
-	for range 3{
+	for range 3 {
 		go func() {
 			fmt.Println(<-c)
 		}()
@@ -123,7 +123,6 @@ func f3() {
 // heading The select statement
 
 // text Task: run a goroutine, timing out after a fixed duration.
-
 
 // text Use `time.After` for timeouts.
 
@@ -234,7 +233,6 @@ func f6() {
 ////////////////////////////////////
 // heading Non-blocking select
 
-TODO: do this before the other select
 // text
 // Let's implement an in-process notification service:
 // !text
@@ -329,7 +327,42 @@ func TestNotifications(t *testing.T) {
 ////////////////////////////////////
 // heading Closing channels
 
-TODO: start with simple example
+// text When you close a channel, it can never be sent to again.
+
+func cc() {
+	// code
+	c := make(chan int, 1)
+	c <- 1
+	close(c)
+	c <- 2 // panics
+}
+
+func TestCC(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("expected panic")
+		}
+	}()
+	cc()
+}
+
+////////////////////////////////////
+// heading Closed channels
+
+// text Receiving from a closed channel returns the zero value
+
+func cc2() {
+	c := make(chan int, 1)
+	c <- 1
+	close(c)
+	fmt.Println(<-c) // prints 1
+	fmt.Println(<-c) // prints 0
+}
+
+func TestCC2(t *testing.T) {
+	wantStdout(t, "1\n0", cc2)
+}
+
 // cols
 
 // text Close a channel when it will never be sent to again.
@@ -374,7 +407,6 @@ func sendValues(n *node, ch chan int) {
 // !cols
 
 // heading Ranging over a channel
-TODO: don't write  to a closed channel
 // cols
 
 // code weak
@@ -792,7 +824,7 @@ func getResult(input string) string {
 // Or you could try them both in parallel, and take the first result
 // you get. This is _hedging_.
 //
-// Start with the code above, in TODO, and modify it to implement hedging.
+// Start with `getResult` in exercises/hedging, and modify it to implement hedging.
 // - Your `getResult` function should call both `method1` and `method2`
 // concurrently.
 // - It should return the first result it gets.
