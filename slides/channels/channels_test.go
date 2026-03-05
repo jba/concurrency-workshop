@@ -122,124 +122,8 @@ func f3() {
 
 // heading The select statement
 
-TODO: make it fail first, or do os.Exit
 // text Task: run a goroutine, timing out after a fixed duration.
 
-// heading Timeout, v1
-
-func f4() {
-	// code bad
-	c := make(chan int)
-	timeout := make(chan bool)
-	go func() { c <- compute(7) }()
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		timeout <- true
-	}()
-	select {
-	case v := <-c:
-		fmt.Println(v)
-	case <-timeout:
-		fmt.Println("timed out")
-	}
-	// !code
-}
-
-// text red border => something's wrong; we'll discuss soon.
-
-func Test_f4(t *testing.T) {
-	got := stdout(f4)
-	if got != "49" {
-		t.Errorf("got %q: wrong", got)
-	}
-}
-
-// heading Timeout, v1
-
-// text The part we've seen before.
-
-func f4a() {
-	// code bad
-	// em
-	c := make(chan int)
-	// !em
-	timeout := make(chan bool)
-	// em
-	go func() { c <- compute(7) }()
-	// !em
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		timeout <- true
-	}()
-	select {
-	// em
-	case v := <-c:
-		fmt.Println(v)
-		// !em
-	case <-timeout:
-		fmt.Println("timed out")
-	}
-	// !code
-}
-
-// heading Timeout, v1
-
-// text The timeout part.
-
-func f4b() {
-	// code bad
-	c := make(chan int)
-	// em
-	timeout := make(chan bool)
-	// !em
-	go func() { c <- compute(7) }()
-	// em
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		timeout <- true
-	}()
-	// !em
-	select {
-	case v := <-c:
-		fmt.Println(v)
-	// em
-	case <-timeout:
-		fmt.Println("timed out")
-		// !em
-	}
-	// !code
-}
-
-// heading Timeout, v1
-
-// text
-// Each case in a `select` statement is a channel operation:
-// a send or a receive.
-//
-// The `select` blocks until one of the cases is ready.
-// !text
-
-func f4c() {
-	// code bad
-	c := make(chan int)
-	timeout := make(chan bool)
-	go func() { c <- compute(7) }()
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		timeout <- true
-	}()
-	// em
-	select {
-	case v := <-c:
-		fmt.Println(v)
-	case <-timeout:
-		fmt.Println("timed out")
-	}
-	// !em
-	// !code
-}
-
-// heading Timeout, v2
 
 // text Use `time.After` for timeouts.
 
@@ -250,13 +134,13 @@ func f5() {
 	select {
 	case v := <-c:
 		fmt.Println(v)
-		// em
-	case <-time.After(20 * time.Millisecond):
-		// !em
+	case <-time.After(20 * time.Millisecond): // em
 		fmt.Println("timed out")
 	}
 	// !code
 }
+
+// text The timeout logic is right, but something else is wrong...
 
 func Test_f5(t *testing.T) {
 	got := stdout(f5)
@@ -342,7 +226,11 @@ func f6() {
 // !question
 // !cols
 
-TODO: exercise: implement time.After
+////////////////////////////////////
+// heading Exercise: replacing `time.After`
+
+// text See exercises/timeout
+
 ////////////////////////////////////
 // heading Non-blocking select
 
