@@ -1,5 +1,10 @@
 package m
 
+import (
+	"fmt"
+	"sync"
+)
+
 ////////////////////////////////////
 // heading Interleavings
 
@@ -51,4 +56,42 @@ What we might get:
 </div>
 
 */
+// !cols
+
+////////////////////////////////////////////////
+// heading Using a mutex
+
+// cols
+// code
+
+func fmutex() {
+	// code
+	var c int
+	var mu sync.Mutex // em
+
+	count := func() {
+		for range 20_000 {
+			mu.Lock() // em
+			c++
+			mu.Unlock() // em
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Go(count)
+	wg.Go(count)
+	wg.Wait()
+	fmt.Println(c)
+	// !code
+}
+
+// nextcol
+// text
+//
+// Only one goroutine between `Lock` and `Unlock`
+//
+// The zero mutex is unlocked and ready to use
+//
+// A mutex limits interleavings
+// !text
 // !cols

@@ -1,3 +1,7 @@
+// Your getResult function should call both method1 and method2
+// concurrently, returning the first result it gets.
+// Before returning, it should cancel the other computation.
+
 package hedging
 
 import (
@@ -8,12 +12,13 @@ import (
 
 func getResult(ctx context.Context, input int) int {
 	// TODO
+	return 0
 }
 
 // NOTE: In a real hedging situation, both methods would return the same (or nearly the
 // same) results. For testing, our methods return very different results.
 
-// method1 returns its input.
+// method1 returns input.
 // It does so immediately if input is positive.
 // It sleeps first if input is negative.
 func method1(ctx context.Context, input int) int {
@@ -25,7 +30,7 @@ func method1(ctx context.Context, input int) int {
 	}
 }
 
-// method1 returns twice its input.
+// method1 returns twice input.
 // It does so immediately if input is negative.
 // It sleeps first if input is positive.
 func method2(ctx context.Context, input int) int {

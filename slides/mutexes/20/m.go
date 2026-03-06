@@ -82,6 +82,8 @@ func f4() {
 ////////////////////////////////////
 // heading The race detector
 
+// text Looks for data races while the program is running.
+
 // cols
 
 // code

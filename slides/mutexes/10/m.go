@@ -5,30 +5,30 @@ import (
 	"sync"
 )
 
+////////////////////////////////
 // heading Interleaving
 
 // text
 // Goroutines _interleave_ with each other.
 // !text
 
-// code
-var c int
+func f1() {
+	// code
+	var c int
 
-func main() {
+	count := func() {
+		for range 20_000 {
+			c++
+		}
+	}
+
 	var wg sync.WaitGroup
 	wg.Go(count)
 	wg.Go(count)
 	wg.Wait()
 	fmt.Println(c)
+	// !code
 }
-
-func count() {
-	for range 20_000 {
-		c++
-	}
-}
-
-// !code
 
 // output
 // 27357
