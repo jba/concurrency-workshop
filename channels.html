@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Channels</title>
+    <title>Title</title>
     <meta charset='utf-8'>
     <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
     <script>
@@ -13,7 +13,7 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/channels/channels_test.go -->
+<!-- slides/channels/channels.go -->
 <article class='title-slide'>
   <div class='title-text'>Introduction to Channels</div>
   <div class='subtitle-text'
@@ -44,6 +44,9 @@
   <div class='text'>
 <p>An unbuffered channel lets two goroutines rendezvous.</p>
   </div>
+  <div class='text'>
+<p>They wait for each other.</p>
+  </div>
   <div class='code'><pre>
 <span class='codenum'>1</span>c := make(chan int) <comment>// create a channel</comment>
 
@@ -68,10 +71,10 @@
   </div>
   <div class='code'><pre>
 <span class='codenum'>1</span>c := make(chan int)
-<span class='codenum'>2</span>for i := range 5 {
+<span class='codenum'>2</span>for i := range 3 {
 <span class='codenum'>3</span>   go func() { c &lt;- compute(i) }()
 <span class='codenum'>4</span>}
-<span class='codenum'>5</span>for range 5 {
+<span class='codenum'>5</span>for range 3 {
 <span class='codenum'>6</span>   go func() {
 <span class='codenum'>7</span>      fmt.Println(&lt;-c)
 <span class='codenum'>8</span>   }()
@@ -85,100 +88,6 @@
   <div class='text'>
 <p>Task: run a goroutine, timing out after a fixed duration.</p>
   </div>
-  <span class='pagenumber'>5</span>
-</article>
-<article>
-  <h1>Timeout, v1</h1>
-  <div class='code bad'><pre>
-<span class='codenum'>1</span>c := make(chan int)
-<span class='codenum'>2</span>timeout := make(chan bool)
-<span class='codenum'>3</span>go func() { c &lt;- compute(7) }()
-<span class='codenum'>4</span>go func() {
-<span class='codenum'>5</span>   time.Sleep(20 * time.Millisecond)
-<span class='codenum'>6</span>   timeout &lt;- true
-<span class='codenum'>7</span>}()
-<span class='codenum'>8</span>select {
-<span class='codenum'>9</span>case v := &lt;-c:
-<span class='codenum'>10</span>   fmt.Println(v)
-<span class='codenum'>11</span>case &lt;-timeout:
-<span class='codenum'>12</span>   fmt.Println(&#34;timed out&#34;)
-<span class='codenum'>13</span>}</pre>
-  </div>
-  <div class='text'>
-<p>red border =&gt; something's wrong; we'll discuss soon.</p>
-  </div>
-  <span class='pagenumber'>6</span>
-</article>
-<article>
-  <h1>Timeout, v1</h1>
-  <div class='text'>
-<p>The part we've seen before.</p>
-  </div>
-  <div class='code bad'><pre>
-<span class='codenum'>1</span><span class="em">c := make(chan int)</span>
-<span class='codenum'>2</span>timeout := make(chan bool)
-<span class='codenum'>3</span><span class="em">go func() { c &lt;- compute(7) }()</span>
-<span class='codenum'>4</span>go func() {
-<span class='codenum'>5</span>   time.Sleep(20 * time.Millisecond)
-<span class='codenum'>6</span>   timeout &lt;- true
-<span class='codenum'>7</span>}()
-<span class='codenum'>8</span>select {
-<span class='codenum'>9</span><span class="em">case v := &lt;-c:
-<span class='codenum'>10</span>   fmt.Println(v)</span>
-<span class='codenum'>11</span>case &lt;-timeout:
-<span class='codenum'>12</span>   fmt.Println(&#34;timed out&#34;)
-<span class='codenum'>13</span>}</pre>
-  </div>
-  <span class='pagenumber'>7</span>
-</article>
-<article>
-  <h1>Timeout, v1</h1>
-  <div class='text'>
-<p>The timeout part.</p>
-  </div>
-  <div class='code bad'><pre>
-<span class='codenum'>1</span>c := make(chan int)
-<span class='codenum'>2</span><span class="em">timeout := make(chan bool)</span>
-<span class='codenum'>3</span>go func() { c &lt;- compute(7) }()
-<span class='codenum'>4</span><span class="em">go func() {
-<span class='codenum'>5</span>   time.Sleep(20 * time.Millisecond)
-<span class='codenum'>6</span>   timeout &lt;- true
-<span class='codenum'>7</span>}()</span>
-<span class='codenum'>8</span>select {
-<span class='codenum'>9</span>case v := &lt;-c:
-<span class='codenum'>10</span>   fmt.Println(v)
-<span class='codenum'>11</span><span class="em">case &lt;-timeout:
-<span class='codenum'>12</span>   fmt.Println(&#34;timed out&#34;)</span>
-<span class='codenum'>13</span>}</pre>
-  </div>
-  <span class='pagenumber'>8</span>
-</article>
-<article>
-  <h1>Timeout, v1</h1>
-  <div class='text'>
-<p>Each case in a <code>select</code> statement is a channel operation:
-a send or a receive.</p>
-<p>The <code>select</code> blocks until one of the cases is ready.</p>
-  </div>
-  <div class='code bad'><pre>
-<span class='codenum'>1</span>c := make(chan int)
-<span class='codenum'>2</span>timeout := make(chan bool)
-<span class='codenum'>3</span>go func() { c &lt;- compute(7) }()
-<span class='codenum'>4</span>go func() {
-<span class='codenum'>5</span>   time.Sleep(20 * time.Millisecond)
-<span class='codenum'>6</span>   timeout &lt;- true
-<span class='codenum'>7</span>}()
-<span class='codenum'>8</span><span class="em">select {
-<span class='codenum'>9</span>case v := &lt;-c:
-<span class='codenum'>10</span>   fmt.Println(v)
-<span class='codenum'>11</span>case &lt;-timeout:
-<span class='codenum'>12</span>   fmt.Println(&#34;timed out&#34;)
-<span class='codenum'>13</span>}</span></pre>
-  </div>
-  <span class='pagenumber'>9</span>
-</article>
-<article>
-  <h1>Timeout, v2</h1>
   <div class='text'>
 <p>Use <code>time.After</code> for timeouts.</p>
   </div>
@@ -188,11 +97,14 @@ a send or a receive.</p>
 <span class='codenum'>3</span>select {
 <span class='codenum'>4</span>case v := &lt;-c:
 <span class='codenum'>5</span>   fmt.Println(v)
-<span class='codenum'>6</span><span class="em">case &lt;-time.After(20 * time.Millisecond):</span>
+<span class='codenum'>6</span>case &lt;-time.After(20 * time.Millisecond):
 <span class='codenum'>7</span>   fmt.Println(&#34;timed out&#34;)
 <span class='codenum'>8</span>}</pre>
   </div>
-  <span class='pagenumber'>10</span>
+  <div class='text'>
+<p>The timeout logic is right, but something else is wrong...</p>
+  </div>
+  <span class='pagenumber'>5</span>
 </article>
 <article>
   <h1>Goroutine leaks</h1>
@@ -226,13 +138,13 @@ What happens to the first goroutine if there is a timeout?</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>11</span>
+  <span class='pagenumber'>6</span>
 </article>
 <article>
   <h1>Buffered channels</h1>
   <div class="flex"><div>
   <div class='code'><pre>
-<span class='codenum'>1</span>c := make(chan int, <span class="em">1</span>)
+<span class='codenum'>1</span>c := make(chan int, <span class="em">1</span>) <comment>// cap(c) == <span class="em">1</span></comment>
 <span class='codenum'>2</span>go func() { c &lt;- compute(7) }()
 <span class='codenum'>3</span>select {
 <span class='codenum'>4</span>case v := &lt;-c:
@@ -244,7 +156,7 @@ What happens to the first goroutine if there is a timeout?</p>
   </div>
   <div class='text'>
 <ul>
-<li>A channel can have a queue of values.</li>
+<li>The size of the queue is the <em>capacity</em> of the channel.</li>
 <li>Sending enqueues, blocks if full.</li>
 <li>Receiving dequeues, blocks if empty.</li>
 <li>Sender and receiver don't have to rendezvous.</li>
@@ -268,7 +180,14 @@ Now what happens to the first goroutine if there is a timeout?</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>12</span>
+  <span class='pagenumber'>7</span>
+</article>
+<article>
+  <h1>Exercise: replacing time.After</h1>
+  <div class='text'>
+<p>See exercises/timeout</p>
+  </div>
+  <span class='pagenumber'>8</span>
 </article>
 <article>
   <h1>Non-blocking select</h1>
@@ -287,11 +206,11 @@ Now what happens to the first goroutine if there is a timeout?</p>
 <span class='codenum'>2</span>func <defn>receiveNotification</defn>() string { return &#34;&#34; }
 </pre>
   </div>
-  <span class='pagenumber'>13</span>
+  <span class='pagenumber'>9</span>
 </article>
 <article>
   <h1>Notifications: first attempt</h1>
-  <div class='code'><pre>
+  <div class='code bad'><pre>
 <span class='codenum'>1</span>var nc = make(chan string)
 
 <span class='codenum'>2</span>func <defn>sendNotification</defn>(s string) { nc &lt;- s }
@@ -316,7 +235,7 @@ What if we add buffering?</p>
 Then they block again.</p>
     </div>
   </details>
-  <span class='pagenumber'>14</span>
+  <span class='pagenumber'>10</span>
 </article>
 <article>
   <h1>Notifications: solution</h1>
@@ -344,10 +263,26 @@ are ready.</p>
 <span class='codenum'>15</span>}
 </pre>
   </div>
-  <span class='pagenumber'>15</span>
+  <span class='pagenumber'>11</span>
 </article>
 <article>
   <h1>Closing channels</h1>
+  <div class='text'>
+<p>When you close a channel, it can never be sent to again.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c := make(chan int, 1)
+<span class='codenum'>2</span>c &lt;- 1
+<span class='codenum'>3</span>close(c)
+<span class='codenum'>4</span>c &lt;- 2 <comment>// panics</comment></pre>
+  </div>
+  <span class='pagenumber'>12</span>
+</article>
+<article>
+  <h1>Closed channels</h1>
+  <div class='text'>
+<p>Receiving from a closed channel returns the zero value</p>
+  </div>
   <div class="flex"><div>
   <div class='text'>
 <p>Close a channel when it will never be sent to again.</p>
@@ -387,10 +322,10 @@ are ready.</p>
 <p>In modern Go, we would use an iterator.</p>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>16</span>
+  <span class='pagenumber'>13</span>
 </article>
 <article>
-  <h1>Closing channels, continued</h1>
+  <h1>Ranging over a channel</h1>
   <div class="flex"><div>
   <div class='code weak'><pre>
 <span class='codenum'>1</span>func <defn>printTree</defn>(root *node) {
@@ -423,7 +358,7 @@ are ready.</p>
 <p>for...range with a channel ends when closed</p>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>17</span>
+  <span class='pagenumber'>14</span>
 </article>
 <article>
   <h1>close broadcasts</h1>
@@ -465,7 +400,7 @@ What does this do?</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>18</span>
+  <span class='pagenumber'>15</span>
 </article>
 <article>
   <h1>Interrupting goroutines</h1>
@@ -489,7 +424,7 @@ What does this do?</p>
 <p>It has to check.</p>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>19</span>
+  <span class='pagenumber'>16</span>
 </article>
 <article>
   <h1>Asking a goroutine to stop</h1>
@@ -530,7 +465,7 @@ finished, like this one.</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>20</span>
+  <span class='pagenumber'>17</span>
 </article>
 <article>
   <h1>Contexts</h1>
@@ -572,7 +507,7 @@ finished, like this one.</p>
 <p><code>context.Done</code> channel closed when context times out or is canceled.</p>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>21</span>
+  <span class='pagenumber'>18</span>
 </article>
 <article>
   <h1>Contexts for real</h1>
@@ -621,7 +556,7 @@ channel.</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>22</span>
+  <span class='pagenumber'>19</span>
 </article>
 <article>
   <h1>Contexts and cancellation</h1>
@@ -671,7 +606,7 @@ Why do we still need to check <code>ctx.Done</code>?</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>23</span>
+  <span class='pagenumber'>20</span>
 </article>
 <article>
   <h1>Exercise: Hedging</h1>
@@ -695,7 +630,7 @@ two backends that it can query for a result.</p>
   <div class='text'>
 <p>Or you could try them both in parallel, and take the first result
 you get. This is <em>hedging</em>.</p>
-<p>Start with the code above, in TODO, and modify it to implement hedging.</p>
+<p>Start with <code>getResult</code> in exercises/hedging, and modify it to implement hedging.</p>
 <ul>
 <li>Your <code>getResult</code> function should call both <code>method1</code> and <code>method2</code>
 concurrently.</li>
@@ -704,7 +639,7 @@ concurrently.</li>
 </ul>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>24</span>
+  <span class='pagenumber'>21 and last</span>
 </article>
 
     <div id="help">

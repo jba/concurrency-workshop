@@ -76,33 +76,7 @@ func f3() {
 	// !code
 }
 
-// // heading Multiples (fixed)
-
-// func f3() {
-// 	// code
-// 	c := make(chan int)
-// 	for i := range 5 {
-// 		go func() { c <- compute(i) }()
-// 	}
-// 	var wg sync.WaitGroup
-// 	for range 5 {
-// 		wg.Go(func() { fmt.Println(<-c) })
-// 	}
-// 	wg.Wait()
-// 	// !code
-// }
-
-// func Test_f3(t *testing.T) {
-// 	got := strings.Fields(stdout(f3))
-// 	slices.Sort(got)
-// 	want := []string{"0", "1", "16", "4", "9"}
-// 	if !slices.Equal(got, want) {
-// 		t.Errorf("got %v, want %v", got, want)
-// 	}
-// }
-
 ////////////////////////////////////
-
 // heading The select statement
 
 // text Task: run a goroutine, timing out after a fixed duration.
@@ -116,7 +90,7 @@ func f5() {
 	select {
 	case v := <-c:
 		fmt.Println(v)
-	case <-time.After(20 * time.Millisecond): // em
+	case <-time.After(20 * time.Millisecond):
 		fmt.Println("timed out")
 	}
 	// !code
@@ -202,7 +176,7 @@ func f6() {
 // !cols
 
 ////////////////////////////////////
-// heading Exercise: replacing `time.After`
+// heading Exercise: replacing time.After
 
 // text See exercises/timeout
 
@@ -293,6 +267,7 @@ func cc() {
 	c <- 1
 	close(c)
 	c <- 2 // panics
+	// !code
 }
 
 ////////////////////////////////////

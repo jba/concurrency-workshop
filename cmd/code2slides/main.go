@@ -254,6 +254,22 @@ func (w *indentWriter) Write(data []byte) (int, error) {
 func (w *indentWriter) Err() error { return w.err }
 
 func run(outputFile, title string, files []string) (err error) {
+	// First pass: collect all slides from all files
+	type fileSlides struct {
+		filename string
+		slides   []*Slide
+	}
+	var allFiles []fileSlides
+	totalSlides := 0
+	for _, filename := range files {
+		slides, err := scanFile(filename)
+		if err != nil {
+			return fmt.Errorf("error processing %s: %w", filename, err)
+		}
+		allFiles = append(allFiles, fileSlides{filename, slides})
+		totalSlides += len(slides)
+	}
+
 	outFile, err := os.Create(outputFile)
 	if err != nil {
 		return fmt.Errorf("error creating output file: %w", err)
@@ -265,34 +281,21 @@ func run(outputFile, title string, files []string) (err error) {
 	fmt.Fprintf(iw, top, title)
 
 	pageNum := 1
-	for _, filename := range files {
-		var err error
-		pageNum, err = processFile(iw, filename, pageNum)
-		if err != nil {
-			return fmt.Errorf("error processing %s: %w", filename, err)
+	for _, fs := range allFiles {
+		iw.linef("\n<!-- %s -->", fs.filename)
+		for _, slide := range fs.slides {
+			if debug {
+				slide.dump()
+			}
+			isLast := pageNum == totalSlides
+			writeSlideHTML(iw, slide, pageNum, isLast)
+			pageNum++
 		}
 	}
 
 	fmt.Fprintln(iw, bottom)
 
 	return iw.Err()
-}
-
-func processFile(w *indentWriter, filename string, pageNum int) (int, error) {
-	slides, err := scanFile(filename)
-	if err != nil {
-		return 0, err
-	}
-
-	w.linef("\n<!-- %s -->", filename)
-	for _, slide := range slides {
-		if debug {
-			slide.dump()
-		}
-		writeSlideHTML(w, slide, pageNum)
-		pageNum++
-	}
-	return pageNum, w.Err()
 }
 
 func scanFile(filename string) (_ []*Slide, err error) {
@@ -577,7 +580,7 @@ func splitFirstWord(s string) (string, string, bool) {
 	return s[:i], strings.TrimSpace(s[i+1:]), true
 }
 
-func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
+func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 	// 	for _, st := range slide.subtitles {
 	// 		w.linef("<div class='subtitle-text'>%s<br/></div>", html.EscapeString(st))
 	// 	}
@@ -635,7 +638,11 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int) {
 			w.close("</div>")
 		}
 	}
-	w.linef("<span class='pagenumber'>%d</span>", pageNum)
+	if isLast {
+		w.linef("<span class='pagenumber'>%d and last</span>", pageNum)
+	} else {
+		w.linef("<span class='pagenumber'>%d</span>", pageNum)
+	}
 	w.close("</article>")
 }
 
