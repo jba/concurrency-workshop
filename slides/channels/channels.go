@@ -523,7 +523,7 @@ func f6a() {
 // text
 // &nbsp;
 
-// `collatz(7)` will keep running until it's done, consuming resources.
+// `collatz(n)` will keep running until it's done, consuming resources.
 
 // You can't interrupt an arbitrary goroutine.
 
@@ -541,7 +541,7 @@ func f7() {
 	// em
 	done := make(chan struct{}) // no value to send
 	// !em
-	go func() { c <- collatz_1(7, done) }() // em done
+	go func() { c <- collatz_1(n, done) }() // em done
 	select {
 	case v := <-c:
 		fmt.Println(v)
@@ -603,14 +603,8 @@ func collatz_2(ctx context.Context, n int) int { // em ctx context.Context
 			return -1
 		default:
 		}
-		if n%2 == 0 {
-			n /= 2
-		} else {
-			n = 3*n + 1
-		}
-		count++
+		// ...
 	}
-	return count
 }
 
 // !code
@@ -668,70 +662,14 @@ func collatz_3(ctx context.Context, n int) (int, error) { // em error
 // nextcol
 // code
 func collatzWithTimeout(ctx context.Context, n int, tm time.Duration) (int, error) {
-	type result struct {
-		x   int
-		err error
-	} // em
-	c := make(chan result)
 	ctx, cancel := context.WithTimeout(ctx, tm)
 	defer cancel()
-	go func() {
-		x, err := collatz_3(ctx, n)
-		c <- result{x, err}
-	}()
-	r := <-c
-	return r.x, r.err
+	return collatz_3(ctx, n)
 }
 
 // !code
 
-// text &nbsp;
-
-// question Do we still need a buffered channel?
-// answer
-// Yes. If the second select case is taken, the goroutine would be
-// blocked forever sending to `c`, even if `compute` returns early.
-// !question
-
-// question Should the `select` have a default case?
-// answer
-// No. The only two possibilities are that `compute` finishes on time
-// and sends to `c`, or that the context times out and closes its `Done`
-// channel.
-// !question
-
 // !cols
-
-////////////////////////////////////
-// heading Contexts and cancellation
-
-// text Use `Context` for cancelling for other reasons too.
-
-// cols
-// code
-
-// !code
-// nextcol
-
-// text
-// &nbsp;
-
-// `userCancels` returns a channel that is closed when a button is clicked.
-// !text
-
-// question Why do we still need to defer `cancel`?
-// answer
-// It must always be called, and it isn't in two of the cases.
-// !question
-
-// question Why do we still need to check `ctx.Done`?
-// answer
-// The argument context might be canceled or time out.
-// !question
-
-// !cols
-
-func userCancels() chan int { return nil }
 
 ////////////////////////////////////
 // heading Exercise: Hedging
