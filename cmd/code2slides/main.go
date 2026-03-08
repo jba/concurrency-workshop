@@ -315,6 +315,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		kind     sectionKind
 		options  []string
 		divClass string
+		eliding  bool
 	)
 	lineNum := 0
 
@@ -512,7 +513,19 @@ func scanFile(filename string) (_ []*Slide, err error) {
 						current.WriteString(s)
 						current.WriteString("\x00/em\x00")
 						current.WriteByte('\n')
+					case "// elide":
+						eliding = true
+					case "// !elide":
+						eliding = false
+						// Preserve indentation from the elide line
+						indent := line[:len(line)-len(trimmed)]
+						current.WriteString(indent)
+						current.WriteString("// ...")
+						current.WriteByte('\n')
 					default:
+						if eliding {
+							break
+						}
 						// Check for inline em: code // em PATTERN or code // em (whole line)
 						if idx := strings.Index(line, "// em"); idx >= 0 {
 							suffix := line[idx+len("// em"):]

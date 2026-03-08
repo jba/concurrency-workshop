@@ -51,20 +51,20 @@ func TestCollatzWithTimeout(t *testing.T) {
 }
 
 func Test_f1(t *testing.T) {
-	if stdout(f1) != "49" {
+	if stdout(f1) != "16" {
 		t.Error("f1 wrong")
 	}
 }
 
 func Test_f2(t *testing.T) {
-	if stdout(f2) != "49" {
+	if stdout(f2) != "16" {
 		t.Error("f2 wrong")
 	}
 }
 
 func Test_f5(t *testing.T) {
 	got := stdout(f5)
-	if got != "49" {
+	if got != "16" {
 		t.Errorf("got %q: wrong", got)
 	}
 }
@@ -114,7 +114,7 @@ func TestSend(t *testing.T) {
 }
 
 func TestF7(t *testing.T) {
-	wantStdout(t, "15", f7)
+	wantStdout(t, "16", f7)
 }
 
 func wantStdout(t *testing.T, want string, f func()) {

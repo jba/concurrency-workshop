@@ -536,6 +536,7 @@ func f6a() {
 
 // cols
 func f7() {
+	n := 7
 	// code
 	c := make(chan int, 1)
 	// em
@@ -593,18 +594,26 @@ func collatz_1(n int, done chan struct{}) int { // em done chan struct\{\}
 
 // code
 
-func collatz_2(ctx context.Context, n int) int { // em ctx context.Context
+func collatz_2(ctx context.Context, n int) (int, error) { // em
 	count := 0
 	for n > 1 {
 		select {
 		// em
 		case <-ctx.Done(): // closed when done
+			return 0, ctx.Err() // non-nil if done
 			// !em
-			return -1
 		default:
 		}
-		// ...
+		// elide
+		if n%2 == 0 {
+			n /= 2
+		} else {
+			n = 3*n + 1
+		}
+		count++
+		// !elide
 	}
+	return count, nil
 }
 
 // !code
@@ -612,64 +621,14 @@ func collatz_2(ctx context.Context, n int) int { // em ctx context.Context
 ////////////////////////////////////
 // heading Contexts for timeouts
 
-// text
-// Use `context.Context` for timeouts.
-
-// Contexts inherit timeouts and cancellations from parents.
-
-// `cancel` must always be called to clean up resources.
-// !text
-func f8(ctx context.Context) {
-	// code
-	c := make(chan int) // unbuffered
-	// em
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
-	defer cancel()
-	// !em
-	go func() { c <- collatz_2(ctx, 7) }() // em ctx
-	fmt.Println(<-c)                       // prints -1 on timeout // em
-	// !code
-}
-
-////////////////////////////////////
-// heading Contexts for real
-
-// text What a "real" function might look like.
-
-// text Where there is `Context`, there is almost always `error`.
-
-// cols
-// code
-func collatz_3(ctx context.Context, n int) (int, error) { // em error
-	count := 0
-	for n > 1 {
-		select {
-		case <-ctx.Done():
-			return 0, ctx.Err() // em
-		default:
-		}
-		if n%2 == 0 {
-			n /= 2
-		} else {
-			n = 3*n + 1
-		}
-		count++
-	}
-	return count, nil
-}
-
-// !code
-// nextcol
 // code
 func collatzWithTimeout(ctx context.Context, n int, tm time.Duration) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, tm)
 	defer cancel()
-	return collatz_3(ctx, n)
+	return collatz_2(ctx, n)
 }
 
 // !code
-
-// !cols
 
 ////////////////////////////////////
 // heading Exercise: Hedging

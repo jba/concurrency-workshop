@@ -517,67 +517,24 @@ finished, like this one.</p>
   </div>
   <div class='code'><pre>
 
-<span class='codenum'>1</span>func <defn>collatz</defn>(<span class="em">ctx context.Context</span>, n int) int {
+<span class='codenum'>1</span><span class="em">func <defn>collatz</defn>(ctx context.Context, n int) (int, error) {</span>
 <span class='codenum'>2</span>   count := 0
 <span class='codenum'>3</span>   for n &gt; 1 {
 <span class='codenum'>4</span>      select {
-<span class='codenum'>5</span><span class="em">      case &lt;-ctx.Done(): <comment>// closed when done</span></comment>
-<span class='codenum'>6</span>         return -1
+<span class='codenum'>5</span><span class="em">      case &lt;-ctx.Done(): <comment>// closed when done</comment>
+<span class='codenum'>6</span>         return 0, ctx.Err() <comment>// non-nil if done</span></comment>
 <span class='codenum'>7</span>      default:
 <span class='codenum'>8</span>      }
-<span class='codenum'>9</span>      <comment>// ... same</comment>
+<span class='codenum'>9</span>      <comment>// ...</comment>
 <span class='codenum'>10</span>   }
-<span class='codenum'>11</span>}
+<span class='codenum'>11</span>   return count, nil
+<span class='codenum'>12</span>}
 </pre>
   </div>
   <span class='pagenumber'>20</span>
 </article>
 <article>
   <h1>Contexts for timeouts</h1>
-  <div class='text'>
-<p>Use <code>context.Context</code> for timeouts.</p>
-<p>Contexts inherit timeouts and cancellations from parents.</p>
-<p><code>cancel</code> must always be called to clean up resources.</p>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>c := make(chan int) <comment>// unbuffered</comment>
-<span class='codenum'>2</span><span class="em">ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
-<span class='codenum'>3</span>defer cancel()</span>
-<span class='codenum'>4</span>go func() { c &lt;- collatz(<span class="em">ctx</span>, 7) }()
-<span class='codenum'>5</span><span class="em">fmt.Println(&lt;-c)                       <comment>// prints -1 on timeout</span></comment></pre>
-  </div>
-  <span class='pagenumber'>21</span>
-</article>
-<article>
-  <h1>Contexts for real</h1>
-  <div class='text'>
-<p>What a &quot;real&quot; function might look like.</p>
-  </div>
-  <div class='text'>
-<p>Where there is <code>Context</code>, there is almost always <code>error</code>.</p>
-  </div>
-  <div class="flex"><div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>collatz</defn>(ctx context.Context, n int) (int, <span class="em">error</span>) {
-<span class='codenum'>2</span>   count := 0
-<span class='codenum'>3</span>   for n &gt; 1 {
-<span class='codenum'>4</span>      select {
-<span class='codenum'>5</span>      case &lt;-ctx.Done():
-<span class='codenum'>6</span><span class="em">         return 0, ctx.Err()</span>
-<span class='codenum'>7</span>      default:
-<span class='codenum'>8</span>      }
-<span class='codenum'>9</span>      if n%2 == 0 {
-<span class='codenum'>10</span>         n /= 2
-<span class='codenum'>11</span>      } else {
-<span class='codenum'>12</span>         n = 3*n + 1
-<span class='codenum'>13</span>      }
-<span class='codenum'>14</span>      count++
-<span class='codenum'>15</span>   }
-<span class='codenum'>16</span>   return count, nil
-<span class='codenum'>17</span>}
-</pre>
-  </div>
-  </div><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>func <defn>collatzWithTimeout</defn>(ctx context.Context, n int, tm time.Duration) (int, error) {
 <span class='codenum'>2</span>   ctx, cancel := context.WithTimeout(ctx, tm)
@@ -586,8 +543,7 @@ finished, like this one.</p>
 <span class='codenum'>5</span>}
 </pre>
   </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>22</span>
+  <span class='pagenumber'>21</span>
 </article>
 <article>
   <h1>Exercise: Hedging</h1>
@@ -620,7 +576,7 @@ concurrently.</li>
 </ul>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>23 and last</span>
+  <span class='pagenumber'>22 and last</span>
 </article>
 
     <div id="help">
