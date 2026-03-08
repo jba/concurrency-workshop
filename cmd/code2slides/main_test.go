@@ -76,6 +76,28 @@ func TestScanFile(t *testing.T) {
 	}
 }
 
+func TestElide(t *testing.T) {
+	slides, err := scanFile("testdata/elide_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+	slide := slides[0]
+	if len(slide.sections) != 1 {
+		t.Fatalf("got %d sections, want 1", len(slide.sections))
+	}
+	sec := slide.sections[0]
+	if sec.kind != sectionCode {
+		t.Fatalf("got section kind %v, want code", sec.kind)
+	}
+	want := "func example() {\n\tx := 1\n\t// ...\n\tfmt.Println(x)\n}"
+	if sec.content != want {
+		t.Errorf("got:\n%q\nwant:\n%q", sec.content, want)
+	}
+}
+
 func TestRenderMarkdown(t *testing.T) {
 	got := renderMarkdown("Use `fmt.Println` to print.\n")
 	want := "<p>Use <code>fmt.Println</code> to print.</p>\n"
@@ -292,43 +314,43 @@ func TestRenderCode(t *testing.T) {
 	}{
 		{
 			input: "x := 1 // comment\n",
-			want:  "x := 1 <comment>// comment</comment>\n",
+			want:  "<span class='codenum'>1</span>x := 1 <comment>// comment</comment>\n",
 		},
 		{
 			input: "type Foo struct {}\n",
-			want:  "type <defn>Foo</defn> struct {}\n",
+			want:  "<span class='codenum'>1</span>type <defn>Foo</defn> struct {}\n",
 		},
 		{
 			input: "func bar() {}\n",
-			want:  "func <defn>bar</defn>() {}\n",
+			want:  "<span class='codenum'>1</span>func <defn>bar</defn>() {}\n",
 		},
 		{
 			input: "func (*Foo) moo() {}\n",
-			want:  "func (*Foo) <defn>moo</defn>() {}\n",
+			want:  "<span class='codenum'>1</span>func (*Foo) <defn>moo</defn>() {}\n",
 		},
 		{
 			// Inline em markers (as produced by scanFile)
 			input: "x := \x00em\x00foo\x00/em\x00()\n",
-			want:  "x := <span class=\"em\">foo</span>()\n",
+			want:  "<span class='codenum'>1</span>x := <span class=\"em\">foo</span>()\n",
 		},
 		{
 			input: "func (f Foo) moo() {}\n",
-			want:  "func (f Foo) <defn>moo</defn>() {}\n",
+			want:  "<span class='codenum'>1</span>func (f Foo) <defn>moo</defn>() {}\n",
 		},
 		{
 			// Underscore suffix stripping
 			input: "x := foo_3x(bar_v2)\n",
-			want:  "x := foo(bar)\n",
+			want:  "<span class='codenum'>1</span>x := foo(bar)\n",
 		},
 		{
 			// Leading underscore preserved
 			input: "_private := 1\n",
-			want:  "_private := 1\n",
+			want:  "<span class='codenum'>1</span>_private := 1\n",
 		},
 		{
 			// Underscore suffix on func def
 			input: "func doThing_2() {}\n",
-			want:  "func <defn>doThing</defn>() {}\n",
+			want:  "<span class='codenum'>1</span>func <defn>doThing</defn>() {}\n",
 		},
 	}
 	for _, tt := range tests {
