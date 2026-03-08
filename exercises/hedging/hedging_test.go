@@ -1,7 +1,3 @@
-// Your getResult function should call both method1 and method2
-// concurrently, returning the first result it gets.
-// Before returning, it should cancel the other computation.
-
 package hedging
 
 import (
@@ -10,6 +6,9 @@ import (
 	"time"
 )
 
+// getResult calls both method1 and method2
+// concurrently, returning the first result it gets.
+// Before returning, it should cancel the other computation.
 func getResult(ctx context.Context, input int) int {
 	// TODO
 	return 0

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Title</title>
+    <title>Channels</title>
     <meta charset='utf-8'>
     <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
     <script>
@@ -13,7 +13,7 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- slides/channels/channels.go -->
+<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/channels/channels.go -->
 <article class='title-slide'>
   <div class='title-text'>Introduction to Channels</div>
   <div class='subtitle-text'
@@ -274,7 +274,8 @@ are ready.</p>
 <span class='codenum'>1</span>c := make(chan int, 1)
 <span class='codenum'>2</span>c &lt;- 1
 <span class='codenum'>3</span>close(c)
-<span class='codenum'>4</span>c &lt;- 2 <comment>// panics</comment></pre>
+<span class='codenum'>4</span>fmt.Println(&lt;-c) <comment>// prints 0</comment>
+<span class='codenum'>5</span>c &lt;- 2           <comment>// panics</comment></pre>
   </div>
   <span class='pagenumber'>12</span>
 </article>
@@ -369,7 +370,7 @@ are ready.</p>
   <div class='code bad'><pre>
 <span class='codenum'>1</span>c := make(chan int)
 <span class='codenum'>2</span>var wg sync.WaitGroup
-<span class='codenum'>3</span>wg.Go(func() { <span class="em">c &lt;- 1</span> })
+<span class='codenum'>3</span>wg.Go(func() { <span class="em">c &lt;- 0</span> })
 <span class='codenum'>4</span>wg.Go(func() { fmt.Println(&lt;-c) })
 <span class='codenum'>5</span>wg.Go(func() { fmt.Println(&lt;-c) })
 <span class='codenum'>6</span>wg.Wait()</pre>
@@ -379,7 +380,7 @@ are ready.</p>
 What does this do?</p>
     </summary>
     <div class='answer'>
-<p>Print 1, then hang.</p>
+<p>Prints 0, then hangs.</p>
     </div>
   </details>
   </div><div>
@@ -396,7 +397,7 @@ What does this do?</p>
 What does this do?</p>
     </summary>
     <div class='answer'>
-<p>Print 0 twice, then finish.</p>
+<p>Prints 0 twice, then finishes.</p>
     </div>
   </details>
   </div></div> <!-- flex -->

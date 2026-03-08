@@ -1,12 +1,54 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestCollatz(t *testing.T) {
+	for _, tc := range []struct {
+		n, want int
+	}{
+		{4, 2},
+		{6, 8},
+		{7, 16},
+	} {
+		got := collatz(tc.n)
+		if got != tc.want {
+			t.Errorf("collatz(%d) = %d, want %d", tc.n, got, tc.want)
+		}
+	}
+}
+
+func TestCollatzWithTimeout(t *testing.T) {
+	ctx := context.Background()
+
+	const arg = 75_128_138_247
+	const res = 1228
+
+	t.Run("completes", func(t *testing.T) {
+		got, err := collatzWithTimeout(ctx, arg, time.Second)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != res {
+			t.Errorf("got %d, want %d", got, res)
+		}
+	})
+
+	t.Run("times out", func(t *testing.T) {
+		_, err := collatzWithTimeout(ctx, arg, time.Nanosecond)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatal("expected timeout error")
+		}
+	})
+}
 
 func Test_f1(t *testing.T) {
 	if stdout(f1) != "49" {
@@ -54,9 +96,9 @@ func TestCC(t *testing.T) {
 	cc()
 }
 
-func TestCC2(t *testing.T) {
-	wantStdout(t, "1\n0", cc2)
-}
+// func TestCC2(t *testing.T) {
+// 	wantStdout(t, "1\n0", cc2)
+// }
 
 func TestPrintTree(t *testing.T) {
 	wantStdout(t, "1\n2\n3\n4\n5", func() { printTree(aTree) })

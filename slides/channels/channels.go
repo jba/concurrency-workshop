@@ -1,3 +1,4 @@
+// TODO: channel direction types
 package main
 
 import (
@@ -15,6 +16,40 @@ import (
 // GopherCon Europe 2026
 // !subtitle
 
+// heading Prelude: The Collatz Conjecture
+
+// text
+// Starting with an integer _n_, repeat the following:
+// - If _n_ is even, divide it by 2.
+// - If _n_ is odd, multiply it by 3 and add 1.
+//
+// Examples:
+// 4 -> 2 -> 1
+// 6 -> 3 -> 10 -> 5 -> 16 -> 8 -> 4 -> 2 -> 1
+// 7 -> 22 -> 11 -> 34 -> 17 -> 52 -> 26 -> 13 -> 40 -> 20 -> 10 -> 5 -> 16 -> 8 -> 4 -> 2 -> 1
+
+// Conjecture: All values end up at 1.
+// !text
+
+// heading The collatz function
+// code
+// collatz returns the number of steps to get to 1 from n using the Collatz
+// sequence.
+func collatz(n int) int {
+	count := 0
+	for n > 1 {
+		if n%2 == 0 {
+			n /= 2
+		} else {
+			n = 3*n + 1
+		}
+		count++
+	}
+	return count
+}
+
+// !code
+
 // heading Passing a value between goroutines
 
 // text
@@ -25,7 +60,7 @@ func f1() {
 	// code
 	var wg sync.WaitGroup
 	var v int
-	wg.Go(func() { v = compute(7) })
+	wg.Go(func() { v = collatz(7) })
 	wg.Wait()
 	fmt.Println(v)
 	// !code
@@ -44,7 +79,7 @@ func f2() {
 	// code
 	c := make(chan int) // create a channel
 
-	go func() { c <- compute(7) }() // send to c
+	go func() { c <- collatz(7) }() // send to c
 
 	v := <-c // receive from c
 
@@ -65,7 +100,7 @@ func f3() {
 	// code
 	c := make(chan int)
 	for i := range 3 {
-		go func() { c <- compute(i) }()
+		go func() { c <- collatz(i) }()
 	}
 	for range 3 {
 		go func() {
@@ -86,7 +121,7 @@ func f3() {
 func f5() {
 	// code bad
 	c := make(chan int)
-	go func() { c <- compute(7) }()
+	go func() { c <- collatz(7) }()
 	select {
 	case v := <-c:
 		fmt.Println(v)
@@ -105,7 +140,7 @@ func f5() {
 func f5a() {
 	// code bad
 	c := make(chan int)
-	go func() { c <- compute(7) }()
+	go func() { c <- collatz(7) }()
 	select {
 	case v := <-c:
 		fmt.Println(v)
@@ -139,7 +174,7 @@ func f5a() {
 func f6() {
 	// code
 	c := make(chan int, 1) // cap(c) == 1 // em 1
-	go func() { c <- compute(7) }()
+	go func() { c <- collatz(7) }()
 	select {
 	case v := <-c:
 		fmt.Println(v)
@@ -259,29 +294,24 @@ func receiveNotification_2() string {
 ////////////////////////////////////
 // heading Closing channels
 
-// text When you close a channel, it can never be sent to again.
+// text
+// close a channel with the `close` builtin
+// receiving always returns the zero value
+// sending panics
+// !text
 
 func cc() {
 	// code
 	c := make(chan int, 1)
 	c <- 1
 	close(c)
-	c <- 2 // panics
+	fmt.Println(<-c) // prints 0
+	c <- 2           // panics
 	// !code
 }
 
 ////////////////////////////////////
 // heading Closed channels
-
-// text Receiving from a closed channel returns the zero value
-
-func cc2() {
-	c := make(chan int, 1)
-	c <- 1
-	close(c)
-	fmt.Println(<-c) // prints 1
-	fmt.Println(<-c) // prints 0
-}
 
 // cols
 
@@ -442,7 +472,7 @@ func send1() {
 	// code bad
 	c := make(chan int)
 	var wg sync.WaitGroup
-	wg.Go(func() { c <- 1 }) // em c <- 1
+	wg.Go(func() { c <- 0 }) // em c <- 0
 	wg.Go(func() { fmt.Println(<-c) })
 	wg.Go(func() { fmt.Println(<-c) })
 	wg.Wait()
@@ -450,7 +480,7 @@ func send1() {
 }
 
 // question What does this do?
-// answer Print 1, then hang.
+// answer Prints 0, then hangs.
 // nextcol
 func send2() {
 	// code
@@ -464,7 +494,7 @@ func send2() {
 }
 
 // question What does this do?
-// answer Print 0 twice, then finish.
+// answer Prints 0 twice, then finishes.
 
 // !cols
 
@@ -474,9 +504,10 @@ func send2() {
 // cols
 
 func f6a() {
+	const n = 7
 	// code
 	c := make(chan int, 1)
-	go func() { c <- compute(7) }()
+	go func() { c <- collatz(n) }()
 	select {
 	case v := <-c:
 		fmt.Println(v)
@@ -492,7 +523,7 @@ func f6a() {
 // text
 // &nbsp;
 
-// `compute(7)` will keep running until it's done, consuming resources.
+// `collatz(7)` will keep running until it's done, consuming resources.
 
 // You can't interrupt an arbitrary goroutine.
 
@@ -510,7 +541,7 @@ func f7() {
 	// em
 	done := make(chan struct{}) // no value to send
 	// !em
-	go func() { c <- compute_1(7, done) }() // em done
+	go func() { c <- collatz_1(7, done) }() // em done
 	select {
 	case v := <-c:
 		fmt.Println(v)
@@ -530,22 +561,25 @@ func f7() {
 
 // nextcol
 // code
-func compute_1(x int, done chan struct{}) int { // em done chan struct\{\}
-	t := 0
-	for {
-		select {
+
+func collatz_1(n int, done chan struct{}) int { // em done chan struct\{\}
+	count := 0
+	for n > 1 {
 		// em
+		select {
 		case <-done:
 			return -1
-			// !em
 		default:
-			x, ok := computeALittle(t)
-			if !ok {
-				return t
-			}
-			t += x
 		}
+		// !em
+		if n%2 == 0 {
+			n /= 2
+		} else {
+			n = 3*n + 1
+		}
+		count++
 	}
+	return count
 }
 
 // !code
@@ -554,22 +588,35 @@ func compute_1(x int, done chan struct{}) int { // em done chan struct\{\}
 ////////////////////////////////////
 // heading Contexts
 
-// cols
-func f8(ctx context.Context) {
-	// code
-	c := make(chan int) // unbuffered
-	// em
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		20*time.Millisecond)
-	defer cancel()
-	// !em
-	go func() { c <- compute_2(ctx, 7) }() // em ctx
-	// em
-	fmt.Println(<-c) // prints -1 on timeout
-	// !em
-	// !code
+// text Contexts carry values down the call chain.
+// text They also carry a "doneness" signal.
+
+// code
+
+func collatz_2(ctx context.Context, n int) int { // em ctx context.Context
+	count := 0
+	for n > 1 {
+		select {
+		// em
+		case <-ctx.Done(): // closed when done
+			// !em
+			return -1
+		default:
+		}
+		if n%2 == 0 {
+			n /= 2
+		} else {
+			n = 3*n + 1
+		}
+		count++
+	}
+	return count
 }
+
+// !code
+
+////////////////////////////////////
+// heading Contexts for timeouts
 
 // text
 // Use `context.Context` for timeouts.
@@ -578,60 +625,65 @@ func f8(ctx context.Context) {
 
 // `cancel` must always be called to clean up resources.
 // !text
-
-// nextcol
-// code
-func compute_2(ctx context.Context, x int) int {
-	t := 0
-	for {
-		select {
-		// em
-		case <-ctx.Done():
-			// !em
-			return -1
-		default:
-			x, ok := computeALittle(t)
-			if !ok {
-				return t
-			}
-			t += x
-		}
-	}
+func f8(ctx context.Context) {
+	// code
+	c := make(chan int) // unbuffered
+	// em
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	// !em
+	go func() { c <- collatz_2(ctx, 7) }() // em ctx
+	fmt.Println(<-c)                       // prints -1 on timeout // em
+	// !code
 }
-
-// !code
-
-// text
-// `context.Done` channel closed when context times out or is canceled.
-// !text
-
-// !cols
 
 ////////////////////////////////////
 // heading Contexts for real
 
 // text What a "real" function might look like.
 
+// text Where there is `Context`, there is almost always `error`.
+
 // cols
 // code
-func computeWithTimeout(ctx context.Context,
-	tm time.Duration, arg int,
-) (int, error) {
-	c := make(chan int, 1)
-	ctx, cancel := context.WithTimeout(ctx, tm)
-	defer cancel()
-	go func() { c <- compute_2(ctx, arg) }()
-	select {
-	case v := <-c:
-		return v, nil
-	case <-ctx.Done():
-		return 0, ctx.Err()
+func collatz_3(ctx context.Context, n int) (int, error) { // em error
+	count := 0
+	for n > 1 {
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err() // em
+		default:
+		}
+		if n%2 == 0 {
+			n /= 2
+		} else {
+			n = 3*n + 1
+		}
+		count++
 	}
+	return count, nil
 }
 
 // !code
-
 // nextcol
+// code
+func collatzWithTimeout(ctx context.Context, n int, tm time.Duration) (int, error) {
+	type result struct {
+		x   int
+		err error
+	} // em
+	c := make(chan result)
+	ctx, cancel := context.WithTimeout(ctx, tm)
+	defer cancel()
+	go func() {
+		x, err := collatz_3(ctx, n)
+		c <- result{x, err}
+	}()
+	r := <-c
+	return r.x, r.err
+}
+
+// !code
 
 // text &nbsp;
 
@@ -657,25 +709,6 @@ func computeWithTimeout(ctx context.Context,
 
 // cols
 // code
-func computeWithCancel(ctx context.Context, arg int) (
-	int, error,
-) {
-	c := make(chan int, 1)
-	ctx, cancel := context.WithCancel(ctx) // em context.WithCancel\(.*\)
-	defer cancel()
-	go func() { c <- compute_2(ctx, arg) }()
-	select {
-	case v := <-c:
-		return v, nil
-		// em
-	case <-userCancels():
-		cancel()
-		return 0, ctx.Err()
-		// !em
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	}
-}
 
 // !code
 // nextcol
