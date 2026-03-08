@@ -98,6 +98,29 @@ func TestElide(t *testing.T) {
 	}
 }
 
+func TestInlineEmMulti(t *testing.T) {
+	slides, err := scanFile("testdata/inline_em_multi.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+	slide := slides[0]
+	if len(slide.sections) != 1 {
+		t.Fatalf("got %d sections, want 1", len(slide.sections))
+	}
+	sec := slide.sections[0]
+	if sec.kind != sectionCode {
+		t.Fatalf("got section kind %v, want code", sec.kind)
+	}
+	// Both foo and bar should be wrapped with em markers
+	want := "x, y := \x00em\x00foo\x00/em\x00(), \x00em\x00bar\x00/em\x00()"
+	if sec.content != want {
+		t.Errorf("got:\n%q\nwant:\n%q", sec.content, want)
+	}
+}
+
 func TestRenderMarkdown(t *testing.T) {
 	got := renderMarkdown("Use `fmt.Println` to print.\n")
 	want := "<p>Use <code>fmt.Println</code> to print.</p>\n"

@@ -180,6 +180,9 @@ What happens to the first goroutine if there is a timeout?</p>
 <article>
   <h1>Buffered channels</h1>
   <div class="flex"><div>
+  <div class='text'>
+<p>A buffered channel has a queue of values.</p>
+  </div>
   <div class='code'><pre>
 <span class='codenum'>1</span>c := make(chan int, <span class="em">1</span>) <comment>// cap(c) == <span class="em">1</span></comment>
 <span class='codenum'>2</span>go func() { c &lt;- collatz(7) }()
@@ -191,6 +194,7 @@ What happens to the first goroutine if there is a timeout?</p>
 <span class='codenum'>8</span>}
 <comment>// program continues</comment></pre>
   </div>
+  </div><div>
   <div class='text'>
 <ul>
 <li>The size of the queue is the <em>capacity</em> of the channel.</li>
@@ -199,7 +203,6 @@ What happens to the first goroutine if there is a timeout?</p>
 <li>Sender and receiver don't have to rendezvous.</li>
 </ul>
   </div>
-  </div><div>
   <details>
     <summary>
 Now what happens to the first goroutine if there is a timeout?</p>
@@ -469,6 +472,7 @@ What does this do?</p>
   <div class='code'><pre>
 <span class='codenum'>1</span>c := make(chan int, 1)
 <span class='codenum'>2</span><span class="em">done := make(chan struct{}) <comment>// no value to send</span></comment>
+
 <span class='codenum'>3</span>go func() { c &lt;- collatz(n, <span class="em">done</span>) }()
 <span class='codenum'>4</span>select {
 <span class='codenum'>5</span>case v := &lt;-c:
@@ -479,7 +483,7 @@ What does this do?</p>
 <span class='codenum'>10</span>}</pre>
   </div>
   <div class='text'>
-<p>Fun fact: many real-world <code>close</code>s broadcast when something is
+<p>Fun fact: many real-world <code>close</code> calls broadcast when something is
 finished, like this one.</p>
   </div>
   </div><div>
@@ -517,7 +521,7 @@ finished, like this one.</p>
   </div>
   <div class='code'><pre>
 
-<span class='codenum'>1</span><span class="em">func <defn>collatz</defn>(ctx context.Context, n int) (int, error) {</span>
+<span class='codenum'>1</span>func <defn>collatz</defn>(<span class="em">ctx context.Context</span>, n int) (int, <span class="em">error</span>) {
 <span class='codenum'>2</span>   count := 0
 <span class='codenum'>3</span>   for n &gt; 1 {
 <span class='codenum'>4</span>      select {

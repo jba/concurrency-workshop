@@ -77,13 +77,19 @@
 //
 //	Inside a code block, these directives bold (emphasize) the enclosed lines.
 //
-// em REGEXP (inline form)
+// em REGEXP,REGEXP,... (inline form)
 //
 //	Inside a code block, a trailing "// em REGEXP" on a code line emphasizes
 //	all portions of that line (before the "// em") that match the regular
-//	expression. If no REGEXP is provided (just "// em"), the entire line is
-//	emphasized. The "// em ..." suffix is stripped from the output.
-//	There is no matching "// !em" for this form.
+//	expression. Multiple comma-separated patterns can be provided, and each
+//	will be applied in order. If no REGEXP is provided (just "// em"), the
+//	entire line is emphasized. The "// em ..." suffix is stripped from the
+//	output. There is no matching "// !em" for this form.
+//
+// elide / !elide
+//
+//	Inside a code block, lines between these directives are replaced with
+//	"// ..." in the output. The indentation of the elide marker is preserved.
 package main
 
 import (
@@ -526,25 +532,34 @@ func scanFile(filename string) (_ []*Slide, err error) {
 						if eliding {
 							break
 						}
-						// Check for inline em: code // em PATTERN or code // em (whole line)
+						// Check for inline em: code // em PATTERN,PATTERN,... or code // em (whole line)
 						if idx := strings.Index(line, "// em"); idx >= 0 {
 							suffix := line[idx+len("// em"):]
 							if suffix == "" || suffix[0] == ' ' || suffix[0] == '\t' {
 								codePart := strings.TrimRight(line[:idx], " \t")
-								pattern := strings.TrimSpace(suffix)
-								if pattern == "" {
+								patternsStr := strings.TrimSpace(suffix)
+								if patternsStr == "" {
 									// No pattern: highlight the whole line
 									current.WriteString("\x00em\x00" + codePart + "\x00/em\x00")
 									current.WriteByte('\n')
 									break
 								}
-								re, err := regexp.Compile(pattern)
-								if err != nil {
-									return nil, fmt.Errorf("invalid em regexp %q: %w", pattern, err)
+								// Split by comma and apply each pattern
+								patterns := strings.Split(patternsStr, ",")
+								marked := codePart
+								for _, pattern := range patterns {
+									pattern = strings.TrimSpace(pattern)
+									if pattern == "" {
+										continue
+									}
+									re, err := regexp.Compile(pattern)
+									if err != nil {
+										return nil, fmt.Errorf("invalid em regexp %q: %w", pattern, err)
+									}
+									marked = re.ReplaceAllStringFunc(marked, func(m string) string {
+										return "\x00em\x00" + m + "\x00/em\x00"
+									})
 								}
-								marked := re.ReplaceAllStringFunc(codePart, func(m string) string {
-									return "\x00em\x00" + m + "\x00/em\x00"
-								})
 								current.WriteString(marked)
 								current.WriteByte('\n')
 								break

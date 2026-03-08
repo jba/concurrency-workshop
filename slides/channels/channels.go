@@ -168,8 +168,8 @@ func f5a() {
 ////////////////////////////////////
 // heading Buffered channels
 
-// A buffered channel has a queue of values.
 // cols
+// text A buffered channel has a queue of values.
 
 func f6() {
 	// code
@@ -185,14 +185,14 @@ func f6() {
 	// !code
 }
 
+// nextcol
+
 // text
 // - The size of the queue is the _capacity_ of the channel.
 // - Sending enqueues, blocks if full.
 // - Receiving dequeues, blocks if empty.
 // - Sender and receiver don't have to rendezvous.
 // !text
-
-// nextcol
 
 // question
 // Now what happens to the first goroutine if there is a timeout?
@@ -272,9 +272,7 @@ var nc_2 = make(chan string, 10) // em 10
 func sendNotification_2(s string) {
 	select {
 	case nc_2 <- s:
-	// em
-	default: // if we can't send, drop s
-		// !em
+	default: // if we can't send, drop s // em
 	}
 }
 
@@ -327,9 +325,7 @@ func (n *node) values() chan int {
 	c := make(chan int)
 	go func() {
 		sendValues(n, c)
-		// em
-		close(c)
-		// !em
+		close(c) // em
 	}()
 	return c
 }
@@ -380,9 +376,7 @@ func printTree(root *node) {
 // code
 func printTree_1(root *node) {
 	c := root.values()
-	// em
-	for v := range c {
-		// !em
+	for v := range c { // em
 		fmt.Println(v)
 	}
 }
@@ -539,24 +533,21 @@ func f7() {
 	n := 7
 	// code
 	c := make(chan int, 1)
-	// em
-	done := make(chan struct{}) // no value to send
-	// !em
+	done := make(chan struct{}) // no value to send // em
+
 	go func() { c <- collatz_1(n, done) }() // em done
 	select {
 	case v := <-c:
 		fmt.Println(v)
 	case <-time.After(20 * time.Millisecond):
 		fmt.Println("timed out")
-		// em
-		close(done)
-		// !em
+		close(done) // em
 	}
 	// !code
 }
 
 // text
-// Fun fact: many real-world `close`s broadcast when something is
+// Fun fact: many real-world `close` calls broadcast when something is
 // finished, like this one.
 // !text
 
@@ -594,7 +585,7 @@ func collatz_1(n int, done chan struct{}) int { // em done chan struct\{\}
 
 // code
 
-func collatz_2(ctx context.Context, n int) (int, error) { // em
+func collatz_2(ctx context.Context, n int) (int, error) { // em ctx context.Context, error
 	count := 0
 	for n > 1 {
 		select {
