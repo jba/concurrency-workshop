@@ -62,28 +62,29 @@ What we might get:
 // heading Using a mutex
 
 // cols
+
 // code
+var mu sync.Mutex // em
 
-func fmutex() {
-	// code
-	var c int
-	var mu sync.Mutex // em
+var c int
 
-	count := func() {
-		for range 20_000 {
-			mu.Lock() // em
-			c++
-			mu.Unlock() // em
-		}
-	}
-
+func main() {
 	var wg sync.WaitGroup
 	wg.Go(count)
 	wg.Go(count)
 	wg.Wait()
 	fmt.Println(c)
-	// !code
 }
+
+func count() {
+	for range 20_000 {
+		mu.Lock() // em
+		c++
+		mu.Unlock() // em
+	}
+}
+
+// !code
 
 // nextcol
 // text

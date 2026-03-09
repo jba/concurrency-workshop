@@ -5,8 +5,6 @@ import (
 	"sync"
 )
 
-// Code must match previous slide exactly.
-
 ////////////////////////////////////
 // heading Data races
 
@@ -86,6 +84,7 @@ func f4() {
 
 // cols
 
+// Code must match 10/m.go exactly.
 // code
 var c int
 

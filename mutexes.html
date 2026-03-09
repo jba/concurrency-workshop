@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Mutexes</title>
+    <title>Title</title>
     <meta charset='utf-8'>
     <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
     <script>
@@ -13,11 +13,19 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go -->
+<!-- slides/mutexes/10/m.go -->
+<article class='title-slide'>
+  <div class='title-text'>Introduction to Synchronization</div>
+  <div class='subtitle-text'
+<p>Demystifying Concurrency</p>
+<p>GopherCon Europe 2026</p>
+  </div>
+  <span class='pagenumber'>1</span>
+</article>
 <article>
-  <h1>Interleaving</h1>
+  <h1>Sharing memory</h1>
   <div class='text'>
-<p>Goroutines <em>interleave</em> with each other.</p>
+<p>A program's goroutines can all access the program's memory.</p>
   </div>
   <div class='code'><pre>
 <span class='codenum'>1</span>var c int
@@ -42,10 +50,10 @@
 27357
 </pre>
   </div>
-  <span class='pagenumber'>1</span>
+  <span class='pagenumber'>2</span>
 </article>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/20/m.go -->
+<!-- slides/mutexes/20/m.go -->
 <article>
   <h1>Data races</h1>
   <div class='text'>
@@ -100,10 +108,13 @@
 <span class='codenum'>2</span>wg.Go(func() { c++ })</pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>2</span>
+  <span class='pagenumber'>3</span>
 </article>
 <article>
   <h1>The race detector</h1>
+  <div class='text'>
+<p>Looks for data races while the program is running.</p>
+  </div>
   <div class="flex"><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>var c int
@@ -150,10 +161,10 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>3</span>
+  <span class='pagenumber'>4</span>
 </article>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/30/m.go -->
+<!-- slides/mutexes/30/m.go -->
 <article>
   <h1>Interleavings</h1>
   <div class="flex"><div>
@@ -219,106 +230,147 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
 </div>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>4</span>
+  <span class='pagenumber'>5</span>
 </article>
-
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/40/m.go -->
 <article>
   <h1>Using a mutex</h1>
-  <div class="flex">
+  <div class="flex"><div>
   <div class='code'><pre>
-<span class='codenum'>1</span>import (
-<span class='codenum'>2</span>   &#34;fmt&#34;
-<span class='codenum'>3</span><span class="em">   &#34;sync&#34;</span>
-<span class='codenum'>4</span>)
+<span class='codenum'>1</span><span class="em">var mu sync.Mutex</span>
 
-<span class='codenum'>5</span><span class="em">var mu sync.Mutex
-<span class='codenum'>6</span></span>
-<span class='codenum'>7</span>var c int
+<span class='codenum'>2</span>var c int
 
-<span class='codenum'>8</span>func <defn>main</defn>() {
-<span class='codenum'>9</span>   var wg sync.WaitGroup
-<span class='codenum'>10</span>   wg.Go(count)
-<span class='codenum'>11</span>   wg.Go(count)
-<span class='codenum'>12</span>   wg.Wait()
-<span class='codenum'>13</span>   fmt.Println(c)
-<span class='codenum'>14</span>}
+<span class='codenum'>3</span>func <defn>main</defn>() {
+<span class='codenum'>4</span>   var wg sync.WaitGroup
+<span class='codenum'>5</span>   wg.Go(count)
+<span class='codenum'>6</span>   wg.Go(count)
+<span class='codenum'>7</span>   wg.Wait()
+<span class='codenum'>8</span>   fmt.Println(c)
+<span class='codenum'>9</span>}
 
-<span class='codenum'>15</span>func <defn>count</defn>() {
-<span class='codenum'>16</span>   for range 20_000 {
-<span class='codenum'>17</span><span class="em">      mu.Lock()</span>
-<span class='codenum'>18</span>      c++
-<span class='codenum'>19</span><span class="em">      mu.Unlock()</span>
-<span class='codenum'>20</span>   }
-<span class='codenum'>21</span>}
+<span class='codenum'>10</span>func <defn>count</defn>() {
+<span class='codenum'>11</span>   for range 20_000 {
+<span class='codenum'>12</span><span class="em">      mu.Lock()</span>
+<span class='codenum'>13</span>      c++
+<span class='codenum'>14</span><span class="em">      mu.Unlock()</span>
+<span class='codenum'>15</span>   }
+<span class='codenum'>16</span>}
 </pre>
   </div>
+  </div><div>
   <div class='text'>
 <p>Only one goroutine between <code>Lock</code> and <code>Unlock</code></p>
 <p>The zero mutex is unlocked and ready to use</p>
 <p>A mutex limits interleavings</p>
   </div>
-  </div> <!-- flex -->
-  <span class='pagenumber'>5</span>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>6</span>
 </article>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/50/m.go -->
+<!-- slides/mutexes/50/m.go -->
 <article>
-  <h1>An example: generating unique IDs</h1>
-  <div class="flex">
-  <div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>import (
-<span class='codenum'>2</span>   &#34;fmt&#34;
-<span class='codenum'>3</span><span class="em">   &#34;sync&#34;</span>
-<span class='codenum'>4</span>)
+  <h1>Generating unique IDs, unsafe version</h1>
+  <div class="flex"><div>
+  <div class='code bad'><pre>
+<comment>// An IDGenerator generates unique identifiers.</comment>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span>   prefix string
+<span class='codenum'>3</span>   num    int
+<span class='codenum'>4</span>}
 
-<span class='codenum'>5</span>type <defn>IDGenerator</defn> struct {
-<span class='codenum'>6</span>   prefix string
-<span class='codenum'>7</span>   mu     sync.Mutex
-<span class='codenum'>8</span>   num    int
-<span class='codenum'>9</span>}
+<comment>// NewIDGenerator creates an IDGenerator whose</comment>
+<comment>// identifiers begin with prefix.</comment>
+<span class='codenum'>5</span>func <defn>NewIDGenerator</defn>(prefix string) *IDGenerator {
+<span class='codenum'>6</span>   return &amp;IDGenerator{prefix: prefix}
+<span class='codenum'>7</span>}
 
-<span class='codenum'>10</span>func <defn>NewIDGenerator</defn>(prefix string) *IDGenerator {
-<span class='codenum'>11</span>   return &amp;IDGenerator{prefix: prefix}
-<span class='codenum'>12</span>}
-
-<span class='codenum'>13</span>func (g *IDGenerator) <defn>NewID</defn>() string {
-<span class='codenum'>14</span>   g.mu.Lock()
-<span class='codenum'>15</span>   defer g.mu.Unlock()
-<span class='codenum'>16</span>   g.num++
-<span class='codenum'>17</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
-<span class='codenum'>18</span>}
+<comment>// NewID generates a unique identifier each time</comment>
+<comment>// it is called.</comment>
+<span class='codenum'>8</span>func (g *IDGenerator) <defn>NewID</defn>() string {
+<span class='codenum'>9</span>   g.num++
+<span class='codenum'>10</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
+<span class='codenum'>11</span>}
 </pre>
   </div>
+  </div><div>
+  <details>
+    <summary>
+What can happen if two goroutines call <code>g.NewID()</code> at the same time?</p>
+    </summary>
+    <div class='answer'>
+<p>You might get the same ID twice.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>7</span>
+</article>
+<article>
+  <h1>Generating unique IDs, safe version</h1>
+  <div class="flex"><div>
   <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>use</defn>() {
-<span class='codenum'>2</span>   g := NewIDGenerator(&#34;gopher-&#34;)
-<span class='codenum'>3</span>   fmt.Println(g.NewID())
-<span class='codenum'>4</span>   fmt.Println(g.NewID())
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span>   prefix string
+<span class='codenum'>3</span><span class="em">   mu     sync.Mutex</span>
+<span class='codenum'>4</span>   num    int
 <span class='codenum'>5</span>}
+
+<comment>// NewIDGenerator is the same.</comment>
+
+<span class='codenum'>6</span>func (g *IDGenerator) <defn>NewID</defn>() string {
+<span class='codenum'>7</span><span class="em">   g.mu.Lock()
+<span class='codenum'>8</span>   defer g.mu.Unlock()</span>
+<span class='codenum'>9</span>   g.num++
+<span class='codenum'>10</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
+<span class='codenum'>11</span>}
 </pre>
   </div>
-<div></div>
-  <div class='output'><pre>
-TODO CHECK
-gopher-1
-gopher-2
-</pre>
-  </div>
-  </div>
+  </div><div>
   <div class='text'>
 <p><code>num</code> must be synchronized to make <code>NewID</code> concurrency-safe</p>
 <p><code>prefix</code> is written <em>before</em> all calls to <code>NewID</code></p>
 <p>The &quot;mutex hat&quot; convention: declare the mutex field
 above the fields it protects</p>
-<p><img src="mutex-hat.png" alt="mutex hat" /></p>
   </div>
-  </div> <!-- flex -->
-  <span class='pagenumber'>6</span>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>8</span>
+</article>
+<article>
+  <h1>Limit critical section size</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (g *IDGenerator) <defn>NewID</defn>() string {
+<span class='codenum'>2</span>   g.mu.Lock()
+<span class='codenum'>3</span>   g.num++
+<span class='codenum'>4</span>   g.mu.Unlock()
+<span class='codenum'>5</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
+<span class='codenum'>6</span>}
+</pre>
+  </div>
+  </div><div>
+  <div class='text'>
+<p>Keep locked regions (<em>critical sections</em>) small to avoid contention</p>
+<p><code>defer</code> is not always needed or useful</p>
+  </div>
+  <details>
+    <summary>
+Find and fix the bug.</p>
+    </summary>
+    <div class="code"><pre>
+    <div class='answer'>
+<p>func (g *IDGenerator) NewID() string {
+g.mu.Lock()
+g.num++
+<b>n := g.num</b>
+g.mu.Unlock()
+return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
+}</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>9</span>
 </article>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/55/m.go -->
+<!-- slides/mutexes/55/m.go -->
 <article>
   <h1>Limit critical section size</h1>
   <div class="flex">
@@ -368,10 +420,10 @@ return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
   </details>
   </div>
   </div> <!-- flex -->
-  <span class='pagenumber'>7</span>
+  <span class='pagenumber'>10</span>
 </article>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/60/m.go -->
+<!-- slides/mutexes/60/m.go -->
 <article>
   <h1>Atomics</h1>
   <div class="flex">
@@ -406,16 +458,16 @@ return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
 <p>Recommendation: use only for counters</p>
   </div>
   </div> <!-- flex -->
-  <span class='pagenumber'>8</span>
+  <span class='pagenumber'>11</span>
 </article>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/70/m.go -->
+<!-- slides/mutexes/70/m.go -->
 <article>
   <h1>Protecting a map</h1>
-  <span class='pagenumber'>9</span>
+  <span class='pagenumber'>12</span>
 </article>
 
-<!-- /usr/local/google/home/jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/80/m.go -->
+<!-- slides/mutexes/80/m.go -->
 <article>
   <h1>Optimizations</h1>
   <div class='text'>
@@ -423,7 +475,7 @@ return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
 <p><code>sync.Map</code> (best for a single write per key)</p>
 <p><code>sync.RWMutex</code></p>
   </div>
-  <span class='pagenumber'>10</span>
+  <span class='pagenumber'>13 and last</span>
 </article>
 
     <div id="help">

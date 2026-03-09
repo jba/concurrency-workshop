@@ -5,12 +5,16 @@ import (
 	"sync"
 )
 
-// heading Interleaving
+// title Introduction to Synchronization
+// subtitle
+// Demystifying Concurrency
 
-// text
-// Goroutines _interleave_ with each other.
-// !text
+// GopherCon Europe 2026
+// !subtitle
 
+// heading Sharing memory
+
+// text A program's goroutines can all access the program's memory.
 // code
 var c int
 
