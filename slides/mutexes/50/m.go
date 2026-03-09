@@ -97,14 +97,17 @@ func (g *IDGenerator_1) NewID_2() string {
 // question
 // Find and fix the bug.
 // answer
-// html <div class="code"><pre>
-// func (g *IDGenerator) NewID() string {
-// 	g.mu.Lock()
-// 	g.num++
-// 	<b>n := g.num</b>
-// 	g.mu.Unlock()
-// 	return fmt.Sprintf("%s%d", g.prefix, <b>n</b>)
-// }
+// code
+func (g *IDGenerator_1) NewID_3() string {
+	g.mu.Lock()
+	g.num++
+	n := g.num // em
+	g.mu.Unlock()
+	return fmt.Sprintf("%s%d", g.prefix, n) // em \bn\b
+}
+
+// !code
+
 // !question
 
 // !cols

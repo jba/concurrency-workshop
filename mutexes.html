@@ -355,72 +355,21 @@ above the fields it protects</p>
     <summary>
 Find and fix the bug.</p>
     </summary>
-    <div class="code"><pre>
+    <div class='code'><pre>
+<span class='codenum'>1</span>func (g *IDGenerator) <defn>NewID</defn>() string {
+<span class='codenum'>2</span>   g.mu.Lock()
+<span class='codenum'>3</span>   g.num++
+<span class='codenum'>4</span><span class="em">   n := g.num</span>
+<span class='codenum'>5</span>   g.mu.Unlock()
+<span class='codenum'>6</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, <span class="em">n</span>)
+<span class='codenum'>7</span>}
+</pre>
+    </div>
     <div class='answer'>
-<p>func (g *IDGenerator) NewID() string {
-g.mu.Lock()
-g.num++
-<b>n := g.num</b>
-g.mu.Unlock()
-return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
-}</p>
     </div>
   </details>
   </div></div> <!-- flex -->
   <span class='pagenumber'>9</span>
-</article>
-
-<!-- slides/mutexes/55/m.go -->
-<article>
-  <h1>Limit critical section size</h1>
-  <div class="flex">
-  <div class='code'><pre>
-<span class='codenum'>1</span>import (
-<span class='codenum'>2</span>   &#34;fmt&#34;
-<span class='codenum'>3</span><span class="em">   &#34;sync&#34;</span>
-<span class='codenum'>4</span>)
-
-<span class='codenum'>5</span>type <defn>IDGenerator</defn> struct {
-<span class='codenum'>6</span>   prefix string
-<span class='codenum'>7</span>   mu     sync.Mutex
-<span class='codenum'>8</span>   num    int
-<span class='codenum'>9</span>}
-
-<span class='codenum'>10</span>func <defn>NewIDGenerator</defn>(prefix string) *IDGenerator {
-<span class='codenum'>11</span>   return &amp;IDGenerator{prefix: prefix}
-<span class='codenum'>12</span>}
-
-<span class='codenum'>13</span>func (g *IDGenerator) <defn>NewID</defn>() string {
-<span class='codenum'>14</span>   g.mu.Lock()
-<span class='codenum'>15</span>   g.num++
-<span class='codenum'>16</span>   g.mu.Unlock()
-<span class='codenum'>17</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
-<span class='codenum'>18</span>}
-</pre>
-  </div>
-  <div>
-  <div class='text'>
-<p>Keep locked regions (<em>critical sections</em>) small to avoid contention</p>
-<p><code>defer</code> is not always needed or useful</p>
-  </div>
-  <details>
-    <summary>
-Find the bug.</p>
-    </summary>
-    <div class="code"><pre>
-    <div class='answer'>
-<p>func (g *IDGenerator) NewID() string {
-g.mu.Lock()
-g.num++
-<b>n := g.num</b>
-g.mu.Unlock()
-return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
-}</p>
-    </div>
-  </details>
-  </div>
-  </div> <!-- flex -->
-  <span class='pagenumber'>10</span>
 </article>
 
 <!-- slides/mutexes/60/m.go -->
@@ -458,13 +407,13 @@ return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
 <p>Recommendation: use only for counters</p>
   </div>
   </div> <!-- flex -->
-  <span class='pagenumber'>11</span>
+  <span class='pagenumber'>10</span>
 </article>
 
 <!-- slides/mutexes/70/m.go -->
 <article>
   <h1>Protecting a map</h1>
-  <span class='pagenumber'>12</span>
+  <span class='pagenumber'>11</span>
 </article>
 
 <!-- slides/mutexes/80/m.go -->
@@ -475,7 +424,7 @@ return fmt.Sprintf(&quot;%s%d&quot;, g.prefix, <b>n</b>)
 <p><code>sync.Map</code> (best for a single write per key)</p>
 <p><code>sync.RWMutex</code></p>
   </div>
-  <span class='pagenumber'>13 and last</span>
+  <span class='pagenumber'>12 and last</span>
 </article>
 
     <div id="help">

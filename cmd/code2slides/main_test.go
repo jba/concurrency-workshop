@@ -121,6 +121,27 @@ func TestInlineEmMulti(t *testing.T) {
 	}
 }
 
+func TestCodeInAnswer(t *testing.T) {
+	slides, err := scanFile("testdata/code_in_answer.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+	slide := slides[0]
+	// Should have: question, answer (before code), code, answer (after code)
+	wantSections := []section{
+		{kind: sectionQuestion, content: "How do you print hello?\n"},
+		{kind: sectionAnswer, content: "Use fmt.Println:\n"},
+		{kind: sectionCode, content: "fmt.Println(\"hello\")"},
+		{kind: sectionAnswer, content: "That's it!\n"},
+	}
+	if !sectionsEqual(slide.sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
+	}
+}
+
 func TestRenderMarkdown(t *testing.T) {
 	got := renderMarkdown("Use `fmt.Println` to print.\n")
 	want := "<p>Use <code>fmt.Println</code> to print.</p>\n"

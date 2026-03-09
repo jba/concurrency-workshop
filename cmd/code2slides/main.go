@@ -52,7 +52,8 @@
 //	Define a question-and-answer section. "question" starts the question text,
 //	"answer" ends the question and starts the answer, and "!question" closes
 //	the whole block. The answer is hidden behind a <details> toggle. Both
-//	question and answer content are rendered as markdown.
+//	question and answer content are rendered as markdown. Code blocks can be
+//	nested inside the answer section.
 //
 // html CONTENT
 //
@@ -317,11 +318,12 @@ func scanFile(filename string) (_ []*Slide, err error) {
 
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	var (
-		current  strings.Builder
-		kind     sectionKind
-		options  []string
-		divClass string
-		eliding  bool
+		current    strings.Builder
+		kind       sectionKind
+		options    []string
+		divClass   string
+		eliding    bool
+		parentKind sectionKind // for nested code in answer
 	)
 	lineNum := 0
 
@@ -352,6 +354,14 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		first, rest, _ := splitFirstWord(line)
 		matchFirst := true
 		if sec, ok := simpleOpens[first]; ok {
+			// Allow code inside answer
+			if kind == sectionAnswer && sec == sectionCode {
+				addCurrent(sectionAnswer, nil)
+				parentKind = sectionAnswer
+				kind = sectionCode
+				options = strings.Fields(rest)
+				continue
+			}
 			if kind != sectionUndefined {
 				return nil, fmt.Errorf("%s inside %s", sec, kind)
 			}
@@ -433,7 +443,12 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			// Trim trailing blank line
 			add(kind, options, strings.TrimSuffix(current.String(), "\n"))
 			current.Reset()
-			kind = sectionUndefined
+			if parentKind != sectionUndefined {
+				kind = parentKind
+				parentKind = sectionUndefined
+			} else {
+				kind = sectionUndefined
+			}
 			options = nil
 
 		case "question":
