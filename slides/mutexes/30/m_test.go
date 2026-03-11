@@ -7,7 +7,7 @@ import (
 )
 
 func TestMutex(t *testing.T) {
-	wantStdout(t, "40000", fmutex)
+	wantStdout(t, "40000", main)
 }
 
 func wantStdout(t *testing.T, want string, f func()) {

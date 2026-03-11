@@ -402,22 +402,109 @@ Find and fix the bug.</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>10</span>
 </article>
-
-<!-- slides/mutexes/70/m.go -->
 <article>
-  <h1>Protecting a map</h1>
+  <h1>Maps and mutexes</h1>
+  <div class='code bad'><pre>
+<comment>// IDGenerator generates unique IDs with different prefixes.</comment>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span><span class="em">   nums map[string]int <comment>// prefix to next ID</span></comment>
+<span class='codenum'>3</span>}
+
+<span class='codenum'>4</span>func <defn>NewIDGenerator</defn>(prefix string) *IDGenerator {
+<span class='codenum'>5</span>   return &amp;IDGenerator{nums: map[string]int{}}
+<span class='codenum'>6</span>}
+
+<span class='codenum'>7</span>func (g *IDGenerator) <defn>NewID</defn>(<span class="em">prefix string</span>) string {
+<span class='codenum'>8</span>   n := g.nums[prefix]
+<span class='codenum'>9</span>   n++
+<span class='codenum'>10</span>   g.nums[prefix] = n
+<span class='codenum'>11</span>   return fmt.Sprintf(&#34;%s%d&#34;, prefix, n)
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>Find the bug.</p>
+  </div>
   <span class='pagenumber'>11</span>
+</article>
+<article>
+  <h1>Maps and mutexes, 2</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span><span class="em">   mu   sync.Mutex</span>
+<span class='codenum'>3</span>   nums map[string]int
+<span class='codenum'>4</span>}
+
+<comment>// NewIDGenerator is the same.</comment>
+
+<span class='codenum'>5</span>func (g *IDGenerator) <defn>NewID</defn>(prefix string) string {
+<span class='codenum'>6</span><span class="em">   g.mu.Lock()</span>
+<span class='codenum'>7</span>   n := g.nums[prefix]
+<span class='codenum'>8</span>   n++
+<span class='codenum'>9</span>   g.nums[prefix] = n
+<span class='codenum'>10</span><span class="em">   g.mu.Unlock()</span>
+<span class='codenum'>11</span>   return fmt.Sprintf(&#34;%s%d&#34;, prefix, n)
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>12</span>
+</article>
+<article>
+  <h1>Optimizations</h1>
+  <div class='text'>
+<p>Atomics, as we've seen.</p>
+<p><code>sync.RWMutex</code> if there are many more reads than writes.</p>
+<p><code>sync.Map</code> if there are very few writes (often just one).</p>
+  </div>
+  <span class='pagenumber'>13</span>
+</article>
+<article>
+  <h1>sync.Map example</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>userTypeInfo</defn> struct{} <comment>// fields omitted</comment>
+
+<span class='codenum'>2</span>var userTypeCache <span class="em">sync.Map</span> <comment>// map[reflect.Type]*userTypeInfo</comment>
+
+<span class='codenum'>3</span>func <defn>validUserType</defn>(rt reflect.Type) (*userTypeInfo, error) {
+<span class='codenum'>4</span>   if ui, ok := userTypeCache.Load(rt); ok {
+<span class='codenum'>5</span>      return ui.(*userTypeInfo), nil
+<span class='codenum'>6</span>   }
+
+<span class='codenum'>7</span>   <comment>// Construct a new userTypeInfo and atomically</comment>
+<span class='codenum'>8</span>   <comment>// add it to the userTypeCache.</comment>
+<span class='codenum'>9</span>   ut := new(userTypeInfo)
+<span class='codenum'>10</span>   <comment>// ...</comment>
+
+<span class='codenum'>11</span>   ui, _ := userTypeCache.LoadOrStore(rt, ut)
+<span class='codenum'>12</span>   return ui.(*userTypeInfo), nil
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  </div><div>
+  <div class='text'>
+<p> </p>
+  </div>
+  <div class='text'>
+<p>From the <a href="https://github.com/golang/go/blob/master/src/encoding/gob/type.go">encoding/gob</a> package.</p>
+  </div>
+  <details>
+    <summary>
+What about the race?</p>
+    </summary>
+    <div class='answer'>
+<p>&quot;If we lose the race, we'll waste a little CPU and create a little garbage
+but return the existing value anyway.&quot;&quot;</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>14</span>
 </article>
 
 <!-- slides/mutexes/80/m.go -->
 <article>
-  <h1>Optimizations</h1>
-  <div class='text'>
-<p>If there are a lot more reads than writes</p>
-<p><code>sync.Map</code> (best for a single write per key)</p>
-<p><code>sync.RWMutex</code></p>
-  </div>
-  <span class='pagenumber'>12 and last</span>
+  <h1>m.go</h1>
+  <span class='pagenumber'>15 and last</span>
 </article>
 
     <div id="help">
