@@ -1,3 +1,10 @@
+/*
+	TODO:
+
+- mutexes aren't recursive
+- checklocks
+*/
+
 package m
 
 import (
