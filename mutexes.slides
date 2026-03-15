@@ -226,7 +226,7 @@ indivisibly.</p>
   <div class='text'>
 <p>A <em>transaction</em> (in this course): an atomic sequence of operations
 that makes sense for the application.</p>
-<p>(Atomic, Consistent and Isolated, but not Durable)</p>
+<p>(DB people: Atomic, Consistent and Isolated, but not Durable)</p>
 <p>Examples:</p>
 <ul>
 <li>Money transfer</li>
@@ -272,7 +272,7 @@ that makes sense for the application.</p>
 <p><code>mu.Lock()</code> means:</p>
 <ul>
 <li>Other threads must wait</li>
-<li>Flush CPU caches</li>
+<li>Coordinate CPU caches</li>
 <li>Reconcile registers with memory</li>
 <li>Don't reorder</li>
 </ul>
@@ -317,17 +317,13 @@ that makes sense for the application.</p>
 <p> </p>
   </div>
   <div class="flex"><div>
-  <div class='text'>
-<p>same goroutine</p>
-  </div>
+  <p style="margin-bottom:0">same goroutine</p>
   <div class='code'><pre>
 <span class='codenum'>1</span>c++
 <span class='codenum'>2</span>fmt.Println(c)</pre>
   </div>
   </div><div>
-  <div class='text'>
-<p>different memory</p>
-  </div>
+  <p style="margin-bottom:0">different memory</p>
   <div class='code'><pre>
 <span class='codenum'>1</span>wg.Go(func() {
 <span class='codenum'>2</span>   c1++
@@ -337,9 +333,7 @@ that makes sense for the application.</p>
 <span class='codenum'>6</span>})</pre>
   </div>
   </div><div>
-  <div class='text'>
-<p>no writes</p>
-  </div>
+  <p style="margin-bottom:0">no writes</p>
   <div class='code'><pre>
 <span class='codenum'>1</span>wg.Go(func() {
 <span class='codenum'>2</span>   fmt.Println(c)
@@ -349,9 +343,7 @@ that makes sense for the application.</p>
 <span class='codenum'>6</span>})</pre>
   </div>
   </div><div>
-  <div class='text'>
-<p>data race</p>
-  </div>
+  <p style="margin-bottom:0">data race</p>
   <div class='code bad'><pre>
 <span class='codenum'>1</span>wg.Go(func() { c++ })
 <span class='codenum'>2</span>wg.Go(func() { c++ })</pre>
@@ -525,7 +517,7 @@ What do we think about this optimization?</p>
   <h1>Our story so far</h1>
   <div class='text'>
 <p>Data races are about low-level memory access.<br/>
-Every data race is a concurrency bug.*</p>
+Every data race is a concurrency bug (almost).</p>
 <p>But races in general are about transactions.</p>
 <p><em>Not every race is a data race.</em></p>
   </div>
@@ -538,13 +530,8 @@ Why doesn't Go make maps concurrency-safe?</p>
 The runtime doesn't know what your transactions are.</p>
     </div>
   </details>
-  <div class='text'>
-<p>*For the purposes of this course.</p>
-  </div>
   <span class='pagenumber'>15</span>
 </article>
-
-<!-- slides/mutexes/40/m.go -->
 <article>
   <h1>Generating unique IDs, unsafe version</h1>
   <div class="flex"><div>
@@ -625,7 +612,7 @@ above the fields it protects</p>
   </div>
   </div><div>
   <div class='text'>
-<p>Keep locked regions (<em>critical sections</em>) small to avoid contention</p>
+<p>Keep critical sections small to avoid contention</p>
 <p><code>defer</code> is not always needed or useful</p>
   </div>
   <details>
@@ -885,8 +872,18 @@ but return the existing value anyway.&quot;</p>
   <span class='pagenumber'>28</span>
 </article>
 <article>
+  <h1>Find the bug</h1>
+  <div class='text'>
+<p>TODO find example that Mac found in mcp or jsonschema-go</p>
+  </div>
+  <span class='pagenumber'>29</span>
+</article>
+<article>
   <h1>Exercise</h1>
-  <span class='pagenumber'>29 and last</span>
+  <div class='text'>
+<p>TODO?</p>
+  </div>
+  <span class='pagenumber'>30 and last</span>
 </article>
 
     <div id="help">
