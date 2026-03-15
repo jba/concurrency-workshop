@@ -70,6 +70,20 @@
 </article>
 <article>
   <h1>Interleavings</h1>
+  <div class='text'>
+<p>The scheduler interleaves goroutine executions.</p>
+  </div>
+  <div class='text'>
+<ul>
+<li>many possibilities</li>
+</ul>
+  </div>
+  <div class='text'>
+<ul>
+<li>non-deterministic</li>
+</ul>
+  </div>
+  <div style="height: 4vw"></div>
   <div class="flex"><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>c++</pre>
@@ -106,6 +120,10 @@
 </tbody>
 </table>
 </div>
+  </div>
+  <div style="width: 25vw"></div>
+  </div><div>
+  <div class='text'>
 <p>What we might get:</p>
 <div class="interleave" style="font-size: 70%">
 <table>
@@ -165,12 +183,40 @@
 <p> </p>
   </div>
   <div class='text'>
-<p>Only one goroutine between <code>Lock</code> and <code>Unlock</code>
-(a <em>critical section</em>).</p>
+<p>The zero mutex is unlocked and ready to use.</p>
+  </div>
+  <div class='text'>
+<p>Only one goroutine between <code>Lock</code> and <code>Unlock</code></p>
+  </div>
+  <div class='text'>
 <p>The code in the critical section happens <em>atomically</em>:
 indivisibly.</p>
 <p>A mutex limits interleavings.</p>
-<p>The zero mutex is unlocked and ready to use.</p>
+<p>This is no longer possible:</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R0 = c</td>
+<td>R0 = c</td>
+</tr>
+<tr>
+<td>R0++</td>
+<td>R0++</td>
+</tr>
+<tr>
+<td>c = R0</td>
+<td>c = R0</td>
+</tr>
+</tbody>
+</table>
+</div>
   </div>
   </div></div> <!-- flex -->
   <span class='pagenumber'>4</span>

@@ -55,6 +55,12 @@ func count() {
 ////////////////////////////////////
 // heading Interleavings
 
+// text The scheduler interleaves goroutine executions.
+// text - many possibilities
+// text - non-deterministic
+
+// html <div style="height: 4vw"></div>
+
 // cols
 
 func f1() {
@@ -90,7 +96,11 @@ What we want:
 |  | c++ |
 
 </div>
+*/
+// html <div style="width: 25vw"></div>
 
+// nextcol
+/* text
 What we might get:
 
 <div class="interleave" style="font-size: 70%">
@@ -101,7 +111,6 @@ What we might get:
 | R0++ | R0++ |
 | c = R0 | c = R0 |
 </div>
-
 */
 // !cols
 
@@ -135,17 +144,25 @@ func count_1() {
 
 // nextcol
 // text &nbsp;
-// text
-//
-// Only one goroutine between `Lock` and `Unlock`
+// text The zero mutex is unlocked and ready to use.
+// text Only one goroutine between `Lock` and `Unlock`
 // (a _critical section_).
 //
+// text
 // The code in the critical section happens _atomically_:
 // indivisibly.
 //
 // A mutex limits interleavings.
 //
-// The zero mutex is unlocked and ready to use.
+// This is no longer possible:
+// <div class="interleave" style="font-size: 70%">
+
+// | G1 | G2 |
+// | -- | -- |
+// | R0 = c | R0 = c |
+// | R0++ | R0++ |
+// | c = R0 | c = R0 |
+// </div>
 // !text
 // !cols
 
@@ -156,7 +173,7 @@ func count_1() {
 // A _transaction_ (in this course): an atomic sequence of operations
 // that makes sense for the application.
 //
-// (Atomic, Consistent and Isolated, but not Durable)
+// (DB people: Atomic, Consistent and Isolated, but not Durable)
 //
 // Examples:
 // - Money transfer
@@ -207,7 +224,7 @@ func (a *Account) Balance() int {
 //
 // `mu.Lock()` means:
 // - Other threads must wait
-// - Flush CPU caches
+// - Coordinate CPU caches
 // - Reconcile registers with memory
 // - Don't reorder
 // !text
@@ -472,7 +489,7 @@ func count_cc() {
 
 // text
 // Data races are about low-level memory access.<br/>
-// Every data race is a concurrency bug.\*
+// Every data race is a concurrency bug (almost)
 //
 // But races in general are about transactions.
 //
@@ -484,5 +501,3 @@ func count_cc() {
 // It would be slower, and _it wouldn't help in many cases_.<br/>
 // The runtime doesn't know what your transactions are.
 // !question
-
-// text \*For the purposes of this course.
