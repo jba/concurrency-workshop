@@ -160,6 +160,329 @@ func count_1() {
 //
 // Examples:
 // - Money transfer
-// - Start fulfilling an order, mark it as in progress
+// - Fulfill an order, mark it as done
 // - Add/remove an element and update the size
+// - Check a precondition, then take an action
 // !text
+
+////////////////////////////////////////////////
+// heading Exercise: Bank Account
+
+// link ../../../exercises/account/account.go Code
+// html <br/><br/><br/>
+// link ../../../exercises/account/solution/account.go Solution
+
+////////////////////////////////////////////////
+// heading Synchronization: more than interleavings
+
+type Account struct {
+	mu      sync.Mutex
+	balance int
+}
+
+// code
+func (a *Account) Balance() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.balance
+}
+
+// !code
+
+// text Why does this need a mutex?
+
+// text CPU can read/write an `int` atomically.
+
+////////////////////////////////////////////////
+// heading Synchronization is a signal
+
+// text
+// Modern multicore CPUs cache
+//
+// Modern compilers optimize
+//
+// Synchronization points say: "Don't do that."
+//
+// <br/>
+//
+// `mu.Lock()` means:
+// - Other threads must wait
+// - Flush CPU caches
+// - Reconcile registers with memory
+// - Don't reorder
+// !text
+
+////////////////////////////////////////////////
+// heading Synchronize all accesses
+
+// text Synchronize all reads and writes to a piece of memory
+
+// code
+
+func (a *Account) Balance_1() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.balance
+}
+
+func (a *Account) Deposit(amount int) error {
+	// ...
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.balance += amount
+	return nil
+}
+
+// !code
+
+////////////////////////////////////
+// heading Data races
+
+// text
+// A data race happens when:
+// - Two goroutines access the same memory
+// - At least one writes to it
+// - The accesses aren't synchronized
+// !text
+
+// text &nbsp;
+
+// cols
+
+// text same goroutine
+func f5() {
+	var c int
+	// code
+	c++
+	fmt.Println(c)
+	// !code
+}
+
+// nextcol
+
+// text different memory
+func f6() {
+	var c1, c2 int
+	var wg sync.WaitGroup
+	// code
+	wg.Go(func() {
+		c1++
+	})
+	wg.Go(func() {
+		c2++
+	})
+	// !code
+	wg.Wait()
+}
+
+// nextcol
+
+// text no writes
+func f3() {
+	var c int
+	var wg sync.WaitGroup
+	// code
+	wg.Go(func() {
+		fmt.Println(c)
+	})
+	wg.Go(func() {
+		fmt.Println(c)
+	})
+	// !code
+	wg.Wait()
+}
+
+// nextcol
+// text data race
+
+func f4() {
+	var c int
+	var wg sync.WaitGroup
+	// code bad
+	wg.Go(func() { c++ })
+	wg.Go(func() { c++ })
+	// !code
+	wg.Wait()
+}
+
+// !cols
+
+////////////////////////////////////
+// heading The race detector
+
+// text Looks for data races while the program is running.
+
+// cols
+
+// code
+var c_2 int
+
+func main() {
+	var wg sync.WaitGroup
+	wg.Go(count)
+	wg.Go(count)
+	wg.Wait()
+	fmt.Println(c_2)
+}
+
+func count_2() {
+	for range 20_000 {
+		c_2++
+	}
+}
+
+// !code
+
+// output
+// 27357
+// !output
+
+// nextcol
+
+// text
+// `go run -race .`
+// !text
+// output
+// ==================
+// WARNING: DATA RACE
+// Read at 0x000000612e58 by goroutine 7:
+//   main.count()
+//       jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x2c
+//   sync.(*WaitGroup).Go.func1()
+//       jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+
+// Previous write at 0x000000612e58 by goroutine 8:
+//   main.count()
+//       jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x44
+//   sync.(*WaitGroup).Go.func1()
+//       jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+// !output
+
+// !cols
+
+////////////////////////////////////
+// heading Exercise
+
+// text Run `go test -race` on your bank account solution.
+
+// text Try it with and without locking `Account.Balance`.
+
+////////////////////////////////////////////////
+// heading Let's be clever
+
+// cols
+
+var (
+	mu_c sync.Mutex
+	c_c  int
+)
+
+func run_c() {
+	var wg sync.WaitGroup
+	wg.Go(count_c)
+	wg.Go(count_c)
+	wg.Wait()
+	fmt.Println(c_c)
+}
+
+// code
+func count_c() {
+	for range 20_000 {
+		x := c_c + 1 // em
+		mu_c.Lock()
+		c_c = x // write is protected // em
+		mu_c.Unlock()
+	}
+}
+
+// !code
+
+// nextcol
+// question
+// What do we think about this optimization?
+// answer
+// There is still a data race: a read can happen concurrently with a write.
+
+// <div class="interleave" style="font-size: 70%">
+//
+// | G1 | G2 |
+// | -- | -- |
+// | x = c + 1 | |
+// | c = x | x = c + 1 |
+//
+// </div>
+// !question
+//
+// !cols
+
+////////////////////////////////////////////////
+// heading Let's be even cleverer!
+
+// cols
+
+var (
+	mu_cc sync.Mutex
+	c_cc  int
+)
+
+func run_cc() {
+	var wg sync.WaitGroup
+	wg.Go(count_cc)
+	wg.Go(count_cc)
+	wg.Wait()
+	fmt.Println(c_cc)
+}
+
+// code
+func count_cc() {
+	for range 20_000 {
+		mu_cc.Lock()
+		x := c_cc // read is protected // em
+		mu_cc.Unlock()
+		x++
+		mu_cc.Lock()
+		c_cc = x // write is protected // em
+		mu_cc.Unlock()
+	}
+}
+
+// !code
+
+// nextcol
+// question
+// What do we think about this optimization?
+// answer
+// There is no data race, but this code is still incorrect:
+
+// <div class="interleave" style="font-size: 70%">
+//
+// | G1 | G2 |
+// | -- | -- |
+// | x = c | x = c |
+// | x++ | x++ |
+// | c = x | c = x |
+//
+// </div>
+// !question
+//
+// !cols
+
+////////////////////////////////////////////////
+// heading Our story so far
+
+// text
+// Data races are about low-level memory access.<br/>
+// Every data race is a concurrency bug.\*
+//
+// But races in general are about transactions.
+//
+// *Not every race is a data race.*
+// !text
+//
+// question Why doesn't Go make maps concurrency-safe?
+// answer
+// It would be slower, and _it wouldn't help in many cases_.<br/>
+// The runtime doesn't know what your transactions are.
+// !question
+
+// text \*For the purposes of this course.

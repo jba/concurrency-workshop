@@ -1,3 +1,6 @@
+// Add a mutex to Account so that all methods are
+// safe for use by multiple goroutines.
+
 package account
 
 import "errors"

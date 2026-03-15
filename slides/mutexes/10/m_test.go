@@ -8,7 +8,7 @@ import (
 )
 
 func TestMutex(t *testing.T) {
-	testhelp.WantStdout(t, "40000", main)
+	testhelp.WantStdout(t, "40000", run_1)
 }
 
 // run with -race to find data race
@@ -25,6 +25,6 @@ func TestClever(t *testing.T) {
 		}
 	}
 
-	testLess(main_1)
-	testLess(main_2)
+	testLess(run_1)
+	testLess(run_2)
 }
