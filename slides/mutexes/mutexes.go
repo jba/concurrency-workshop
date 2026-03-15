@@ -791,6 +791,7 @@ func (g *IDGenerator_m1) NewID_m1(prefix string) string { // em prefix string
 //////////////////////////////////////////
 // heading Mutexes and maps, safely
 
+// cols
 // code
 type IDGenerator_m2 struct {
 	mu   sync.Mutex // em
@@ -809,6 +810,13 @@ func (g *IDGenerator_m2) NewID_m2(prefix string) string {
 }
 
 // !code
+
+// nextcol
+
+// html <div style="height: 15vw"></div>
+
+// text Concurrency-safe maps wouldn't help here.
+// !cols
 ////////////////////////////////
 // heading Optimizations
 

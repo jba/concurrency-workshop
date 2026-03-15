@@ -13,7 +13,7 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- slides/mutexes/10/m.go -->
+<!-- slides/mutexes/mutexes.go -->
 <article class='title-slide'>
   <div class='title-text'>Introduction to Synchronization</div>
   <div class='subtitle-text'
@@ -239,9 +239,9 @@ that makes sense for the application.</p>
 </article>
 <article>
   <h1>Exercise: Bank Account</h1>
-  <a href="exercises/account/account.go">Code</a>
+  <a href="../exercises/account/account.go">Code</a>
   <br/><br/><br/>
-  <a href="exercises/account/solution/account.go">Solution</a>
+  <a href="../exercises/account/solution/account.go">Solution</a>
   <span class='pagenumber'>6</span>
 </article>
 <article>
@@ -800,6 +800,7 @@ Why aren't maps like slices?</p>
 </article>
 <article>
   <h1>Mutexes and maps, safely</h1>
+  <div class="flex"><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
 <span class='codenum'>2</span><span class="em">   mu   sync.Mutex</span>
@@ -818,6 +819,12 @@ Why aren't maps like slices?</p>
 <span class='codenum'>12</span>}
 </pre>
   </div>
+  </div><div>
+  <div style="height: 15vw"></div>
+  <div class='text'>
+<p>Concurrency-safe maps wouldn't help here.</p>
+  </div>
+  </div></div> <!-- flex -->
   <span class='pagenumber'>26</span>
 </article>
 <article>
