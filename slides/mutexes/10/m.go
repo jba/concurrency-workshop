@@ -1,4 +1,4 @@
-package main
+package m
 
 import (
 	"fmt"
@@ -117,8 +117,8 @@ var c_1 int
 
 func run_1() {
 	var wg sync.WaitGroup
-	wg.Go(count)
-	wg.Go(count)
+	wg.Go(count_1)
+	wg.Go(count_1)
 	wg.Wait()
 	fmt.Println(c_1)
 }

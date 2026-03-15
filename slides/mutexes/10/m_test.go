@@ -25,6 +25,6 @@ func TestClever(t *testing.T) {
 		}
 	}
 
-	testLess(run_1)
-	testLess(run_2)
+	testLess(run_c)
+	testLess(run_cc)
 }
