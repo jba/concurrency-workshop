@@ -25,12 +25,13 @@
 <article>
   <h1>Sharing memory</h1>
   <div class='text'>
-<p>A program's goroutines can all access the program's memory.</p>
+<p>Goroutines share the program's memory.</p>
   </div>
+  <div class="flex"><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>var c int
 
-<span class='codenum'>2</span>func <defn>main</defn>() {
+<span class='codenum'>2</span>func <defn>run</defn>() {
 <span class='codenum'>3</span>   var wg sync.WaitGroup
 <span class='codenum'>4</span>   wg.Go(count)
 <span class='codenum'>5</span>   wg.Go(count)
@@ -45,126 +46,28 @@
 <span class='codenum'>13</span>}
 </pre>
   </div>
-<div></div>
-  <div class='output'><pre>
-27357
-</pre>
-  </div>
-  <span class='pagenumber'>2</span>
-</article>
-
-<!-- slides/mutexes/20/m.go -->
-<article>
-  <h1>Data races</h1>
+  </div><div>
+  <div style="height: 10vw"></div>
   <div class='text'>
-<p>A data race happens when:</p>
-<ul>
-<li>Two goroutines access the same memory</li>
-<li>At least one writes to it</li>
-<li>The accesses aren't synchronized</li>
-</ul>
+<p>One possible output:</p>
   </div>
   <div class='text'>
 <p> </p>
   </div>
-  <div class="flex"><div>
-  <div class='text'>
-<p>same goroutine</p>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>c++
-<span class='codenum'>2</span>fmt.Println(c)</pre>
-  </div>
-  </div><div>
-  <div class='text'>
-<p>different memory</p>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>wg.Go(func() {
-<span class='codenum'>2</span>   c1++
-<span class='codenum'>3</span>})
-<span class='codenum'>4</span>wg.Go(func() {
-<span class='codenum'>5</span>   c2++
-<span class='codenum'>6</span>})</pre>
-  </div>
-  </div><div>
-  <div class='text'>
-<p>no writes</p>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>wg.Go(func() {
-<span class='codenum'>2</span>   fmt.Println(c)
-<span class='codenum'>3</span>})
-<span class='codenum'>4</span>wg.Go(func() {
-<span class='codenum'>5</span>   fmt.Println(c)
-<span class='codenum'>6</span>})</pre>
-  </div>
-  </div><div>
-  <div class='text'>
-<p>data race</p>
-  </div>
-  <div class='code bad'><pre>
-<span class='codenum'>1</span>wg.Go(func() { c++ })
-<span class='codenum'>2</span>wg.Go(func() { c++ })</pre>
-  </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>3</span>
-</article>
-<article>
-  <h1>The race detector</h1>
-  <div class='text'>
-<p>Looks for data races while the program is running.</p>
-  </div>
-  <div class="flex"><div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>var c int
-
-<span class='codenum'>2</span>func <defn>main</defn>() {
-<span class='codenum'>3</span>   var wg sync.WaitGroup
-<span class='codenum'>4</span>   wg.Go(count)
-<span class='codenum'>5</span>   wg.Go(count)
-<span class='codenum'>6</span>   wg.Wait()
-<span class='codenum'>7</span>   fmt.Println(c)
-<span class='codenum'>8</span>}
-
-<span class='codenum'>9</span>func <defn>count</defn>() {
-<span class='codenum'>10</span>   for range 20_000 {
-<span class='codenum'>11</span>      c++
-<span class='codenum'>12</span>   }
-<span class='codenum'>13</span>}
-</pre>
-  </div>
 <div></div>
   <div class='output'><pre>
 27357
 </pre>
   </div>
-  </div><div>
   <div class='text'>
-<p><code>go run -race .</code></p>
+<p> </p>
   </div>
-<div></div>
-  <div class='output'><pre>
-==================
-WARNING: DATA RACE
-Read at 0x000000612e58 by goroutine 7:
-main.count()
-jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x2c
-sync.(*WaitGroup).Go.func1()
-jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
-
-Previous write at 0x000000612e58 by goroutine 8:
-main.count()
-jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x44
-sync.(*WaitGroup).Go.func1()
-jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
-</pre>
+  <div class='text'>
+<p>It should be 40000.</p>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>4</span>
+  <span class='pagenumber'>2</span>
 </article>
-
-<!-- slides/mutexes/30/m.go -->
 <article>
   <h1>Interleavings</h1>
   <div class="flex"><div>
@@ -230,7 +133,7 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
 </div>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>5</span>
+  <span class='pagenumber'>3</span>
 </article>
 <article>
   <h1>Using a mutex</h1>
@@ -240,7 +143,7 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
 
 <span class='codenum'>2</span>var c int
 
-<span class='codenum'>3</span>func <defn>main</defn>() {
+<span class='codenum'>3</span>func <defn>run</defn>() {
 <span class='codenum'>4</span>   var wg sync.WaitGroup
 <span class='codenum'>5</span>   wg.Go(count)
 <span class='codenum'>6</span>   wg.Go(count)
@@ -259,15 +162,258 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
   </div>
   </div><div>
   <div class='text'>
-<p>Only one goroutine between <code>Lock</code> and <code>Unlock</code></p>
-<p>The zero mutex is unlocked and ready to use</p>
-<p>A mutex limits interleavings</p>
+<p> </p>
+  </div>
+  <div class='text'>
+<p>Only one goroutine between <code>Lock</code> and <code>Unlock</code>
+(a <em>critical section</em>).</p>
+<p>The code in the critical section happens <em>atomically</em>:
+indivisibly.</p>
+<p>A mutex limits interleavings.</p>
+<p>The zero mutex is unlocked and ready to use.</p>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>4</span>
+</article>
+
+<!-- slides/mutexes/20/m.go -->
+<article>
+  <h1>Data races</h1>
+  <div class='text'>
+<p>A data race happens when:</p>
+<ul>
+<li>Two goroutines access the same memory</li>
+<li>At least one writes to it</li>
+<li>The accesses aren't synchronized</li>
+</ul>
+  </div>
+  <div class='text'>
+<p> </p>
+  </div>
+  <div class="flex"><div>
+  <div class='text'>
+<p>same goroutine</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c++
+<span class='codenum'>2</span>fmt.Println(c)</pre>
+  </div>
+  </div><div>
+  <div class='text'>
+<p>different memory</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>wg.Go(func() {
+<span class='codenum'>2</span>   c1++
+<span class='codenum'>3</span>})
+<span class='codenum'>4</span>wg.Go(func() {
+<span class='codenum'>5</span>   c2++
+<span class='codenum'>6</span>})</pre>
+  </div>
+  </div><div>
+  <div class='text'>
+<p>no writes</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>wg.Go(func() {
+<span class='codenum'>2</span>   fmt.Println(c)
+<span class='codenum'>3</span>})
+<span class='codenum'>4</span>wg.Go(func() {
+<span class='codenum'>5</span>   fmt.Println(c)
+<span class='codenum'>6</span>})</pre>
+  </div>
+  </div><div>
+  <div class='text'>
+<p>data race</p>
+  </div>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span>wg.Go(func() { c++ })
+<span class='codenum'>2</span>wg.Go(func() { c++ })</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>5</span>
+</article>
+<article>
+  <h1>The race detector</h1>
+  <div class='text'>
+<p>Looks for data races while the program is running.</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>var c int
+
+<span class='codenum'>2</span>func <defn>main</defn>() {
+<span class='codenum'>3</span>   var wg sync.WaitGroup
+<span class='codenum'>4</span>   wg.Go(count)
+<span class='codenum'>5</span>   wg.Go(count)
+<span class='codenum'>6</span>   wg.Wait()
+<span class='codenum'>7</span>   fmt.Println(c)
+<span class='codenum'>8</span>}
+
+<span class='codenum'>9</span>func <defn>count</defn>() {
+<span class='codenum'>10</span>   for range 20_000 {
+<span class='codenum'>11</span>      c++
+<span class='codenum'>12</span>   }
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+27357
+</pre>
+  </div>
+  </div><div>
+  <div class='text'>
+<p><code>go run -race .</code></p>
+  </div>
+<div></div>
+  <div class='output'><pre>
+==================
+WARNING: DATA RACE
+Read at 0x000000612e58 by goroutine 7:
+main.count()
+jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x2c
+sync.(*WaitGroup).Go.func1()
+jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+
+Previous write at 0x000000612e58 by goroutine 8:
+main.count()
+jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x44
+sync.(*WaitGroup).Go.func1()
+jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+</pre>
   </div>
   </div></div> <!-- flex -->
   <span class='pagenumber'>6</span>
 </article>
 
-<!-- slides/mutexes/50/m.go -->
+<!-- slides/mutexes/30/m.go -->
+<article>
+  <h1>Let&#39;s be clever</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>count</defn>() {
+<span class='codenum'>2</span>   for range 20_000 {
+<span class='codenum'>3</span><span class="em">      x := c + 1</span>
+<span class='codenum'>4</span>      mu.Lock()
+<span class='codenum'>5</span><span class="em">      c = x <comment>// write is protected</span></comment>
+<span class='codenum'>6</span>      mu.Unlock()
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  </div><div>
+  <details>
+    <summary>
+What do we think about this optimization?</p>
+    </summary>
+    <div class='answer'>
+<p>There is still a data race: a read can happen concurrently with a write.</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>x = c + 1</td>
+<td></td>
+</tr>
+<tr>
+<td>c = x</td>
+<td>x = c + 1</td>
+</tr>
+</tbody>
+</table>
+</div>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>7</span>
+</article>
+<article>
+  <h1>Let&#39;s be even cleverer!</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>count</defn>() {
+<span class='codenum'>2</span>   for range 20_000 {
+<span class='codenum'>3</span>      mu.Lock()
+<span class='codenum'>4</span><span class="em">      x := c <comment>// read is protected</span></comment>
+<span class='codenum'>5</span>      mu.Unlock()
+<span class='codenum'>6</span>      x++
+<span class='codenum'>7</span>      mu.Lock()
+<span class='codenum'>8</span><span class="em">      c = x <comment>// write is protected</span></comment>
+<span class='codenum'>9</span>      mu.Unlock()
+<span class='codenum'>10</span>   }
+<span class='codenum'>11</span>}
+</pre>
+  </div>
+  </div><div>
+  <details>
+    <summary>
+What do we think about this optimization?</p>
+    </summary>
+    <div class='answer'>
+<p>There is no data race, but this code is still incorrect:</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>x = c</td>
+<td>x = c</td>
+</tr>
+<tr>
+<td>x++</td>
+<td>x++</td>
+</tr>
+<tr>
+<td>c = x</td>
+<td>c = x</td>
+</tr>
+</tbody>
+</table>
+</div>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>8</span>
+</article>
+<article>
+  <h1>Data races aren&#39;t the only concurrency bugs</h1>
+  <div class='text'>
+<p>Data races are about low-level memory access.<br/>
+Every data race is a concurrency bug.</p>
+<p>But also think about <em>transactions</em>: atomic sequences.<br/>
+The read and write must happen atomically.</p>
+<p>Examples of transactions:</p>
+<ul>
+<li>Money transfer</li>
+<li>Add/remove an element and update the size</li>
+<li>Start fulfilling an order, mark it as in progress</li>
+</ul>
+  </div>
+  <details>
+    <summary>
+Why doesn't Go make maps concurrency-safe?</p>
+    </summary>
+    <div class='answer'>
+<p>It would be slower, and <em>it wouldn't help in many cases</em>.<br/>
+The runtime doesn't know what your transactions are.</p>
+    </div>
+  </details>
+  <span class='pagenumber'>9</span>
+</article>
+
+<!-- slides/mutexes/40/m.go -->
 <article>
   <h1>Generating unique IDs, unsafe version</h1>
   <div class="flex"><div>
@@ -302,7 +448,7 @@ What can happen if two goroutines call <code>g.NewID()</code> at the same time?<
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>7</span>
+  <span class='pagenumber'>10</span>
 </article>
 <article>
   <h1>Generating unique IDs, safe version</h1>
@@ -332,7 +478,7 @@ What can happen if two goroutines call <code>g.NewID()</code> at the same time?<
 above the fields it protects</p>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>8</span>
+  <span class='pagenumber'>11</span>
 </article>
 <article>
   <h1>Limit critical section size</h1>
@@ -369,7 +515,66 @@ Find and fix the bug.</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>9</span>
+  <span class='pagenumber'>12</span>
+</article>
+<article>
+  <h1>Avoid locking during I/O</h1>
+  <div class='text'>
+<p>I/O is slow.</p>
+  </div>
+  <div class='text'>
+<p>Network peers can be <em>arbitrarily</em> slow.</p>
+  </div>
+  <div class='text'>
+<p>Sometimes you have to copy.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (s *Server) <defn>notifySessions</defn>(n string) {
+<span class='codenum'>2</span>   s.mu.Lock() <comment>// required to access s.sessions</comment>
+<span class='codenum'>3</span>   sessions := slices.Clone(s.sessions)
+<span class='codenum'>4</span>   s.pendingNotifications[n] = nil
+<span class='codenum'>5</span>   s.mu.Unlock()
+<span class='codenum'>6</span>   <comment>// Do I/O with no locks held.</comment>
+<span class='codenum'>7</span>   notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
+  </div>
+  <span class='pagenumber'>13</span>
+</article>
+<article>
+  <h1>Avoid locking during I/O...unless you need it</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>l.outMu.Lock()
+<span class='codenum'>2</span>defer l.outMu.Unlock()
+<span class='codenum'>3</span>_, err := l.out.Write(*buf) <comment>// avoid interleaved log lines</comment></pre>
+  </div>
+  <div class='text'>
+<p>From The <a href="https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go">log package</a></p>
+  </div>
+  <span class='pagenumber'>14</span>
+</article>
+<article>
+  <h1>Another example of copying</h1>
+  <div class='text'>
+<p>We don't know how long the caller will hold on to the iterator.</p>
+  </div>
+  <div class='code'><pre>
+<comment>// Sessions returns an iterator that yields a snapshot of the server sessions.</comment>
+<span class='codenum'>1</span>func (s *Server) <defn>Sessions</defn>() iter.Seq[*ServerSession] {
+<span class='codenum'>2</span>   s.mu.Lock()
+<span class='codenum'>3</span>   clients := slices.Clone(s.sessions)
+<span class='codenum'>4</span>   s.mu.Unlock()
+<span class='codenum'>5</span>   return slices.Values(clients)
+<span class='codenum'>6</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
+  </div>
+  <span class='pagenumber'>15</span>
 </article>
 <article>
   <h1>Atomics</h1>
@@ -400,10 +605,48 @@ Find and fix the bug.</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>10</span>
+  <span class='pagenumber'>16</span>
 </article>
 <article>
-  <h1>Maps and mutexes</h1>
+  <h1>Mutexes and slices</h1>
+  <div class='text'>
+<p>Each slice element is a separate memory location.</p>
+  </div>
+  <div class='text'>
+<p>No mutex needed here.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>var wg sync.WaitGroup
+<span class='codenum'>2</span>s := make([]int, 2)
+<span class='codenum'>3</span>wg.Go(func() { s[0] = 1 })
+<span class='codenum'>4</span>wg.Go(func() { s[1] = 2 })
+<span class='codenum'>5</span>wg.Wait()</pre>
+  </div>
+  <span class='pagenumber'>17</span>
+</article>
+<article>
+  <h1>Mutexes and slices, 2</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>var wg sync.WaitGroup
+<span class='codenum'>2</span>var s []int
+<span class='codenum'>3</span><span class="em">wg.Go(func() { s = append(s, 1) })</span>
+<span class='codenum'>4</span><span class="em">wg.Go(func() { s = append(s, 2) })</span>
+<span class='codenum'>5</span>wg.Wait()</pre>
+  </div>
+  <details>
+    <summary>
+Is a mutex needed here?</p>
+    </summary>
+    <div class='answer'>
+<p>Yes: there is a data race.
+Both goroutines write to the same location, <code>s</code>.</p>
+    </div>
+  </details>
+  <span class='pagenumber'>18</span>
+</article>
+<article>
+  <h1>Mutexes and maps</h1>
+  <div class="flex"><div>
   <div class='code bad'><pre>
 <comment>// IDGenerator generates unique IDs with different prefixes.</comment>
 <span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
@@ -422,13 +665,23 @@ Find and fix the bug.</p>
 <span class='codenum'>12</span>}
 </pre>
   </div>
+  </div><div>
   <div class='text'>
-<p>Find the bug.</p>
+<p>Maps need synchronization.</p>
   </div>
-  <span class='pagenumber'>11</span>
+  <details>
+    <summary>
+Why aren't maps like slices?</p>
+    </summary>
+    <div class='answer'>
+<p>The underlying memory locations can change as the map grows and shrinks.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>19</span>
 </article>
 <article>
-  <h1>Maps and mutexes, 2</h1>
+  <h1>Mutexes and maps, safely</h1>
   <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
 <span class='codenum'>2</span><span class="em">   mu   sync.Mutex</span>
@@ -447,7 +700,7 @@ Find and fix the bug.</p>
 <span class='codenum'>12</span>}
 </pre>
   </div>
-  <span class='pagenumber'>12</span>
+  <span class='pagenumber'>20</span>
 </article>
 <article>
   <h1>Optimizations</h1>
@@ -456,7 +709,7 @@ Find and fix the bug.</p>
 <p><code>sync.RWMutex</code> if there are many more reads than writes.</p>
 <p><code>sync.Map</code> if there are very few writes (often just one).</p>
   </div>
-  <span class='pagenumber'>13</span>
+  <span class='pagenumber'>21</span>
 </article>
 <article>
   <h1>sync.Map example</h1>
@@ -494,17 +747,15 @@ What about the race?</p>
     </summary>
     <div class='answer'>
 <p>&quot;If we lose the race, we'll waste a little CPU and create a little garbage
-but return the existing value anyway.&quot;&quot;</p>
+but return the existing value anyway.&quot;</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>14</span>
+  <span class='pagenumber'>22</span>
 </article>
-
-<!-- slides/mutexes/80/m.go -->
 <article>
-  <h1>m.go</h1>
-  <span class='pagenumber'>15 and last</span>
+  <h1>Exercise</h1>
+  <span class='pagenumber'>23 and last</span>
 </article>
 
     <div id="help">

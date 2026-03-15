@@ -1,38 +1,30 @@
 package m
 
 import (
-	"os"
-	"strings"
+	"strconv"
 	"testing"
+
+	"github.com/jba/concurrency-workshop/internal/testhelp"
 )
 
 func TestMutex(t *testing.T) {
-	wantStdout(t, "40000", main)
+	testhelp.WantStdout(t, "40000", main)
 }
 
-func wantStdout(t *testing.T, want string, f func()) {
-	t.Helper()
-	got := stdout(f)
-	if got != want {
-		t.Errorf("\ngot  %s\nwant %s", got, want)
+// run with -race to find data race
+func TestClever(t *testing.T) {
+	testLess := func(f func()) {
+		s := testhelp.Stdout(f)
+		got, err := strconv.Atoi(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 40_000
+		if got >= want {
+			t.Fatalf("got %d, want < %d", got, want)
+		}
 	}
-}
 
-func stdout(f func()) string {
-	defer func(out *os.File) { os.Stdout = out }(os.Stdout)
-	file, err := os.CreateTemp("", "stdout")
-	if err != nil {
-		panic(err)
-	}
-	defer os.Remove(file.Name())
-	os.Stdout = file
-	f()
-	if err := file.Close(); err != nil {
-		panic(err)
-	}
-	data, err := os.ReadFile(file.Name())
-	if err != nil {
-		panic(err)
-	}
-	return strings.TrimSpace(string(data))
+	testLess(main_1)
+	testLess(main_2)
 }

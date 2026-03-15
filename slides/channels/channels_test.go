@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"errors"
-	"os"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/jba/concurrency-workshop/internal/testhelp"
 )
 
 func TestCollatz(t *testing.T) {
@@ -51,19 +51,19 @@ func TestCollatzWithTimeout(t *testing.T) {
 }
 
 func Test_f1(t *testing.T) {
-	if stdout(f1) != "16" {
+	if testhelp.Stdout(f1) != "16" {
 		t.Error("f1 wrong")
 	}
 }
 
 func Test_f2(t *testing.T) {
-	if stdout(f2) != "16" {
+	if testhelp.Stdout(f2) != "16" {
 		t.Error("f2 wrong")
 	}
 }
 
 func Test_f5(t *testing.T) {
-	got := stdout(f5)
+	got := testhelp.Stdout(f5)
 	if got != "16" {
 		t.Errorf("got %q: wrong", got)
 	}
@@ -101,7 +101,7 @@ func TestCC(t *testing.T) {
 // }
 
 func TestPrintTree(t *testing.T) {
-	wantStdout(t, "1\n2\n3\n4\n5", func() { printTree(aTree) })
+	testhelp.WantStdout(t, "1\n2\n3\n4\n5", func() { printTree(aTree) })
 }
 
 func TestSend(t *testing.T) {
@@ -109,37 +109,10 @@ func TestSend(t *testing.T) {
 	// TODO: use synctest
 	// })
 	t.Run("send2", func(t *testing.T) {
-		wantStdout(t, "0\n0", send2)
+		testhelp.WantStdout(t, "0\n0", send2)
 	})
 }
 
 func TestF7(t *testing.T) {
-	wantStdout(t, "16", f7)
-}
-
-func wantStdout(t *testing.T, want string, f func()) {
-	t.Helper()
-	got := stdout(f)
-	if got != want {
-		t.Errorf("\ngot  %s\nwant %s", got, want)
-	}
-}
-
-func stdout(f func()) string {
-	defer func(out *os.File) { os.Stdout = out }(os.Stdout)
-	file, err := os.CreateTemp("", "stdout")
-	if err != nil {
-		panic(err)
-	}
-	defer os.Remove(file.Name())
-	os.Stdout = file
-	f()
-	if err := file.Close(); err != nil {
-		panic(err)
-	}
-	data, err := os.ReadFile(file.Name())
-	if err != nil {
-		panic(err)
-	}
-	return strings.TrimSpace(string(data))
+	testhelp.WantStdout(t, "16", f7)
 }

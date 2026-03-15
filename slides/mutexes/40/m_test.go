@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func Test(t *testing.T) {
 	g := NewIDGenerator("moo")
@@ -49,5 +52,23 @@ func Test2(t *testing.T) {
 	want = "moo2"
 	if got != want {
 		t.Fatal("bad")
+	}
+}
+
+func TestSlice(t *testing.T) {
+	want := []int{1, 2}
+	for range 10 {
+		got := fslice1()
+		if !slices.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	}
+	// Use -race to show the problem here.
+	for range 10 {
+		got := fslice2()
+		slices.Sort(got)
+		if !slices.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
 	}
 }

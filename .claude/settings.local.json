@@ -11,7 +11,8 @@
       "Bash(git commit -m \"$(cat <<''EOF''\ncode2slides: add image/img directive, use options for code variants\n\nAdd image directive (with img alias) that generates <img> tags with\npaths relative to the source file directory.\n\nReplace sectionCodeBad/sectionCodeWeak with options field on section,\nallowing arbitrary code block variants via \"code bad\", \"code weak\", etc.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git commit:*)",
       "Bash(go run:*)",
-      "Bash(/dev/null - <<'EOF'\npackage main\n\nimport \"fmt\"\n\nfunc main() {\n    n := int64(75_128_138_247)\n    count := 0\n    maxVal := n\n    for n > 1 {\n        if n%2 == 0 {\n            n /= 2\n        } else {\n            n = 3*n + 1\n        }\n        if n > maxVal {\n            maxVal = n\n        }\n        count++\n    }\n    fmt.Printf(\"steps: %d, max intermediate value: %d\\n\", count, maxVal)\n}\nEOF)"
+      "Bash(/dev/null - <<'EOF'\npackage main\n\nimport \"fmt\"\n\nfunc main() {\n    n := int64(75_128_138_247)\n    count := 0\n    maxVal := n\n    for n > 1 {\n        if n%2 == 0 {\n            n /= 2\n        } else {\n            n = 3*n + 1\n        }\n        if n > maxVal {\n            maxVal = n\n        }\n        count++\n    }\n    fmt.Printf(\"steps: %d, max intermediate value: %d\\n\", count, maxVal)\n}\nEOF)",
+      "Bash(go vet:*)"
     ],
     "deny": [],
     "ask": []

@@ -4,7 +4,10 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"iter"
 	"reflect"
+	"slices"
 	"sync"
 	"sync/atomic"
 )
@@ -115,6 +118,77 @@ func (g *IDGenerator_1) NewID_3() string {
 // !cols
 
 //////////////////////////////////////////
+// heading Avoid locking during I/O
+
+// text I/O is slow.
+// text Network peers can be _arbitrarily_ slow.
+// text Sometimes you have to copy.
+
+// code
+func (s *Server) notifySessions(n string) {
+	s.mu.Lock() // required to access s.sessions
+	sessions := slices.Clone(s.sessions)
+	s.pendingNotifications[n] = nil
+	s.mu.Unlock()
+	// Do I/O with no locks held.
+	notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
+}
+
+// !code
+
+// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
+
+type Server struct {
+	mu                   sync.Mutex
+	sessions             []*ServerSession
+	pendingNotifications map[string]*int
+	opts                 struct{ Logger int }
+}
+
+type ServerSession int
+
+var changeNotificationParams map[string]int
+
+func notifySessions([]*ServerSession, string, int, int) {}
+
+//////////////////////////////////////////
+// heading Avoid locking during I/O...unless you need it
+
+func flog() {
+	var l struct {
+		outMu sync.Mutex
+		out   io.Writer
+	}
+	var buf *[]byte
+	// code
+	l.outMu.Lock()
+	defer l.outMu.Unlock()
+	_, err := l.out.Write(*buf) // avoid interleaved log lines
+	// !code
+	_ = err
+}
+
+// text From The [log package](https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go)
+
+//////////////////////////////////////////
+// heading Another example of copying
+
+// text We don't know how long the caller will hold on to the iterator.
+
+// code
+// Sessions returns an iterator that yields a snapshot of the server sessions.
+func (s *Server) Sessions() iter.Seq[*ServerSession] {
+	s.mu.Lock()
+	clients := slices.Clone(s.sessions)
+	s.mu.Unlock()
+	return slices.Values(clients)
+}
+
+// !code
+
+// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
+
+//////////////////////////////////////////
 // heading Atomics
 
 // cols
@@ -149,8 +223,46 @@ func (g *IDGenerator_2) NewID_3() string {
 // !cols
 
 //////////////////////////////////////////
-// heading Maps and mutexes
+// heading Mutexes and slices
 
+// text Each slice element is a separate memory location.
+// text No mutex needed here.
+
+func fslice1() []int {
+	// code
+	var wg sync.WaitGroup
+	s := make([]int, 2)
+	wg.Go(func() { s[0] = 1 })
+	wg.Go(func() { s[1] = 2 })
+	wg.Wait()
+	// !code
+	return s
+}
+
+//////////////////////////////////////////
+// heading Mutexes and slices, 2
+
+func fslice2() []int {
+	// code
+	var wg sync.WaitGroup
+	var s []int
+	wg.Go(func() { s = append(s, 1) }) // em
+	wg.Go(func() { s = append(s, 2) }) // em
+	wg.Wait()
+	// !code
+	return s
+}
+
+// question Is a mutex needed here?
+// answer
+// Yes: there is a data race.
+// Both goroutines write to the same location, `s`.
+// !question
+
+//////////////////////////////////////////
+// heading Mutexes and maps
+
+// cols
 // code bad
 // IDGenerator generates unique IDs with different prefixes.
 type IDGenerator_m1 struct {
@@ -169,10 +281,20 @@ func (g *IDGenerator_m1) NewID_m1(prefix string) string { // em prefix string
 }
 
 // !code
-// text Find the bug.
+
+// nextcol
+
+// text Maps need synchronization.
+
+// question Why aren't maps like slices?
+// answer
+// The underlying memory locations can change as the map grows and shrinks.
+// !question
+
+// !cols
 
 //////////////////////////////////////////
-// heading Maps and mutexes, 2
+// heading Mutexes and maps, safely
 
 // code
 type IDGenerator_m2 struct {
@@ -241,3 +363,10 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 // but return the existing value anyway."
 // !question
 // !cols
+
+////////////////////////////////
+// heading Find the bug
+// TODO find example that Mac found in mcp or jsonschema-go
+
+////////////////////////////////
+// heading Exercise
