@@ -145,7 +145,7 @@ func (g *WaitGroup_3) Wait() {
 // </div>
 //
 //
-// <div style="font-size: 70%; line-height: 1.0">
+// <div style="font-size: 70%; line-height: 1.0; margin-top: 20px">
 // (Technically, this is disallowed:
 // "Note that calls with a positive delta that occur when the counter is zero must happen before a Wait.")
 // </div>
@@ -160,21 +160,10 @@ func (g *WaitGroup_3) Wait() {
 // - Close it to broadcast
 // !text
 
-// note
-// We'll use a channel. Channels are the only way we've seen
-// for threads to wait for an event to occur.
-//
-// The trick here is to close the channel, thereby signaling all readers.
-// If we sent something to the channel, that would only wake up one reader.
-// !note
-
-// /cols
 // code
 type WaitGroup_4 struct {
-	count atomic.Int64 // number of active goroutines
-	// em
-	done chan struct{} // closed when count reaches zero
-	// !em
+	count atomic.Int64  // number of active goroutines
+	done  chan struct{} // closed when count reaches zero // em
 }
 
 // em
@@ -183,17 +172,10 @@ func NewWaitGroup_4() *WaitGroup_4 {
 }
 
 // !em
-func (g *WaitGroup_4) Go(f func()) {
-	g.add(1)
-	go func() {
-		defer g.add(-1)
-		f()
-	}()
-}
 
 // !code
 // code
-func (g *WaitGroup_4) add(n int) {
+func (g *WaitGroup_4) Add(n int) {
 	c := g.count.Add(int64(n))
 	// em
 	if c == 0 {
