@@ -1,3 +1,10 @@
+// title Concurrency Patterns
+// subtitle
+// Demystifying Concurrency
+
+// GopherCon Europe 2026
+// !subtitle
+
 package wg
 
 import (
@@ -6,18 +13,11 @@ import (
 	"time"
 )
 
+////////////////////////////////////
 // heading Implementing WaitGroup
 
-// note
-// Let's try to implement `sync.WaitGroup` ourselves.
-// It has two methods: `Go` and `Wait`.
-// We'll start with `Go`.
-
-// All we need to support it is a simple counter, holding
-// the number of active goroutines.
-// !note
-
-// /cols
+// html Unsynchronized version
+// cols
 // code
 type WaitGroup struct {
 	count int // number of active goroutines
@@ -31,9 +31,7 @@ func (g *WaitGroup) Go(f func()) {
 	}()
 }
 
-func (g *WaitGroup) Add(n int) {
-	g.count += n
-}
+func (g *WaitGroup) Add(n int) { g.count += n }
 
 func (g *WaitGroup) Done() { g.Add(-1) }
 
@@ -43,96 +41,52 @@ func (g *WaitGroup) Wait() {
 
 // !code
 
-// html <div> <!-- one child for flex -->
+// nextcol
 
 // html <div style="height: 5em"></div>
 
 // text
 // See [this CL](https://go-review.git.corp.google.com/c/go/+/717760)
-// for a recent, subtle change to `Go`.
+// for a recent, subtle change to `WaitGroup.Go`.
 // !text
 // html <div style="height: 5em"></div>
 
-// question
-// Any thoughts about how we're using `count`?
-// answer
-// The problem is that there is no synchronization.
-// `Go` should be goroutine-safe.
-// !question
-// html </div>
 // !cols
 
+////////////////////////////////////
 // heading WaitGroup with a mutex
-
-// note
-// We can synchronize with a mutex.
-// !note
 
 // code
 type WaitGroup_1 struct {
-	// em
-	mu sync.Mutex
-	// !em
-	count int // number of active goroutines
+	mu    sync.Mutex // em
+	count int        // number of active goroutines
 }
 
-func (g *WaitGroup_1) Go(f func()) {
-	g.Add(1)
-	go func() {
-		defer g.Done()
-		f()
-	}()
-}
-
-// em
 func (g *WaitGroup_1) Add(n int) {
+	// em
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	// !em
 	g.count += n
-}
-
-// !em
-
-func (g *WaitGroup_1) Done() { g.Add(-1) }
-
-func (g *WaitGroup_1) Wait() {
-	// Wait for g.count to reach 0.
 }
 
 // !code
 
+////////////////////////////////////
 // heading WaitGroup with atomics
 
 // /cols
 // code
 type WaitGroup_2 struct {
-	// em
-	count atomic.Int64 // number of active goroutines
-	// !em
+	count atomic.Int64 // number of active goroutines // em
 }
 
-func (g *WaitGroup_2) Go(f func()) {
-	g.Add(1)
-	go func() {
-		defer g.Add(-1)
-		f()
-	}()
-}
-
-// em
 func (g *WaitGroup_2) Add(n int) {
-	g.count.Add(int64(n))
-}
-
-// !em
-
-func (g *WaitGroup_2) Done() { g.Add(-1) }
-
-func (g *WaitGroup_2) Wait() {
-	// Wait for g.count to reach 0.
+	g.count.Add(int64(n)) // em
 }
 
 // !code
+
 /* text
 Atomics work well here, for now
 
@@ -141,55 +95,35 @@ Stdlib implementation uses them
 
 // !cols
 
+////////////////////////////////////
 // heading The Wait method
 
-// note
-// Let's turn our attention to the `Wait` method.
-// It should block until the count is zero.
+// text
+// `Wait` should block until the count is zero.
+// It may be called more than once, perhaps concurrently.
+// !text
 
-// `Wait` may be called more than once, perhaps concurrently.
-
-// Here is one possible implementation.
-// !note
-
-// /cols
+// cols
 // code
 type WaitGroup_3 struct {
 	count atomic.Int64 // number of active goroutines
 }
 
-func (g *WaitGroup_3) Go(f func()) {
-	g.Add(1)
-	go func() {
-		defer g.Add(-1)
-		f()
-	}()
-}
-
-func (g *WaitGroup_3) Add(n int) {
-	g.count.Add(int64(n))
-}
-
-func (g *WaitGroup_3) Done() { g.Add(-1) }
-
-// em
 func (g *WaitGroup_3) Wait() {
 	for g.count.Load() > 0 {
 		time.Sleep(time.Millisecond)
 	}
 }
 
-// !em
 // !code
-
-// html <div> <!-- one child for flex -->
 // question
-
 // What's wrong with busy-waiting?
 // answer
 // - Sleep too long: waste time
 // - Sleep too short: waste CPU
 // !question
+
+// nextcol
 
 // question
 // Find the bug.
@@ -211,14 +145,14 @@ func (g *WaitGroup_3) Wait() {
 // </div>
 //
 //
-// <div style="font-size: 50%">
+// <div style="font-size: 70%; line-height: 1.0">
 // (Technically, this is disallowed:
 // "Note that calls with a positive delta that occur when the counter is zero must happen before a Wait.")
 // </div>
 // !question
-// html </div>
 // !cols
 
+////////////////////////////////////
 // heading Fixing busy-waiting Wait
 
 // text
@@ -291,6 +225,7 @@ func (g *WaitGroup_4) Wait() {
 // Closing a channel for a second time panics.
 // !question
 
+////////////////////////////////////
 // heading Back to a mutex
 
 // text
@@ -353,6 +288,7 @@ func (g *WaitGroup_5) Wait() {
 // TODO
 // !question
 
+////////////////////////////////////
 // heading Fixing the race
 
 // text
@@ -409,6 +345,7 @@ func (g *WaitGroup_6) Wait() {
 // `Wait` holds the mutex while it's waiting, so `add` can't run to decrement the counter.
 // !question
 
+////////////////////////////////////
 // heading Fix to previous
 
 // text
@@ -455,6 +392,7 @@ func (g *WaitGroup_7) Wait() {
 }
 
 // !code
+////////////////////////////////////
 // heading The real thing
 
 // text
