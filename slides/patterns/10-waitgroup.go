@@ -1,22 +1,15 @@
-// title Concurrency Patterns
-// subtitle
-// Demystifying Concurrency
-
-// GopherCon Europe 2026
-// !subtitle
-
-package wg
+package patterns
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-////////////////////////////////////
-// heading Implementing WaitGroup
+// title Implementing WaitGroup
 
-// html Unsynchronized version
+////////////////////////////////////
+// heading WaitGroup unsynchronized
+
 // cols
 // code
 type WaitGroup struct {
@@ -69,48 +62,75 @@ func (g *WaitGroup_1) Add(n int) {
 	// !em
 	g.count += n
 }
+func (g *WaitGroup_1) Done() { g.Add(-1) }
 
-// !code
-
-////////////////////////////////////
-// heading WaitGroup with atomics
-
-// /cols
-// code
-type WaitGroup_2 struct {
-	count atomic.Int64 // number of active goroutines // em
-}
-
-func (g *WaitGroup_2) Add(n int) {
-	g.count.Add(int64(n)) // em
+func (g *WaitGroup_1) Wait() {
+	// Wait for g.count to reach 0.
 }
 
 // !code
 
-/* text
-Atomics work well here, for now
-
-Stdlib implementation uses them
-*/
-
-// !cols
-
 ////////////////////////////////////
-// heading The Wait method
+// heading Busy-waiting (wrong)
 
 // text
 // `Wait` should block until the count is zero.
-// It may be called more than once, perhaps concurrently.
 // !text
 
 // cols
 // code
-type WaitGroup_3 struct {
-	count atomic.Int64 // number of active goroutines
+type WaitGroup_2 struct {
+	mu    sync.Mutex
+	count int
 }
 
+func (g *WaitGroup_2) Add(n int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.count += n
+}
+
+func (g *WaitGroup_2) Done() { g.Add(-1) }
+
+// !code
+// nextcol
+
+// code bad
+func (g *WaitGroup_2) Wait() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for g.count > 0 {
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// !code
+
+// question What's the problem here?
+// answer
+// `Wait` holds the mutex for its entire lifetime,
+// so `Done` is blocked.
+// !question
+// !cols
+
+// //////////////////////////////////
+// heading Busy-waiting (better)
+// cols
+type WaitGroup_3 struct {
+	mu    sync.Mutex
+	count int
+}
+
+// code weak
+
 func (g *WaitGroup_3) Wait() {
-	for g.count.Load() > 0 {
+	for {
+		g.mu.Lock()
+		c := g.count
+		g.mu.Unlock()
+		if c <= 0 {
+			break
+		}
 		time.Sleep(time.Millisecond)
 	}
 }
@@ -132,22 +152,22 @@ func (g *WaitGroup_3) Wait() {
 //
 // <div class="interleave" style="font-size: 70%">
 
-// | G1 | G2 |
+// | G-wait | G-other |
 // | -- | -- |
 // |   | Add(1) |
-// | Load | |
+// | c := g.count| |
 // | Sleep | |
 // |     | Done() |
-// |    | Add(1) |
-// | Load | |
+// |    | Add(1)\* |
+// | c := g.count| |
 // | Sleep | |
 
 // </div>
 //
 //
 // <div style="font-size: 70%; line-height: 1.0; margin-top: 20px">
-// (Technically, this is disallowed:
-// "Note that calls with a positive delta that occur when the counter is zero must happen before a Wait.")
+// *Technically, this is disallowed:
+// "Note that calls with a positive delta that occur when the counter is zero must happen before a Wait."
 // </div>
 // !question
 // !cols
@@ -155,120 +175,72 @@ func (g *WaitGroup_3) Wait() {
 ////////////////////////////////////
 // heading Fixing busy-waiting Wait
 
-// text
-// - Use a channel
-// - Close it to broadcast
-// !text
-
-// code
-type WaitGroup_4 struct {
-	count atomic.Int64  // number of active goroutines
-	done  chan struct{} // closed when count reaches zero // em
-}
-
-// em
-func NewWaitGroup_4() *WaitGroup_4 {
-	return &WaitGroup_4{done: make(chan struct{})}
-}
-
-// !em
-
-// !code
-// code
-func (g *WaitGroup_4) Add(n int) {
-	c := g.count.Add(int64(n))
-	// em
-	if c == 0 {
-		close(g.done)
-	}
-	// !em
-}
-
-func (g *WaitGroup_4) Wait() {
-	// In-class exercise: what goes here?
-}
-
-// !code
-
-// !cols
-
+// text `Wait` should actually wait.
+//
 // question
-// What should the body of Wait be?
+// What synchronization feature will make a goroutine
+// wait until something happens?<br/>
+// And how should we use it?
 // answer
-// `<-g.done`
-// That's it!
-// !question
-
-// question
-// Find the bug in `add`.
-// answer
-// Two goroutines may both end up on `if c == 0` with c == 0.
-// (How?)
-// Closing a channel for a second time panics.
-// !question
-
-////////////////////////////////////
-// heading Back to a mutex
-
-// text
-// Need a mutex to perform more than one operation atomically
-// !text
-
-// /cols
+// A channel.
+//
+// We should close it when `count` is zero, to broadcast to
+// all waiting goroutines.
 // code
 type WaitGroup_5 struct {
 	mu    sync.Mutex
 	count int           // number of active goroutines
-	done  chan struct{} // closed when count reaches zero
-}
-
-func (g *WaitGroup_5) Go(f func()) {
-	g.add(1)
-	go func() {
-		defer g.add(-1)
-		f()
-	}()
+	done  chan struct{} // closed when count == 0
 }
 
 // !code
+// !question
+
+////////////////////////////////////
+// heading Fixing busy-waiting Wait
+
+// cols
 // code
-// em
-func (g *WaitGroup_5) add(n int) {
+
+func NewWaitGroup() *WaitGroup_5 {
+	return &WaitGroup_5{done: make(chan struct{})}
+}
+
+func (g *WaitGroup_5) Add(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.done == nil {
-		g.done = make(chan struct{})
-	}
 	g.count += n
 	if g.count == 0 {
 		close(g.done)
-		g.done = nil // don't close channel twice
 	}
 }
 
-// !em
+// !code
+
+// nextcol
+
+// question
+// What should the body of Wait be?
+// answer
+// code
 func (g *WaitGroup_5) Wait() {
-	// wait for close
 	<-g.done
 }
 
 // !code
+// !question
+
+// question
+// What happens if there is another "round" with the same `WaitGroup`?
 // !cols
 
-// question
-// Find the race condition.
-// answer
-// Wait reads `g.done` without the lock.
-// !question
+// heading Exercise: Improvements
 
-// question
-// This WaitGroup can't be used for a second wave of `Go` calls: once the first
-// group of goroutines completes, the channel is nil, and `Wait` will never return.
+// text
+// 1. Get rid of the the constructor, so a zero `WaitGroup` is ready to use.
+// 2. Allow multiple "rounds": after `Wait` returns, the `WaitGroup`
 //
-// How can we fix that?
-// answer
-// TODO
-// !question
+// !text
 
 ////////////////////////////////////
 // heading Fixing the race

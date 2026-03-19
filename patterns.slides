@@ -13,7 +13,7 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- slides/waitgroup/waitgroup.go -->
+<!-- slides/patterns/00-intro.go -->
 <article class='title-slide'>
   <div class='title-text'>Concurrency Patterns</div>
   <div class='subtitle-text'
@@ -23,8 +23,26 @@
   <span class='pagenumber'>1</span>
 </article>
 <article>
-  <h1>Implementing WaitGroup</h1>
-  Unsynchronized version
+  <h1>The Patterns</h1>
+  <div class='text'>
+<ul>
+<li>WaitGroup</li>
+<li>ErrGroup</li>
+<li>Actor</li>
+<li>Pipeline</li>
+<li>Cache</li>
+</ul>
+  </div>
+  <span class='pagenumber'>2</span>
+</article>
+
+<!-- slides/patterns/10-waitgroup.go -->
+<article class='title-slide'>
+  <div class='title-text'>Implementing WaitGroup</div>
+  <span class='pagenumber'>3</span>
+</article>
+<article>
+  <h1>WaitGroup unsynchronized</h1>
   <div class="flex"><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
@@ -56,7 +74,7 @@ for a recent, subtle change to <code>WaitGroup.Go</code>.</p>
   </div>
   <div style="height: 5em"></div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>2</span>
+  <span class='pagenumber'>4</span>
 </article>
 <article>
   <h1>WaitGroup with a mutex</h1>
@@ -71,46 +89,75 @@ for a recent, subtle change to <code>WaitGroup.Go</code>.</p>
 <span class='codenum'>7</span>   defer g.mu.Unlock()</span>
 <span class='codenum'>8</span>   g.count += n
 <span class='codenum'>9</span>}
-</pre>
-  </div>
-  <span class='pagenumber'>3</span>
-</article>
-<article>
-  <h1>WaitGroup with atomics</h1>
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>2</span><span class="em">   count atomic.Int64 <comment>// number of active goroutines</span></comment>
-<span class='codenum'>3</span>}
+<span class='codenum'>10</span>func (g *WaitGroup) <defn>Done</defn>() { g.Add(-1) }
 
-<span class='codenum'>4</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
-<span class='codenum'>5</span><span class="em">   g.count.Add(int64(n))</span>
-<span class='codenum'>6</span>}
+<span class='codenum'>11</span>func (g *WaitGroup) <defn>Wait</defn>() {
+<span class='codenum'>12</span>   <comment>// Wait for g.count to reach 0.</comment>
+<span class='codenum'>13</span>}
 </pre>
   </div>
-  <div class='text'>
-<p>Atomics work well here, for now</p>
-<p>Stdlib implementation uses them</p>
-  </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>4</span>
+  <span class='pagenumber'>5</span>
 </article>
 <article>
-  <h1>The Wait method</h1>
+  <h1>Busy-waiting (wrong)</h1>
   <div class='text'>
-<p><code>Wait</code> should block until the count is zero.
-It may be called more than once, perhaps concurrently.</p>
+<p><code>Wait</code> should block until the count is zero.</p>
   </div>
   <div class="flex"><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>2</span>   count atomic.Int64 <comment>// number of active goroutines</comment>
-<span class='codenum'>3</span>}
+<span class='codenum'>2</span>   mu    sync.Mutex
+<span class='codenum'>3</span>   count int
+<span class='codenum'>4</span>}
 
-<span class='codenum'>4</span>func (g *WaitGroup) <defn>Wait</defn>() {
-<span class='codenum'>5</span>   for g.count.Load() &gt; 0 {
-<span class='codenum'>6</span>      time.Sleep(time.Millisecond)
-<span class='codenum'>7</span>   }
-<span class='codenum'>8</span>}
+<span class='codenum'>5</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
+<span class='codenum'>6</span>   g.mu.Lock()
+<span class='codenum'>7</span>   defer g.mu.Unlock()
+<span class='codenum'>8</span>   g.count += n
+<span class='codenum'>9</span>}
+
+<span class='codenum'>10</span>func (g *WaitGroup) <defn>Done</defn>() { g.Add(-1) }
+</pre>
+  </div>
+  </div><div>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span>func (g *WaitGroup) <defn>Wait</defn>() {
+<span class='codenum'>2</span>   g.mu.Lock()
+<span class='codenum'>3</span>   defer g.mu.Unlock()
+<span class='codenum'>4</span>   for g.count &gt; 0 {
+<span class='codenum'>5</span>      time.Sleep(time.Millisecond)
+<span class='codenum'>6</span>   }
+<span class='codenum'>7</span>}
+</pre>
+  </div>
+  <details>
+    <summary>
+What's the problem here?</p>
+    </summary>
+    <div class='answer'>
+<p><code>Wait</code> holds the mutex for its entire lifetime,
+so <code>Done</code> is blocked.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>6</span>
+</article>
+<article>
+  <h1>Busy-waiting (better)</h1>
+  <div class="flex"><div>
+  <div class='code weak'><pre>
+
+<span class='codenum'>1</span>func (g *WaitGroup) <defn>Wait</defn>() {
+<span class='codenum'>2</span>   for {
+<span class='codenum'>3</span>      g.mu.Lock()
+<span class='codenum'>4</span>      c := g.count
+<span class='codenum'>5</span>      g.mu.Unlock()
+<span class='codenum'>6</span>      if c &lt;= 0 {
+<span class='codenum'>7</span>         break
+<span class='codenum'>8</span>      }
+<span class='codenum'>9</span>      time.Sleep(time.Millisecond)
+<span class='codenum'>10</span>   }
+<span class='codenum'>11</span>}
 </pre>
   </div>
   <details>
@@ -135,8 +182,8 @@ Find the bug.</p>
 <table>
 <thead>
 <tr>
-<th>G1</th>
-<th>G2</th>
+<th>G-wait</th>
+<th>G-other</th>
 </tr>
 </thead>
 <tbody>
@@ -145,7 +192,7 @@ Find the bug.</p>
 <td>Add(1)</td>
 </tr>
 <tr>
-<td>Load</td>
+<td>c := g.count</td>
 <td></td>
 </tr>
 <tr>
@@ -158,10 +205,10 @@ Find the bug.</p>
 </tr>
 <tr>
 <td></td>
-<td>Add(1)</td>
+<td>Add(1)*</td>
 </tr>
 <tr>
-<td>Load</td>
+<td>c := g.count</td>
 <td></td>
 </tr>
 <tr>
@@ -172,146 +219,104 @@ Find the bug.</p>
 </table>
 </div>
 <div style="font-size: 70%; line-height: 1.0; margin-top: 20px">
-(Technically, this is disallowed:
-"Note that calls with a positive delta that occur when the counter is zero must happen before a Wait.")
+*Technically, this is disallowed:
+"Note that calls with a positive delta that occur when the counter is zero must happen before a Wait."
 </div>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>5</span>
+  <span class='pagenumber'>7</span>
 </article>
 <article>
   <h1>Fixing busy-waiting Wait</h1>
   <div class='text'>
-<ul>
-<li>Use a channel</li>
-<li>Close it to broadcast</li>
-</ul>
+<p><code>Wait</code> should actually wait.</p>
   </div>
-  <div class='text'>
-<p>We'll use a channel. Channels are the only way we've seen
-for threads to wait for an event to occur.</p>
-<p>The trick here is to close the channel, thereby signaling all readers.
-If we sent something to the channel, that would only wake up one reader.</p>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>2</span>   count atomic.Int64  <comment>// number of active goroutines</comment>
-<span class='codenum'>3</span><span class="em">   done  chan struct{} <comment>// closed when count reaches zero</span></comment>
-<span class='codenum'>4</span>}
-
-<span class='codenum'>5</span><span class="em">func <defn>NewWaitGroup</defn>() *WaitGroup {
-<span class='codenum'>6</span>   return &amp;WaitGroup{done: make(chan struct{})}
-<span class='codenum'>7</span>}
-<span class='codenum'>8</span></span>
-</pre>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
-<span class='codenum'>2</span>   c := g.count.Add(int64(n))
-<span class='codenum'>3</span><span class="em">   if c == 0 {
-<span class='codenum'>4</span>      close(g.done)
-<span class='codenum'>5</span>   }</span>
-<span class='codenum'>6</span>}
-
-<span class='codenum'>7</span>func (g *WaitGroup) <defn>Wait</defn>() {
-<span class='codenum'>8</span>   <comment>// In-class exercise: what goes here?</comment>
-<span class='codenum'>9</span>}
-</pre>
-  </div>
-  </div></div> <!-- flex -->
   <details>
     <summary>
-What should the body of Wait be?</p>
+What synchronization feature will make a goroutine
+wait until something happens?<br/>
+And how should we use it?</p>
     </summary>
     <div class='answer'>
-<p><code>&lt;-g.done</code>
-That's it!</p>
+<p>A channel.</p>
+<p>We should close it when <code>count</code> is zero, to broadcast to
+all waiting goroutines.</p>
     </div>
-  </details>
-  <details>
-    <summary>
-Find the bug in <code>add</code>.</p>
-    </summary>
-    <div class='answer'>
-<p>Two goroutines may both end up on <code>if c == 0</code> with c == 0.
-(How?)
-Closing a channel for a second time panics.</p>
-    </div>
-  </details>
-  <span class='pagenumber'>6</span>
-</article>
-<article>
-  <h1>Back to a mutex</h1>
-  <div class='text'>
-<p>Need a mutex to perform more than one operation atomically</p>
-  </div>
-  <div class='code'><pre>
+    <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
 <span class='codenum'>2</span>   mu    sync.Mutex
 <span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
-<span class='codenum'>4</span>   done  chan struct{} <comment>// closed when count reaches zero</comment>
+<span class='codenum'>4</span>   done  chan struct{} <comment>// closed when count == 0</comment>
 <span class='codenum'>5</span>}
-
-<span class='codenum'>6</span>func (g *WaitGroup) <defn>Go</defn>(f func()) {
-<span class='codenum'>7</span>   g.add(1)
-<span class='codenum'>8</span>   go func() {
-<span class='codenum'>9</span>      defer g.add(-1)
-<span class='codenum'>10</span>      f()
-<span class='codenum'>11</span>   }()
-<span class='codenum'>12</span>}
 </pre>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span><span class="em">func (g *WaitGroup) <defn>add</defn>(n int) {
-<span class='codenum'>2</span>   g.mu.Lock()
-<span class='codenum'>3</span>   defer g.mu.Unlock()
-<span class='codenum'>4</span>   if g.done == nil {
-<span class='codenum'>5</span>      g.done = make(chan struct{})
-<span class='codenum'>6</span>   }
+    </div>
+    <span class='pagenumber'>8</span>
+  </article>
+  <article>
+    <h1>Fixing busy-waiting Wait</h1>
+    <div class="flex"><div>
+    <div class='code'><pre>
+
+<span class='codenum'>1</span>func <defn>NewWaitGroup</defn>() *WaitGroup {
+<span class='codenum'>2</span>   return &amp;WaitGroup{done: make(chan struct{})}
+<span class='codenum'>3</span>}
+
+<span class='codenum'>4</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
+<span class='codenum'>5</span>   g.mu.Lock()
+<span class='codenum'>6</span>   defer g.mu.Unlock()
 <span class='codenum'>7</span>   g.count += n
 <span class='codenum'>8</span>   if g.count == 0 {
 <span class='codenum'>9</span>      close(g.done)
-<span class='codenum'>10</span>      g.done = nil <comment>// don&#39;t close channel twice</comment>
-<span class='codenum'>11</span>   }
-<span class='codenum'>12</span>}
-<span class='codenum'>13</span></span>
-<span class='codenum'>14</span>func (g *WaitGroup) <defn>Wait</defn>() {
-<span class='codenum'>15</span>   <comment>// wait for close</comment>
-<span class='codenum'>16</span>   &lt;-g.done
-<span class='codenum'>17</span>}
+<span class='codenum'>10</span>   }
+<span class='codenum'>11</span>}
 </pre>
-  </div>
-  </div></div> <!-- flex -->
-  <details>
-    <summary>
-Find the race condition.</p>
-    </summary>
-    <div class='answer'>
-<p>Wait reads <code>g.done</code> without the lock.</p>
     </div>
-  </details>
-  <details>
-    <summary>
+    </div><div>
+    <details>
+      <summary>
+What should the body of Wait be?</p>
+      </summary>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (g *WaitGroup) <defn>Wait</defn>() {
+<span class='codenum'>2</span>   &lt;-g.done
+<span class='codenum'>3</span>}
+</pre>
+      </div>
+      </div></div> <!-- flex -->
+      <span class='pagenumber'>9</span>
+    </article>
+    <article>
+      <h1>Exercise</h1>
+      <details>
+        <summary>
+Find the race condition.</p>
+        </summary>
+        <div class='answer'>
+<p>Wait reads <code>g.done</code> without the lock.</p>
+        </div>
+      </details>
+      <details>
+        <summary>
 This WaitGroup can't be used for a second wave of <code>Go</code> calls: once the first
 group of goroutines completes, the channel is nil, and <code>Wait</code> will never return.</p>
 <p>How can we fix that?</p>
-    </summary>
-    <div class='answer'>
+        </summary>
+        <div class='answer'>
 <p>TODO</p>
-    </div>
-  </details>
-  <span class='pagenumber'>7</span>
-</article>
-<article>
-  <h1>Fixing the race</h1>
-  <div class='text'>
+        </div>
+      </details>
+      <span class='pagenumber'>10</span>
+    </article>
+    <article>
+      <h1>Fixing the race</h1>
+      <div class='text'>
 <ul>
 <li>Channel <em>operations</em> are concurrency-safe</li>
 <li>But <em>accessing a variable</em> (even one holding a channel) is not</li>
 </ul>
-  </div>
-  <div class='code'><pre>
+      </div>
+      <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
 <span class='codenum'>2</span>   mu    sync.Mutex
 <span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
@@ -326,8 +331,8 @@ group of goroutines completes, the channel is nil, and <code>Wait</code> will ne
 <span class='codenum'>11</span>   }()
 <span class='codenum'>12</span>}
 </pre>
-  </div>
-  <div class='code'><pre>
+      </div>
+      <div class='code'><pre>
 <span class='codenum'>1</span>func (g *WaitGroup) <defn>add</defn>(n int) {
 <span class='codenum'>2</span>   g.mu.Lock()
 <span class='codenum'>3</span>   defer g.mu.Unlock()
@@ -348,27 +353,27 @@ group of goroutines completes, the channel is nil, and <code>Wait</code> will ne
 <span class='codenum'>17</span>   &lt;-g.done
 <span class='codenum'>18</span>}
 <span class='codenum'>19</span></span></pre>
-  </div>
-  </div></div> <!-- flex -->
-  <details>
-    <summary>
+      </div>
+      </div></div> <!-- flex -->
+      <details>
+        <summary>
 Find the bug.</p>
-    </summary>
-    <div class='answer'>
+        </summary>
+        <div class='answer'>
 <p><code>Wait</code> holds the mutex while it's waiting, so <code>add</code> can't run to decrement the counter.</p>
-    </div>
-  </details>
-  <span class='pagenumber'>8</span>
-</article>
-<article>
-  <h1>Fix to previous</h1>
-  <div class='text'>
+        </div>
+      </details>
+      <span class='pagenumber'>11</span>
+    </article>
+    <article>
+      <h1>Fix to previous</h1>
+      <div class='text'>
 <ul>
 <li>Channel <em>operations</em> are concurrency-safe</li>
 <li>But <em>accessing a variable</em> (even one holding a channel) is not</li>
 </ul>
-  </div>
-  <div class='code'><pre>
+      </div>
+      <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
 <span class='codenum'>2</span>   mu    sync.Mutex
 <span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
@@ -404,16 +409,16 @@ Find the bug.</p>
 <span class='codenum'>30</span>   &lt;-d
 <span class='codenum'>31</span>}
 </pre>
-  </div>
-  <span class='pagenumber'>9</span>
-</article>
-<article>
-  <h1>The real thing</h1>
-  <div class='text'>
+      </div>
+      <span class='pagenumber'>12</span>
+    </article>
+    <article>
+      <h1>The real thing</h1>
+      <div class='text'>
 <p>Actual sync.WaitGroup implementation</p>
-  </div>
-  <span class='pagenumber'>10 and last</span>
-</article>
+      </div>
+      <span class='pagenumber'>13 and last</span>
+    </article>
 
     <div id="help">
       Use the left and right arrow keys or click the left and right

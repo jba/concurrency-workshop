@@ -175,9 +175,10 @@ var simpleCloses = map[string]sectionKind{
 }
 
 type section struct {
-	kind    sectionKind
-	options []string
-	content string
+	kind     sectionKind
+	options  []string
+	content  string
+	inAnswer bool // true if this section is inside an answer (for code in answer)
 }
 
 func (s section) dump() {
@@ -189,7 +190,8 @@ func (s section) dump() {
 func (s section) equal(other section) bool {
 	return s.kind == other.kind &&
 		s.content == other.content &&
-		slices.Equal(s.options, other.options)
+		slices.Equal(s.options, other.options) &&
+		s.inAnswer == other.inAnswer
 }
 
 var (
@@ -333,17 +335,18 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		}
 	}()
 
-	add := func(k sectionKind, opts []string, c string) {
+	add := func(k sectionKind, opts []string, c string, inAnswer bool) {
 		slide.sections = append(slide.sections, section{
-			kind:    k,
-			options: opts,
-			content: c,
+			kind:     k,
+			options:  opts,
+			content:  c,
+			inAnswer: inAnswer,
 		})
 	}
 
-	addCurrent := func(k sectionKind, opts []string) {
+	addCurrent := func(k sectionKind, opts []string, inAnswer bool) {
 		if current.Len() > 0 {
-			add(k, opts, current.String())
+			add(k, opts, current.String(), inAnswer)
 			current.Reset()
 		}
 	}
@@ -356,7 +359,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		if sec, ok := simpleOpens[first]; ok {
 			// Allow code inside answer
 			if kind == sectionAnswer && sec == sectionCode {
-				addCurrent(sectionAnswer, nil)
+				addCurrent(sectionAnswer, nil, false)
 				parentKind = sectionAnswer
 				kind = sectionCode
 				options = strings.Fields(rest)
@@ -374,7 +377,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				if kind != sec {
 					return nil, fmt.Errorf("%s without matching %s", first, first[1:])
 				}
-				addCurrent(sec, options)
+				addCurrent(sec, options, false)
 				kind = sectionUndefined
 				options = nil
 				continue
@@ -408,13 +411,13 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				return nil, fmt.Errorf("text inside %s", kind)
 			}
 			if rest != "" {
-				add(sectionText, nil, rest+"\n")
+				add(sectionText, nil, rest+"\n", false)
 			} else {
 				kind = sectionText
 			}
 
 		case "html":
-			add(sectionHTML, nil, rest)
+			add(sectionHTML, nil, rest, false)
 
 		case "image", "img":
 			if rest == "" {
@@ -422,7 +425,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			}
 			// Compute path relative to the directory containing the source file
 			imgPath := filepath.Join(filepath.Dir(filename), rest)
-			add(sectionHTML, nil, fmt.Sprintf("<img src=%q alt=%q />", imgPath, rest))
+			add(sectionHTML, nil, fmt.Sprintf("<img src=%q alt=%q />", imgPath, rest), false)
 
 		case "link":
 			if rest == "" {
@@ -434,14 +437,14 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			}
 			// Compute path relative to the directory containing the source file
 			linkPath := filepath.Join(filepath.Dir(filename), linkFile)
-			add(sectionHTML, nil, fmt.Sprintf("<a href=%q>%s</a>", linkPath, html.EscapeString(linkText)))
+			add(sectionHTML, nil, fmt.Sprintf("<a href=%q>%s</a>", linkPath, html.EscapeString(linkText)), false)
 
 		case "!code":
 			if kind != sectionCode {
 				return nil, errors.New("!code without matching code")
 			}
-			// Trim trailing blank line
-			add(kind, options, strings.TrimSuffix(current.String(), "\n"))
+			// Trim trailing blank line; mark inAnswer if nested in answer
+			add(kind, options, strings.TrimSuffix(current.String(), "\n"), parentKind == sectionAnswer)
 			current.Reset()
 			if parentKind != sectionUndefined {
 				kind = parentKind
@@ -456,19 +459,19 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				return nil, fmt.Errorf("question inside %s", kind)
 			}
 			if rest != "" {
-				add(sectionQuestion, nil, rest+"\n")
+				add(sectionQuestion, nil, rest+"\n", false)
 			} else {
 				kind = sectionQuestion
 			}
 
 		case "answer":
 			if kind == sectionQuestion {
-				addCurrent(sectionQuestion, nil)
+				addCurrent(sectionQuestion, nil, false)
 			} else if kind != sectionUndefined {
 				return nil, fmt.Errorf("answer inside %s", kind)
 			}
 			if rest != "" {
-				add(sectionAnswer, nil, rest+"\n")
+				add(sectionAnswer, nil, rest+"\n", false)
 			} else {
 				kind = sectionAnswer
 			}
@@ -480,18 +483,18 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			if kind == sectionQuestion {
 				return nil, errors.New("!question without answer")
 			}
-			addCurrent(sectionAnswer, options)
+			addCurrent(sectionAnswer, options, false)
 			kind = sectionUndefined
 			options = nil
 
 		case "cols":
-			add(sectionHTML, nil, "<div class=\"flex\"><div>")
+			add(sectionHTML, nil, "<div class=\"flex\"><div>", false)
 
 		case "!cols":
-			add(sectionHTML, nil, "</div></div> <!-- flex -->")
+			add(sectionHTML, nil, "</div></div> <!-- flex -->", false)
 
 		case "nextcol":
-			add(sectionHTML, nil, "</div><div>")
+			add(sectionHTML, nil, "</div><div>", false)
 
 		default:
 			matchFirst = false
@@ -499,14 +502,14 @@ func scanFile(filename string) (_ []*Slide, err error) {
 		if !matchFirst {
 			if d, c, ok := strings.Cut(first, "."); ok {
 				if d == "div" {
-					add(sectionHTML, nil, fmt.Sprintf("<div class=%q>", c))
+					add(sectionHTML, nil, fmt.Sprintf("<div class=%q>", c), false)
 					divClass = c
 					continue
 				} else if d == "!div" {
 					if c != divClass {
 						return nil, fmt.Errorf("mismatched div class: start %q, end %q", divClass, c)
 					}
-					add(sectionHTML, nil, fmt.Sprintf("</div> <!-- %s -->", c))
+					add(sectionHTML, nil, fmt.Sprintf("</div> <!-- %s -->", c), false)
 					divClass = ""
 					// fmt.Printf("## !div %q\n", c)
 					continue
@@ -515,7 +518,7 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			switch line {
 			case "*/":
 				if kind == sectionText {
-					addCurrent(sectionText, options)
+					addCurrent(sectionText, options, false)
 					kind = sectionUndefined
 					options = nil
 					continue
@@ -639,14 +642,26 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 		w.open("<article>")
 		w.linef("<h1>%s</h1>", eh)
 	}
-	for _, sec := range slide.sections {
+	for i, sec := range slide.sections {
+		// Check if next section continues inside the answer
+		nextInAnswer := i+1 < len(slide.sections) && slide.sections[i+1].inAnswer
+
 		switch sec.kind {
 		case sectionCode:
-			classes := append([]string{"code"}, sec.options...)
-			w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
-			fmt.Fprint(w, renderCode(sec.content))
-			fmt.Fprintln(w, "</pre>") // indenting adds a blank line
-			w.close("</div>")
+			if sec.inAnswer {
+				// Code inside answer: render without outer div structure
+				classes := append([]string{"code"}, sec.options...)
+				w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
+				fmt.Fprint(w, renderCode(sec.content))
+				fmt.Fprintln(w, "</pre>")
+				w.close("</div>")
+			} else {
+				classes := append([]string{"code"}, sec.options...)
+				w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
+				fmt.Fprint(w, renderCode(sec.content))
+				fmt.Fprintln(w, "</pre>") // indenting adds a blank line
+				w.close("</div>")
+			}
 		case sectionText:
 			w.open("<div class='text'>")
 			fmt.Fprint(w, renderMarkdown(sec.content))
@@ -660,7 +675,10 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 			w.open("<div class='answer'>")
 			fmt.Fprint(w, renderMarkdown(sec.content))
 			w.close("</div>")
-			w.close("</details>")
+			// Only close details if not followed by more answer content
+			if !nextInAnswer {
+				w.close("</details>")
+			}
 		case sectionOutput:
 			// Avoid two consecutive inline-block divs from appearing
 			// next to each other.

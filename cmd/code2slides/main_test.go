@@ -130,15 +130,41 @@ func TestCodeInAnswer(t *testing.T) {
 		t.Fatalf("got %d slides, want 1", len(slides))
 	}
 	slide := slides[0]
-	// Should have: question, answer (before code), code, answer (after code)
+	// Should have: question, answer (before code), code (inAnswer), answer (after code)
 	wantSections := []section{
 		{kind: sectionQuestion, content: "How do you print hello?\n"},
 		{kind: sectionAnswer, content: "Use fmt.Println:\n"},
-		{kind: sectionCode, content: "fmt.Println(\"hello\")"},
+		{kind: sectionCode, content: "fmt.Println(\"hello\")", inAnswer: true},
 		{kind: sectionAnswer, content: "That's it!\n"},
 	}
 	if !sectionsEqual(slide.sections, wantSections) {
 		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
+	}
+}
+
+func TestCodeInAnswerHTML(t *testing.T) {
+	slides, err := scanFile("testdata/code_in_answer.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	slide := slides[0]
+
+	var buf strings.Builder
+	w := &indentWriter{w: &buf}
+	writeSlideHTML(w, slide, 1, false)
+	html := buf.String()
+
+	// The code should appear between <details> and </details>
+	detailsStart := strings.Index(html, "<details>")
+	detailsEnd := strings.Index(html, "</details>")
+	codeStart := strings.Index(html, "<div class='code'>")
+
+	if detailsStart == -1 || detailsEnd == -1 || codeStart == -1 {
+		t.Fatalf("missing expected HTML elements in:\n%s", html)
+	}
+	if !(detailsStart < codeStart && codeStart < detailsEnd) {
+		t.Errorf("code block not inside details block:\ndetails starts at %d, code at %d, details ends at %d\n%s",
+			detailsStart, codeStart, detailsEnd, html)
 	}
 }
 
