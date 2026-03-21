@@ -187,7 +187,7 @@ func (g *WaitGroup_3) Wait() {
 // We should close it when `count` is zero, to broadcast to
 // all waiting goroutines.
 // code
-type WaitGroup_5 struct {
+type WaitGroup_answer struct {
 	mu    sync.Mutex
 	count int           // number of active goroutines
 	done  chan struct{} // closed when count == 0
@@ -201,6 +201,11 @@ type WaitGroup_5 struct {
 
 // cols
 // code
+type WaitGroup_5 struct {
+	mu    sync.Mutex
+	count int           // number of active goroutines
+	done  chan struct{} // closed when count == 0
+}
 
 func NewWaitGroup() *WaitGroup_5 {
 	return &WaitGroup_5{done: make(chan struct{})}
@@ -230,8 +235,11 @@ func (g *WaitGroup_5) Wait() {
 // !code
 // !question
 
-// question
-// What happens if there is another "round" with the same `WaitGroup`?
+// question What happens if there is another "round" with the same `WaitGroup`?
+// answer
+// `Wait` immediately returns, and `Add` panics when the channel is closed again.
+// !question
+
 // !cols
 
 // heading Exercise: Improvements
@@ -250,5 +258,6 @@ func (g *WaitGroup_5) Wait() {
 // heading Exercise solution
 
 // code
-// include ../../exercises/waitgroup/solution/waitgroup.go /^type/ /^\}$/
+// include ../../exercises/waitgroup/solution/waitgroup.go
+// xxxinclude ../../exercises/waitgroup/solution/waitgroup.go /^type/ /^\}$/
 // !code

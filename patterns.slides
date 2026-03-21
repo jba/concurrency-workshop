@@ -257,25 +257,30 @@ all waiting goroutines.</p>
     <h1>Fixing busy-waiting Wait</h1>
     <div class="flex"><div>
     <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
+<span class='codenum'>2</span>   mu    sync.Mutex
+<span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
+<span class='codenum'>4</span>   done  chan struct{} <comment>// closed when count == 0</comment>
+<span class='codenum'>5</span>}
 
-<span class='codenum'>1</span>func <defn>NewWaitGroup</defn>() *WaitGroup {
-<span class='codenum'>2</span>   return &amp;WaitGroup{done: make(chan struct{})}
-<span class='codenum'>3</span>}
+<span class='codenum'>6</span>func <defn>NewWaitGroup</defn>() *WaitGroup {
+<span class='codenum'>7</span>   return &amp;WaitGroup{done: make(chan struct{})}
+<span class='codenum'>8</span>}
 
-<span class='codenum'>4</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
-<span class='codenum'>5</span>   g.mu.Lock()
-<span class='codenum'>6</span>   defer g.mu.Unlock()
-<span class='codenum'>7</span>   g.count += n
-<span class='codenum'>8</span>   if g.count == 0 {
-<span class='codenum'>9</span>      close(g.done)
-<span class='codenum'>10</span>   }
-<span class='codenum'>11</span>}
+<span class='codenum'>9</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
+<span class='codenum'>10</span>   g.mu.Lock()
+<span class='codenum'>11</span>   defer g.mu.Unlock()
+<span class='codenum'>12</span>   g.count += n
+<span class='codenum'>13</span>   if g.count == 0 {
+<span class='codenum'>14</span>      close(g.done)
+<span class='codenum'>15</span>   }
+<span class='codenum'>16</span>}
 </pre>
     </div>
     </div><div>
     <details>
       <summary>
-What should the body of Wait be?</p>
+What should the body of <code>Wait</code> be?</p>
       </summary>
       <div class='code'><pre>
 <span class='codenum'>1</span>func (g *WaitGroup) <defn>Wait</defn>() {
@@ -283,141 +288,84 @@ What should the body of Wait be?</p>
 <span class='codenum'>3</span>}
 </pre>
       </div>
+      <details>
+        <summary>
+What happens if there is another &quot;round&quot; with the same <code>WaitGroup</code>?</p>
+        </summary>
+        <div class='answer'>
+<p><code>Wait</code> immediately returns, and <code>Add</code> panics when the channel is closed again.</p>
+        </div>
+      </details>
       </div></div> <!-- flex -->
       <span class='pagenumber'>9</span>
     </article>
     <article>
-      <h1>Exercise</h1>
-      <details>
-        <summary>
-Find the race condition.</p>
-        </summary>
-        <div class='answer'>
-<p>Wait reads <code>g.done</code> without the lock.</p>
-        </div>
-      </details>
-      <details>
-        <summary>
-This WaitGroup can't be used for a second wave of <code>Go</code> calls: once the first
-group of goroutines completes, the channel is nil, and <code>Wait</code> will never return.</p>
-<p>How can we fix that?</p>
-        </summary>
-        <div class='answer'>
-<p>TODO</p>
-        </div>
-      </details>
+      <h1>Exercise: Improvements</h1>
+      <div class='text'>
+<ol>
+<li>Get rid of the the constructor, so a zero <code>WaitGroup</code> is ready to use.</li>
+<li>Allow multiple &quot;rounds&quot;: after <code>Wait</code> returns, the <code>WaitGroup</code> can
+be used again by calling <code>Add</code> multiple times, then <code>Wait</code>.</li>
+</ol>
+<p>Hint: modify <code>g.done</code>.</p>
+<p>Not that channel <em>operations</em> are concurrency-safe,
+but reading and writing a channel <em>variable</em> is not.</p>
+      </div>
       <span class='pagenumber'>10</span>
     </article>
     <article>
-      <h1>Fixing the race</h1>
-      <div class='text'>
-<ul>
-<li>Channel <em>operations</em> are concurrency-safe</li>
-<li>But <em>accessing a variable</em> (even one holding a channel) is not</li>
-</ul>
-      </div>
+      <h1>Exercise solution</h1>
       <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>2</span>   mu    sync.Mutex
-<span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
-<span class='codenum'>4</span>   done  chan struct{} <comment>// closed when count reaches zero</comment>
-<span class='codenum'>5</span>}
+<span class='codenum'>1</span>package waitgroup
 
-<span class='codenum'>6</span>func (g *WaitGroup) <defn>Go</defn>(f func()) {
-<span class='codenum'>7</span>   g.add(1)
-<span class='codenum'>8</span>   go func() {
-<span class='codenum'>9</span>      defer g.add(-1)
-<span class='codenum'>10</span>      f()
-<span class='codenum'>11</span>   }()
-<span class='codenum'>12</span>}
-</pre>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func (g *WaitGroup) <defn>add</defn>(n int) {
-<span class='codenum'>2</span>   g.mu.Lock()
-<span class='codenum'>3</span>   defer g.mu.Unlock()
-<span class='codenum'>4</span>   if g.done == nil {
-<span class='codenum'>5</span>      g.done = make(chan struct{})
-<span class='codenum'>6</span>   }
-<span class='codenum'>7</span>   g.count += n
-<span class='codenum'>8</span>   if g.count == 0 {
-<span class='codenum'>9</span>      close(g.done)
-<span class='codenum'>10</span>      g.done = nil <comment>// Make sure we only close this channel once.</comment>
-<span class='codenum'>11</span>   }
-<span class='codenum'>12</span>}
+<span class='codenum'>2</span>import &#34;sync&#34;
 
-<span class='codenum'>13</span><span class="em">func (g *WaitGroup) <defn>Wait</defn>() {
-<span class='codenum'>14</span>   <comment>// Wait for something to be written to the channel, or for it to be closed.</comment>
-<span class='codenum'>15</span>   g.mu.Lock()
-<span class='codenum'>16</span>   defer g.mu.Unlock()
-<span class='codenum'>17</span>   &lt;-g.done
-<span class='codenum'>18</span>}
-<span class='codenum'>19</span></span></pre>
-      </div>
-      </div></div> <!-- flex -->
-      <details>
-        <summary>
-Find the bug.</p>
-        </summary>
-        <div class='answer'>
-<p><code>Wait</code> holds the mutex while it's waiting, so <code>add</code> can't run to decrement the counter.</p>
-        </div>
-      </details>
-      <span class='pagenumber'>11</span>
-    </article>
-    <article>
-      <h1>Fix to previous</h1>
-      <div class='text'>
-<ul>
-<li>Channel <em>operations</em> are concurrency-safe</li>
-<li>But <em>accessing a variable</em> (even one holding a channel) is not</li>
-</ul>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>2</span>   mu    sync.Mutex
-<span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
-<span class='codenum'>4</span>   done  chan struct{} <comment>// closed when count reaches zero</comment>
-<span class='codenum'>5</span>}
+<comment>// WaitGroup waits for a collection of goroutines to finish.</comment>
+<comment>// A zero WaitGroup is ready to use.</comment>
+<comment>// After Wait returns, the WaitGroup can be reused for another round.</comment>
+<span class='codenum'>3</span>type <defn>WaitGroup</defn> struct {
+<span class='codenum'>4</span>   mu    sync.Mutex
+<span class='codenum'>5</span>   count int
+<span class='codenum'>6</span>   done  chan struct{}
+<span class='codenum'>7</span>}
 
-<span class='codenum'>6</span>func (g *WaitGroup) <defn>Go</defn>(f func()) {
-<span class='codenum'>7</span>   g.add(1)
-<span class='codenum'>8</span>   go func() {
-<span class='codenum'>9</span>      defer g.add(-1)
-<span class='codenum'>10</span>      f()
-<span class='codenum'>11</span>   }()
-<span class='codenum'>12</span>}
+<span class='codenum'>8</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
+<span class='codenum'>9</span>   g.mu.Lock()
+<span class='codenum'>10</span>   defer g.mu.Unlock()
+<span class='codenum'>11</span>   <comment>// Lazily create the channel</comment>
+<span class='codenum'>12</span>   if g.done == nil {
+<span class='codenum'>13</span>      g.done = make(chan struct{})
+<span class='codenum'>14</span>   }
+<span class='codenum'>15</span>   g.count += n
+<span class='codenum'>16</span>   if g.count == 0 {
+<span class='codenum'>17</span>      close(g.done)
+<span class='codenum'>18</span>      g.done = nil <comment>// Allow reuse for next round</comment>
+<span class='codenum'>19</span>   }
+<span class='codenum'>20</span>}
 
-<span class='codenum'>13</span>func (g *WaitGroup) <defn>add</defn>(n int) {
-<span class='codenum'>14</span>   g.mu.Lock()
-<span class='codenum'>15</span>   defer g.mu.Unlock()
-<span class='codenum'>16</span>   if g.done == nil {
-<span class='codenum'>17</span>      g.done = make(chan struct{})
-<span class='codenum'>18</span>   }
-<span class='codenum'>19</span>   g.count += n
-<span class='codenum'>20</span>   if g.count == 0 {
-<span class='codenum'>21</span>      close(g.done)
-<span class='codenum'>22</span>      g.done = nil <comment>// Make sure we only close this channel once.</comment>
-<span class='codenum'>23</span>   }
-<span class='codenum'>24</span>}
+<span class='codenum'>21</span>func (g *WaitGroup) <defn>Done</defn>() {
+<span class='codenum'>22</span>   g.Add(-1)
+<span class='codenum'>23</span>}
 
-<span class='codenum'>25</span>func (g *WaitGroup) <defn>Wait</defn>() {
-<span class='codenum'>26</span>   <comment>// Wait for something to be written to the channel, or for it to be closed.</comment>
-<span class='codenum'>27</span><span class="em">   g.mu.Lock()
-<span class='codenum'>28</span>   d := g.done
-<span class='codenum'>29</span>   g.mu.Unlock()</span>
-<span class='codenum'>30</span>   &lt;-d
-<span class='codenum'>31</span>}
-</pre>
+<span class='codenum'>24</span>func (g *WaitGroup) <defn>Go</defn>(f func()) {
+<span class='codenum'>25</span>   g.Add(1)
+<span class='codenum'>26</span>   go func() {
+<span class='codenum'>27</span>      defer g.Done()
+<span class='codenum'>28</span>      f()
+<span class='codenum'>29</span>   }()
+<span class='codenum'>30</span>}
+
+<span class='codenum'>31</span>func (g *WaitGroup) <defn>Wait</defn>() {
+<span class='codenum'>32</span>   g.mu.Lock()
+<span class='codenum'>33</span>   d := g.done
+<span class='codenum'>34</span>   g.mu.Unlock()
+<span class='codenum'>35</span>   if d != nil {
+<span class='codenum'>36</span>      &lt;-d
+<span class='codenum'>37</span>   }
+<span class='codenum'>38</span>}
+<comment>// xxxinclude ../../exercises/waitgroup/solution/waitgroup.go /^type/ /^\}$/</comment></pre>
       </div>
-      <span class='pagenumber'>12</span>
-    </article>
-    <article>
-      <h1>The real thing</h1>
-      <div class='text'>
-<p>Actual sync.WaitGroup implementation</p>
-      </div>
-      <span class='pagenumber'>13 and last</span>
+      <span class='pagenumber'>11 and last</span>
     </article>
 
     <div id="help">

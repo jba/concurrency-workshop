@@ -427,6 +427,28 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			imgPath := filepath.Join(filepath.Dir(filename), rest)
 			add(sectionHTML, nil, fmt.Sprintf("<img src=%q alt=%q />", imgPath, rest), false)
 
+		case "include":
+			if rest == "" {
+				return nil, errors.New("missing include filename")
+			}
+			// Handle potential */ at the end if it was a /* ... */ comment
+			rest = strings.TrimSuffix(rest, "*/")
+			rest = strings.TrimSpace(rest)
+
+			incPath := filepath.Join(filepath.Dir(filename), rest)
+			incContent, err := os.ReadFile(incPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading include file %s: %w", incPath, err)
+			}
+			if kind == sectionUndefined {
+				add(sectionHTML, nil, string(incContent), false)
+			} else {
+				current.Write(incContent)
+				if len(incContent) > 0 && incContent[len(incContent)-1] != '\n' {
+					current.WriteByte('\n')
+				}
+			}
+
 		case "link":
 			if rest == "" {
 				return nil, errors.New("missing link filename")
