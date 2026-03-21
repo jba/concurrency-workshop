@@ -53,7 +53,6 @@ func count() {
 // html <div style="height: 10vw"></div>
 
 // text One possible output:
-// text &nbsp;
 
 // output
 // 27357
@@ -127,6 +126,14 @@ What we might get:
 // !cols
 
 ////////////////////////////////////////////////
+// heading Race condition
+
+// text
+// A _race condition_ is when your program
+// allows interleavings that are incorrect.
+// !text
+
+////////////////////////////////////////////////
 // heading Using a mutex
 
 // cols
@@ -155,7 +162,7 @@ func count_1() {
 // !code
 
 // nextcol
-// text &nbsp;
+// text Use a mutex to prevent a race condition.
 // text The zero mutex is unlocked and ready to use.
 // text Only one goroutine between `Lock` and `Unlock`
 // (a _critical section_).
@@ -185,7 +192,7 @@ func count_1() {
 // A _transaction_ (in this course): an atomic sequence of operations
 // that makes sense for the application.
 //
-// (DB people: Atomic, Consistent and Isolated, but not Durable)
+// (Atomic, Consistent and Isolated, but not Durable)
 //
 // Examples:
 // - Money transfer
@@ -200,6 +207,8 @@ func count_1() {
 // link ../../../exercises/account/account.go Code
 // html <br/><br/><br/>
 // link ../../../exercises/account/solution/account.go Solution
+
+// XXXXXXXXXXXXXXXX TODO: explain Withdraw in more detail with separate locks
 
 ////////////////////////////////////////////////
 // heading Synchronization: more than interleavings
@@ -481,7 +490,7 @@ func count_cc() {
 // What do we think about this optimization?
 // answer
 // There is no data race, but this code is still incorrect:
-
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXX TODO subscript x
 // <div class="interleave" style="font-size: 70%">
 //
 // | G1 | G2 |
@@ -500,7 +509,7 @@ func count_cc() {
 
 // text
 // Data races are about low-level memory access.<br/>
-// Every data race is a concurrency bug (almost).
+// Every data race is a race (almost).
 //
 // But races in general are about transactions.
 //
@@ -582,9 +591,9 @@ func (g *IDGenerator_1) NewID_1() string {
 // !text
 // !cols
 
-/////////////////////////////////////////
+// ///////////////////////////////////////
 // heading Limit critical section size
-
+// XXXXXXXXXXXXXXXXXXXXXXXXx TODO remove
 // cols
 // code
 func (g *IDGenerator_1) NewID_2() string {
@@ -622,76 +631,6 @@ func (g *IDGenerator_1) NewID_3() string {
 // !cols
 
 //////////////////////////////////////////
-// heading Avoid locking during I/O
-
-// text I/O is slow.
-// text Network peers can be _arbitrarily_ slow.
-// text Sometimes you have to copy.
-
-// code
-func (s *Server) notifySessions(n string) {
-	s.mu.Lock() // required to access s.sessions
-	sessions := slices.Clone(s.sessions)
-	s.pendingNotifications[n] = nil
-	s.mu.Unlock()
-	// Do I/O with no locks held.
-	notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
-}
-
-// !code
-
-// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
-
-type Server struct {
-	mu                   sync.Mutex
-	sessions             []*ServerSession
-	pendingNotifications map[string]*int
-	opts                 struct{ Logger int }
-}
-
-type ServerSession int
-
-var changeNotificationParams map[string]int
-
-func notifySessions([]*ServerSession, string, int, int) {}
-
-//////////////////////////////////////////
-// heading Avoid locking during I/O...unless you need it
-
-func flog() {
-	var l struct {
-		outMu sync.Mutex
-		out   io.Writer
-	}
-	var buf *[]byte
-	// code
-	l.outMu.Lock()
-	defer l.outMu.Unlock()
-	_, err := l.out.Write(*buf) // avoid interleaved log lines
-	// !code
-	_ = err
-}
-
-// text From The [log package](https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go)
-//////////////////////////////////////////
-// heading Another example of copying
-
-// text We don't know how long the caller will hold on to the iterator.
-
-// code
-// Sessions returns an iterator that yields a snapshot of the server sessions.
-func (s *Server) Sessions() iter.Seq[*ServerSession] {
-	s.mu.Lock()
-	clients := slices.Clone(s.sessions)
-	s.mu.Unlock()
-	return slices.Values(clients)
-}
-
-// !code
-
-// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
-
-//////////////////////////////////////////
 // heading Atomics
 
 // cols
@@ -726,6 +665,78 @@ func (g *IDGenerator_2) NewID_3() string {
 // !cols
 
 //////////////////////////////////////////
+// heading Avoid locking during I/O
+// XXXXXXXXXXXXXXXXXXXXXXXX TODO move to patterns
+// text I/O is slow.
+// text Network peers can be _arbitrarily_ slow.
+// text Sometimes you have to copy.
+
+// code
+func (s *Server) notifySessions(n string) {
+	s.mu.Lock() // required to access s.sessions
+	sessions := slices.Clone(s.sessions)
+	s.pendingNotifications[n] = nil
+	s.mu.Unlock()
+	// Do I/O with no locks held.
+	notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
+}
+
+// !code
+
+// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
+
+type Server struct {
+	mu                   sync.Mutex
+	sessions             []*ServerSession
+	pendingNotifications map[string]*int
+	opts                 struct{ Logger int }
+}
+
+type ServerSession int
+
+var changeNotificationParams map[string]int
+
+func notifySessions([]*ServerSession, string, int, int) {}
+
+//////////////////////////////////////////
+// heading Avoid locking during I/O...unless you need it
+// XXXXXXXXXXXXXXXXX TODO pseudocode
+
+func flog() {
+	var l struct {
+		outMu sync.Mutex
+		out   io.Writer
+	}
+	var buf *[]byte
+	// code
+	l.outMu.Lock()
+	defer l.outMu.Unlock()
+	_, err := l.out.Write(*buf) // avoid interleaved log lines
+	// !code
+	_ = err
+}
+
+// text From The [log package](https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go)
+//////////////////////////////////////////
+// heading Another example of copying
+
+// XXXXXXXXXXXXXXXXX TODO just return a slice
+// text We don't know how long the caller will hold on to the iterator.
+
+// code
+// Sessions returns an iterator that yields a snapshot of the server sessions.
+func (s *Server) Sessions() iter.Seq[*ServerSession] {
+	s.mu.Lock()
+	clients := slices.Clone(s.sessions)
+	s.mu.Unlock()
+	return slices.Values(clients)
+}
+
+// !code
+
+// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
+
+//////////////////////////////////////////
 // heading Mutexes and slices
 
 // text Each slice element is a separate memory location.
@@ -746,7 +757,7 @@ func fslice1() []int {
 // heading Mutexes and slices, 2
 
 func fslice2() []int {
-	// code
+	// code bad
 	var wg sync.WaitGroup
 	var s []int
 	wg.Go(func() { s = append(s, 1) }) // em
@@ -756,14 +767,14 @@ func fslice2() []int {
 	return s
 }
 
-// question Is a mutex needed here?
+// question Why is a mutex needed here?
 // answer
-// Yes: there is a data race.
-// Both goroutines write to the same location, `s`.
+// There is a data race:
+// both goroutines write to the same location, `s`.
 // !question
-//////////////////////////////////////////
+// ////////////////////////////////////////
 // heading Mutexes and maps
-
+// XXXXXXXXXXXXXXXX TODO first match slices example
 // cols
 // code bad
 // IDGenerator generates unique IDs with different prefixes.
@@ -771,7 +782,7 @@ type IDGenerator_m1 struct {
 	nums map[string]int // prefix to next ID // em
 }
 
-func NewIDGenerator_m1(prefix string) *IDGenerator_m1 {
+func NewIDGenerator_m1() *IDGenerator_m1 {
 	return &IDGenerator_m1{nums: map[string]int{}}
 }
 
@@ -881,3 +892,5 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 // heading Exercise
 
 // text TODO?
+TODO https://github.com/modelcontextprotocol/go-sdk/pull/851/changes
+

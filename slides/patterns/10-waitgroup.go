@@ -346,9 +346,3 @@ func (g *WaitGroup_7) Wait() {
 }
 
 // !code
-////////////////////////////////////
-// heading The real thing
-
-// text
-// Actual sync.WaitGroup implementation
-// !text
