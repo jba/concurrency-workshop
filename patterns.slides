@@ -315,56 +315,39 @@ but reading and writing a channel <em>variable</em> is not.</p>
     </article>
     <article>
       <h1>Exercise solution</h1>
+      <div class="flex"><div>
       <div class='code'><pre>
-<span class='codenum'>1</span>package waitgroup
-
-<span class='codenum'>2</span>import &#34;sync&#34;
-
-<comment>// WaitGroup waits for a collection of goroutines to finish.</comment>
-<comment>// A zero WaitGroup is ready to use.</comment>
-<comment>// After Wait returns, the WaitGroup can be reused for another round.</comment>
-<span class='codenum'>3</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>4</span>   mu    sync.Mutex
-<span class='codenum'>5</span>   count int
-<span class='codenum'>6</span>   done  chan struct{}
-<span class='codenum'>7</span>}
-
-<span class='codenum'>8</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
-<span class='codenum'>9</span>   g.mu.Lock()
-<span class='codenum'>10</span>   defer g.mu.Unlock()
-<span class='codenum'>11</span>   <comment>// Lazily create the channel</comment>
-<span class='codenum'>12</span>   if g.done == nil {
-<span class='codenum'>13</span>      g.done = make(chan struct{})
-<span class='codenum'>14</span>   }
-<span class='codenum'>15</span>   g.count += n
-<span class='codenum'>16</span>   if g.count == 0 {
-<span class='codenum'>17</span>      close(g.done)
-<span class='codenum'>18</span>      g.done = nil <comment>// Allow reuse for next round</comment>
-<span class='codenum'>19</span>   }
-<span class='codenum'>20</span>}
-
-<span class='codenum'>21</span>func (g *WaitGroup) <defn>Done</defn>() {
-<span class='codenum'>22</span>   g.Add(-1)
-<span class='codenum'>23</span>}
-
-<span class='codenum'>24</span>func (g *WaitGroup) <defn>Go</defn>(f func()) {
-<span class='codenum'>25</span>   g.Add(1)
-<span class='codenum'>26</span>   go func() {
-<span class='codenum'>27</span>      defer g.Done()
-<span class='codenum'>28</span>      f()
-<span class='codenum'>29</span>   }()
-<span class='codenum'>30</span>}
-
-<span class='codenum'>31</span>func (g *WaitGroup) <defn>Wait</defn>() {
-<span class='codenum'>32</span>   g.mu.Lock()
-<span class='codenum'>33</span>   d := g.done
-<span class='codenum'>34</span>   g.mu.Unlock()
-<span class='codenum'>35</span>   if d != nil {
-<span class='codenum'>36</span>      &lt;-d
-<span class='codenum'>37</span>   }
-<span class='codenum'>38</span>}
-<comment>// xxxinclude ../../exercises/waitgroup/solution/waitgroup.go /^type/ /^\}$/</comment></pre>
+<span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
+<span class='codenum'>2</span>   mu    sync.Mutex
+<span class='codenum'>3</span>   count int
+<span class='codenum'>4</span>   done  chan struct{}
+<span class='codenum'>5</span>}
+<span class='codenum'>6</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
+<span class='codenum'>7</span>   g.mu.Lock()
+<span class='codenum'>8</span>   defer g.mu.Unlock()
+<span class='codenum'>9</span>   <comment>// Lazily create the channel</comment>
+<span class='codenum'>10</span>   if g.done == nil {
+<span class='codenum'>11</span>      g.done = make(chan struct{})
+<span class='codenum'>12</span>   }
+<span class='codenum'>13</span>   g.count += n
+<span class='codenum'>14</span>   if g.count == 0 {
+<span class='codenum'>15</span>      close(g.done)
+<span class='codenum'>16</span>      g.done = nil <comment>// Allow reuse for next round</comment>
+<span class='codenum'>17</span>   }
+<span class='codenum'>18</span>}</pre>
       </div>
+      </div><div>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (g *WaitGroup) <defn>Wait</defn>() {
+<span class='codenum'>2</span>   g.mu.Lock()
+<span class='codenum'>3</span>   d := g.done
+<span class='codenum'>4</span>   g.mu.Unlock()
+<span class='codenum'>5</span>   if d != nil {
+<span class='codenum'>6</span>      &lt;-d
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>}</pre>
+      </div>
+      </div></div> <!-- flex -->
       <span class='pagenumber'>11 and last</span>
     </article>
 

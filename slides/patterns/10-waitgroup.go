@@ -257,7 +257,14 @@ func (g *WaitGroup_5) Wait() {
 
 // heading Exercise solution
 
+// cols
 // code
-// include ../../exercises/waitgroup/solution/waitgroup.go
-// xxxinclude ../../exercises/waitgroup/solution/waitgroup.go /^type/ /^\}$/
+// include ../../exercises/waitgroup/solution/waitgroup.go /^type/ /^\}$/
+// include ../../exercises/waitgroup/solution/waitgroup.go /^func.*Add\(/ /^\}$/
 // !code
+
+// nextcol
+// code
+// include ../../exercises/waitgroup/solution/waitgroup.go /^func.*Wait\(/ /^\}$/
+// !code
+// !cols

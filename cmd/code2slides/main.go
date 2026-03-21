@@ -435,11 +435,30 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			rest = strings.TrimSuffix(rest, "*/")
 			rest = strings.TrimSpace(rest)
 
-			incPath := filepath.Join(filepath.Dir(filename), rest)
+			// Parse: FILENAME [/RE1/ [/RE2/]]
+			incFile := rest
+			var re1, re2 string
+			if i := strings.Index(rest, " /"); i >= 0 {
+				incFile = strings.TrimSpace(rest[:i])
+				reParts := strings.Split(rest[i:], "/")
+				if len(reParts) > 1 {
+					re1 = strings.TrimSpace(reParts[1])
+				}
+				if len(reParts) > 3 {
+					re2 = strings.TrimSpace(reParts[3])
+				}
+			}
+
+			incPath := filepath.Join(filepath.Dir(filename), incFile)
 			incContent, err := os.ReadFile(incPath)
 			if err != nil {
 				return nil, fmt.Errorf("error reading include file %s: %w", incPath, err)
 			}
+			incContent, err = includeRange(incContent, re1, re2)
+			if err != nil {
+				return nil, fmt.Errorf("error processing include range for %s: %w", incFile, err)
+			}
+
 			if kind == sectionUndefined {
 				add(sectionHTML, nil, string(incContent), false)
 			} else {
@@ -629,6 +648,47 @@ func scanFile(filename string) (_ []*Slide, err error) {
 
 	slides = append(slides, slide)
 	return slides, nil
+}
+
+func includeRange(content []byte, re1, re2 string) ([]byte, error) {
+	if re1 == "" {
+		return content, nil
+	}
+	lines := strings.Split(string(content), "\n")
+	r1, err := regexp.Compile(re1)
+	if err != nil {
+		return nil, fmt.Errorf("invalid re1 %q: %w", re1, err)
+	}
+	start := -1
+	for i, line := range lines {
+		if r1.MatchString(line) {
+			start = i
+			break
+		}
+	}
+	if start == -1 {
+		return nil, fmt.Errorf("regexp %q not found", re1)
+	}
+
+	end := len(lines)
+	if re2 != "" {
+		r2, err := regexp.Compile(re2)
+		if err != nil {
+			return nil, fmt.Errorf("invalid re2 %q: %w", re2, err)
+		}
+		found := false
+		for i := start + 1; i < len(lines); i++ {
+			if r2.MatchString(lines[i]) {
+				end = i + 1
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("regexp %q not found after match for %q", re2, re1)
+		}
+	}
+	return []byte(strings.Join(lines[start:end], "\n")), nil
 }
 
 // splitFirst word splits s into a first word and the remaining part.
