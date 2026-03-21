@@ -220,7 +220,7 @@ func (g *WaitGroup_5) Add(n int) {
 // nextcol
 
 // question
-// What should the body of Wait be?
+// What should the body of `Wait` be?
 // answer
 // code
 func (g *WaitGroup_5) Wait() {
@@ -238,111 +238,17 @@ func (g *WaitGroup_5) Wait() {
 
 // text
 // 1. Get rid of the the constructor, so a zero `WaitGroup` is ready to use.
-// 2. Allow multiple "rounds": after `Wait` returns, the `WaitGroup`
+// 2. Allow multiple "rounds": after `Wait` returns, the `WaitGroup` can
+// be used again by calling `Add` multiple times, then `Wait`.
 //
+// Hint: modify `g.done`.
+//
+// Not that channel _operations_ are concurrency-safe,
+// but reading and writing a channel _variable_ is not.
 // !text
 
-////////////////////////////////////
-// heading Fixing the race
-
-// text
-// - Channel _operations_ are concurrency-safe
-// - But _accessing a variable_ (even one holding a channel) is not
-// !text
-
-// /cols
-// code
-type WaitGroup_6 struct {
-	mu    sync.Mutex
-	count int           // number of active goroutines
-	done  chan struct{} // closed when count reaches zero
-}
-
-func (g *WaitGroup_6) Go(f func()) {
-	g.add(1)
-	go func() {
-		defer g.add(-1)
-		f()
-	}()
-}
-
-// !code
-// code
-func (g *WaitGroup_6) add(n int) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if g.done == nil {
-		g.done = make(chan struct{})
-	}
-	g.count += n
-	if g.count == 0 {
-		close(g.done)
-		g.done = nil // Make sure we only close this channel once.
-	}
-}
-
-// em
-func (g *WaitGroup_6) Wait() {
-	// Wait for something to be written to the channel, or for it to be closed.
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	<-g.done
-}
-
-// !em
-// !code
-// !cols
-
-// question
-// Find the bug.
-// answer
-// `Wait` holds the mutex while it's waiting, so `add` can't run to decrement the counter.
-// !question
-
-////////////////////////////////////
-// heading Fix to previous
-
-// text
-// - Channel _operations_ are concurrency-safe
-// - But _accessing a variable_ (even one holding a channel) is not
-// !text
+// heading Exercise solution
 
 // code
-type WaitGroup_7 struct {
-	mu    sync.Mutex
-	count int           // number of active goroutines
-	done  chan struct{} // closed when count reaches zero
-}
-
-func (g *WaitGroup_7) Go(f func()) {
-	g.add(1)
-	go func() {
-		defer g.add(-1)
-		f()
-	}()
-}
-
-func (g *WaitGroup_7) add(n int) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if g.done == nil {
-		g.done = make(chan struct{})
-	}
-	g.count += n
-	if g.count == 0 {
-		close(g.done)
-		g.done = nil // Make sure we only close this channel once.
-	}
-}
-
-func (g *WaitGroup_7) Wait() {
-	// Wait for something to be written to the channel, or for it to be closed.
-	// em
-	g.mu.Lock()
-	d := g.done
-	g.mu.Unlock()
-	// !em
-	<-d
-}
-
+// include ../../exercises/waitgroup/solution/waitgroup.go /^type/ /^\}$/
 // !code
