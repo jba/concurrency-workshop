@@ -2,7 +2,6 @@ package patterns
 
 import (
 	"sync"
-	"time"
 )
 
 ////////////////////////////////////
@@ -88,30 +87,30 @@ type entry[Out any] struct {
 }
 
 func (m *Memo_3[In, Out]) Call(in In) Out {
-	var waitc chan struct{}
 	m.mu.Lock()
 	e, ok := m.m[in]
-	if ok {
-		waitc = e.waitc
-	} else {
-		waitc = make(chan struct{})
-		m.m[in] = entry[Out]{waitc: waitc}
+	if !ok {
+		// Haven't seen this input before.
+		// Let other goroutines know that this one is working on it.
+		e = entry[Out]{waitc: make(chan struct{})}
+		m.m[in] = e
 	}
 	m.mu.Unlock()
 	if ok {
-		<-waitc
+		<-e.waitc
 		m.mu.Lock()
 		defer m.mu.Unlock()
 		return m.m[in].out
 	}
-	// Haven't seen this input before: call the function
-	// and cache the result.
-	out := m.f(in)
+	// Run the function without the lock.
+	e.out = m.f(in)
+	// Update the map entry with the result.
 	m.mu.Lock()
-	m.m[in] = entry[Out]{out: out, waitc: waitc}
+	m.m[in] = e
 	m.mu.Unlock()
-	close(waitc) // wake up waiters
-	return out
+	// Wake up waiting goroutines.
+	close(e.waitc)
+	return e.out
 }
 
 // !code
