@@ -348,7 +348,190 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>8</span>}</pre>
       </div>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>11 and last</span>
+      <span class='pagenumber'>11</span>
+    </article>
+    
+<!-- slides/patterns/20-cache.go -->
+    <article>
+      <h1>A concurrent function cache</h1>
+      <div class='text'>
+<p>Memoize a function: cache results of previous calls.</p>
+<p>First version: not concurrency-safe</p>
+      </div>
+      <div class="flex"><div>
+      <div class='code weak'><pre>
+<comment>// Memo memoizes function calls.</comment>
+<comment>// It is NOT safe for use by multiple goroutines.</comment>
+<span class='codenum'>1</span>type <defn>Memo[In</defn> comparable, Out any] struct {
+<span class='codenum'>2</span>   f func(In) Out
+<span class='codenum'>3</span>   m map[In]Out
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>func <defn>NewMemo[In comparable, Out any]</defn>(
+<span class='codenum'>6</span>   f func(In) Out,
+<span class='codenum'>7</span>) *Memo[In, Out] {
+<span class='codenum'>8</span>   return &amp;Memo[In, Out]{f: f, m: map[In]Out{}}
+<span class='codenum'>9</span>}
+</pre>
+      </div>
+      </div><div>
+      <div class='code weak'><pre>
+
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span>   out, ok := m.m[in]
+<span class='codenum'>3</span>   if !ok {
+<span class='codenum'>4</span>      out = m.f(in)
+<span class='codenum'>5</span>      m.m[in] = out
+<span class='codenum'>6</span>   }
+<span class='codenum'>7</span>   return out
+<span class='codenum'>8</span>}
+</pre>
+      </div>
+      </div></div> <!-- flex -->
+      <div class='text'>
+<p>(Adapted from Donovan and Kernighan, <em>The Go Programming Language</em>)</p>
+      </div>
+      <span class='pagenumber'>12</span>
+    </article>
+    <article>
+      <h1>Safe but not concurrent</h1>
+      <div class="flex"><div>
+      <div class='code weak'><pre>
+<comment>// Memo memoizes function calls.</comment>
+<comment>// It is safe for use by multiple goroutines</comment>
+<comment>// if the function is.</comment>
+<span class='codenum'>1</span>type <defn>Memo[In</defn> comparable, Out any] struct {
+<span class='codenum'>2</span>   f  func(In) Out
+<span class='codenum'>3</span><span class="em">   mu sync.Mutex</span>
+<span class='codenum'>4</span>   m  map[In]Out
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func <defn>NewMemo[In comparable, Out any]</defn>(
+<span class='codenum'>7</span>   f func(In) Out,
+<span class='codenum'>8</span>) *Memo[In, Out] {
+<span class='codenum'>9</span>   return &amp;Memo[In, Out]{f: f, m: map[In]Out{}}
+<span class='codenum'>10</span>}
+</pre>
+      </div>
+      </div><div>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span><span class="em">   m.mu.Lock()
+<span class='codenum'>3</span>   defer m.mu.Unlock()</span>
+<span class='codenum'>4</span>   out, ok := m.m[in]
+<span class='codenum'>5</span>   if !ok {
+<span class='codenum'>6</span>      out = m.f(in)
+<span class='codenum'>7</span>      m.m[in] = out
+<span class='codenum'>8</span>   }
+<span class='codenum'>9</span>   return out
+<span class='codenum'>10</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>13</span>
+    </article>
+    <article>
+      <h1>Safe and concurrent Memo, 1</h1>
+      <div class='code'><pre>
+<comment>// Memo memoizes function calls.</comment>
+<comment>// It is safe for use by multiple goroutines,</comment>
+<comment>// if the function is.</comment>
+<span class='codenum'>1</span>type <defn>Memo[In</defn> comparable, Out any] struct {
+<span class='codenum'>2</span>   f  func(In) Out
+<span class='codenum'>3</span>   mu sync.Mutex
+<span class='codenum'>4</span><span class="em">   m  map[In]*entry[Out]</span>
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func <defn>NewMemo[In comparable, Out any]</defn>(
+<span class='codenum'>7</span>   func(In) Out,
+<span class='codenum'>8</span>) *Memo[In, Out] {
+<span class='codenum'>9</span>   return &amp;Memo[In, Out]{f: f, m: map[In]*entry[Out]{}}
+<span class='codenum'>10</span>}
+
+<span class='codenum'>11</span>type <defn>entry[Out</defn> any] struct {
+<span class='codenum'>12</span>   out   Out
+<span class='codenum'>13</span>   waitc chan struct{}
+<span class='codenum'>14</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>14</span>
+    </article>
+    <article>
+      <h1>Safe and concurrent Memo, 2</h1>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span>   m.mu.Lock()
+<span class='codenum'>3</span>   e := m.m[in]
+<span class='codenum'>4</span>   if e == nil {
+<span class='codenum'>5</span>      <comment>// This is the first request for this key.</comment>
+<span class='codenum'>6</span>      <comment>// This goroutine is responsible for computing the value.</comment>
+<span class='codenum'>7</span>      e = &amp;entry[Out]{waitc: make(chan struct{})}
+<span class='codenum'>8</span>      m.m[in] = e
+<span class='codenum'>9</span>      m.mu.Unlock()
+<span class='codenum'>10</span>      e.out = m.f(in)
+<span class='codenum'>11</span>      close(e.waitc) <comment>// broadcast readiness to all waiters</comment>
+<span class='codenum'>12</span>   } else {
+<span class='codenum'>13</span>      <comment>// This key is already being computed or is ready.</comment>
+<span class='codenum'>14</span>      m.mu.Unlock()
+<span class='codenum'>15</span>      &lt;-e.waitc
+<span class='codenum'>16</span>   }
+<span class='codenum'>17</span>   return e.out
+<span class='codenum'>18</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>15</span>
+    </article>
+    <article>
+      <h1>Safe and concurrent Memo, 2</h1>
+      <div class="flex"><div>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span>   m.mu.Lock()
+<span class='codenum'>3</span>   e := m.m[in]
+<span class='codenum'>4</span>   if e == nil {
+<span class='codenum'>5</span>      <comment>// This is the first request for this key.</comment>
+<span class='codenum'>6</span>      <comment>// This goroutine is responsible for computing the value.</comment>
+<span class='codenum'>7</span>      e = &amp;entry[Out]{waitc: make(chan struct{})}
+<span class='codenum'>8</span>      m.m[in] = e
+<span class='codenum'>9</span>      m.mu.Unlock()
+<span class='codenum'>10</span><span class="em">      e.out = m.f(in)
+<span class='codenum'>11</span>      close(e.waitc) <comment>// broadcast readiness to all waiters</span></comment>
+<span class='codenum'>12</span>   } else {
+<span class='codenum'>13</span>      <comment>// This key is already being computed or is ready.</comment>
+<span class='codenum'>14</span>      m.mu.Unlock()
+<span class='codenum'>15</span><span class="em">      &lt;-e.waitc</span>
+<span class='codenum'>16</span>   }
+<span class='codenum'>17</span><span class="em">   return e.out</span>
+<span class='codenum'>18</span>}
+</pre>
+      </div>
+      <div class='text'>
+<p>Unlocked lines are emphasized.</p>
+      </div>
+      </div><div>
+      <details>
+        <summary>
+Why safe to access to e.waitc unlocked</p>
+        </summary>
+        <div class='answer'>
+<p>TODO</p>
+        </div>
+      </details>
+      <details>
+        <summary>
+&quot; &quot; &quot; &quot;set e.out unlocked</p>
+        </summary>
+        <div class='answer'>
+<p>TODO</p>
+        </div>
+      </details>
+      </div></div> <!-- flex -->
+      <span class='pagenumber'>16</span>
+    </article>
+    
+<!-- slides/patterns/cache_test.go -->
+    <article>
+      <h1>cache_test.go</h1>
+      <span class='pagenumber'>17 and last</span>
     </article>
 
     <div id="help">

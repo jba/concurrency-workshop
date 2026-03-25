@@ -9,19 +9,29 @@ import (
 
 // text
 // Memoize a function: cache results of previous calls.
+//
+// First version: not concurrency-safe
 // !text
 
-// code bad
+// cols
+
+// code weak
 // Memo memoizes function calls.
-// It is safe for use by multiple goroutines, if the function is.
+// It is NOT safe for use by multiple goroutines.
 type Memo[In comparable, Out any] struct {
 	f func(In) Out
 	m map[In]Out
 }
 
-func NewMemo[In comparable, Out any](f func(In) Out) *Memo[In, Out] {
+func NewMemo[In comparable, Out any](
+	f func(In) Out,
+) *Memo[In, Out] {
 	return &Memo[In, Out]{f: f, m: map[In]Out{}}
 }
+
+// !code
+// nextcol
+// code weak
 
 func (m *Memo[In, Out]) Call(in In) Out {
 	out, ok := m.m[in]
@@ -33,23 +43,31 @@ func (m *Memo[In, Out]) Call(in In) Out {
 }
 
 // !code
-
+// !cols
+// text (Adapted from Donovan and Kernighan, _The Go Programming Language_)
 ////////////////////////////////////
 // heading Safe but not concurrent
 
+// cols
 // code weak
 // Memo memoizes function calls.
-// It is safe for use by multiple goroutines, if the function is.
+// It is safe for use by multiple goroutines
+// if the function is.
 type Memo_2[In comparable, Out any] struct {
 	f  func(In) Out
 	mu sync.Mutex // em
 	m  map[In]Out
 }
 
-func NewMemo_2[In comparable, Out any](f func(In) Out) *Memo_2[In, Out] {
+func NewMemo_2[In comparable, Out any](
+	f func(In) Out,
+) *Memo_2[In, Out] {
 	return &Memo_2[In, Out]{f: f, m: map[In]Out{}}
 }
 
+// !code
+// nextcol
+// code
 func (m *Memo_2[In, Out]) Call(in In) Out {
 	// em
 	m.mu.Lock()
@@ -66,19 +84,22 @@ func (m *Memo_2[In, Out]) Call(in In) Out {
 // !code
 
 ////////////////////////////////////
-// heading Safe and concurrent
+// heading Safe and concurrent Memo, 1
 
 // code
 // Memo memoizes function calls.
-// It is safe for use by multiple goroutines, if the function is.
+// It is safe for use by multiple goroutines,
+// if the function is.
 type Memo_3[In comparable, Out any] struct {
 	f  func(In) Out
 	mu sync.Mutex
-	m  map[In]entry[Out] // em
+	m  map[In]*entry[Out] // em
 }
 
-func NewMemo_3[In comparable, Out any](f func(In) Out) *Memo_3[In, Out] {
-	return &Memo_3[In, Out]{f: f, m: map[In]entry[Out]{}}
+func NewMemo_3[In comparable, Out any](
+	func(In) Out,
+) *Memo_3[In, Out] {
+	return &Memo_3[In, Out]{f: f, m: map[In]*entry[Out]{}}
 }
 
 type entry[Out any] struct {
@@ -86,31 +107,73 @@ type entry[Out any] struct {
 	waitc chan struct{}
 }
 
+// !code
+////////////////////////////////////
+// heading Safe and concurrent Memo, 2
+
+// code
 func (m *Memo_3[In, Out]) Call(in In) Out {
 	m.mu.Lock()
-	e, ok := m.m[in]
-	if !ok {
-		// Haven't seen this input before.
-		// Let other goroutines know that this one is working on it.
-		e = entry[Out]{waitc: make(chan struct{})}
+	e := m.m[in]
+	if e == nil {
+		// This is the first request for this key.
+		// This goroutine is responsible for computing the value.
+		e = &entry[Out]{waitc: make(chan struct{})}
 		m.m[in] = e
-	}
-	m.mu.Unlock()
-	if ok {
+		m.mu.Unlock()
+		e.out = m.f(in)
+		close(e.waitc) // broadcast readiness to all waiters
+	} else {
+		// This key is already being computed or is ready.
+		m.mu.Unlock()
 		<-e.waitc
-		m.mu.Lock()
-		defer m.mu.Unlock()
-		return m.m[in].out
 	}
-	// Run the function without the lock.
-	e.out = m.f(in)
-	// Update the map entry with the result.
-	m.mu.Lock()
-	m.m[in] = e
-	m.mu.Unlock()
-	// Wake up waiting goroutines.
-	close(e.waitc)
 	return e.out
 }
 
 // !code
+
+////////////////////////////////////
+// heading Safe and concurrent Memo, 2
+
+// cols
+
+// code
+func (m *Memo_3[In, Out]) Call(in In) Out {
+	m.mu.Lock()
+	e := m.m[in]
+	if e == nil {
+		// This is the first request for this key.
+		// This goroutine is responsible for computing the value.
+		e = &entry[Out]{waitc: make(chan struct{})}
+		m.m[in] = e
+		m.mu.Unlock()
+		// em
+		e.out = m.f(in)
+		close(e.waitc) // broadcast readiness to all waiters
+		// !em
+	} else {
+		// This key is already being computed or is ready.
+		m.mu.Unlock()
+		<-e.waitc // em
+	}
+	return e.out // em
+}
+
+// !code
+
+// text Unlocked lines are emphasized.
+
+// nextcol
+
+// question Why safe to access to e.waitc unlocked
+// answer
+// TODO
+// !question
+
+// question " " " "set e.out unlocked
+// answer
+// TODO
+// !question
+
+// !cols
