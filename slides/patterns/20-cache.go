@@ -7,11 +7,39 @@ import (
 ////////////////////////////////////
 // heading A concurrent function cache
 
-// text
-// Memoize a function: cache results of previous calls.
-//
-// First version: not concurrency-safe
-// !text
+// text Memoize a function: cache results of previous calls.
+
+// cols
+// code
+// fib computes the nth number in
+// the Fibonacci sequence.
+func fib(n int) int {
+	switch n {
+	case 0:
+		return 0
+	case 1:
+		return 1
+	default:
+		return fib(n-1) + fib(n-2)
+	}
+}
+
+// !code
+// nextcol
+
+func ex() {
+	// code
+	memo := NewMemo(fib)
+	memo.Call(3) // fib(3), fib(2), fib(1), fib(0)
+	memo.Call(4) // only calls fib(4)
+
+	// !code
+}
+
+// !cols
+
+////////////////////////////////////
+// heading First version: not concurrency-safe
 
 // cols
 
@@ -97,7 +125,7 @@ type Memo_3[In comparable, Out any] struct {
 }
 
 func NewMemo_3[In comparable, Out any](
-	func(In) Out,
+	f func(In) Out,
 ) *Memo_3[In, Out] {
 	return &Memo_3[In, Out]{f: f, m: map[In]*entry[Out]{}}
 }
@@ -139,7 +167,7 @@ func (m *Memo_3[In, Out]) Call(in In) Out {
 // cols
 
 // code
-func (m *Memo_3[In, Out]) Call(in In) Out {
+func (m *Memo_3[In, Out]) Call_1(in In) Out {
 	m.mu.Lock()
 	e := m.m[in]
 	if e == nil {
@@ -166,14 +194,16 @@ func (m *Memo_3[In, Out]) Call(in In) Out {
 
 // nextcol
 
-// question Why safe to access to e.waitc unlocked
+// question Why is it safe to access to `e.waitc` unlocked?
 // answer
-// TODO
+// It's immutable (unchanged after initialization)
 // !question
 
-// question " " " "set e.out unlocked
+// question Why is it safe to access `e.out` unlocked?
 // answer
-// TODO
+// - The first goroutine writes `e.out`, then closes the channel.
+// - Other goroutines wait for the close, then read `e.out`.
+// - The close _happens before_ the wait returns.
 // !question
 
 // !cols

@@ -14,14 +14,14 @@ type WaitGroup struct {
 func (g *WaitGroup) Add(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	// Lazily create the channel
+	// Lazily create the channel.
 	if g.done == nil {
 		g.done = make(chan struct{})
 	}
 	g.count += n
 	if g.count == 0 {
 		close(g.done)
-		g.done = nil // Allow reuse for next round
+		g.done = nil // Allow reuse for next round.
 	}
 }
 

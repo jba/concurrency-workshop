@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestFib(t *testing.T) {
+	for _, test := range []struct {
+		in, out int
+	}{
+		{0, 0},
+		{1, 1},
+		{2, 1},
+		{3, 2},
+		{4, 3},
+		{5, 5},
+	} {
+		if g, w := fib(test.in), test.out; g != w {
+			t.Errorf("fib(%d) = %d, want %d", test.in, g, w)
+		}
+	}
+}
+
 func TestCache(t *testing.T) {
 	calls := 0
 	f := func(x int) int {

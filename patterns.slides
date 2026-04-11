@@ -99,7 +99,7 @@ for a recent, subtle change to <code>WaitGroup.Go</code>.</p>
   <span class='pagenumber'>5</span>
 </article>
 <article>
-  <h1>Busy-waiting (wrong)</h1>
+  <h1>Busy-waiting</h1>
   <div class='text'>
 <p><code>Wait</code> should block until the count is zero.</p>
   </div>
@@ -143,7 +143,7 @@ so <code>Done</code> is blocked.</p>
   <span class='pagenumber'>6</span>
 </article>
 <article>
-  <h1>Busy-waiting (better)</h1>
+  <h1>Busy-waiting, 2</h1>
   <div class="flex"><div>
   <div class='code weak'><pre>
 
@@ -174,7 +174,7 @@ What's wrong with busy-waiting?</p>
   </div><div>
   <details>
     <summary>
-Find the bug.</p>
+Find the issue.</p>
     </summary>
     <div class='answer'>
 <p><code>Wait</code> might not notice a 0 count.</p>
@@ -245,22 +245,22 @@ all waiting goroutines.</p>
     </div>
     <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>2</span>   mu    sync.Mutex
-<span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
-<span class='codenum'>4</span>   done  chan struct{} <comment>// closed when count == 0</comment>
+<span class='codenum'>2</span>   done  chan struct{} <comment>// closed when count == 0</comment>
+<span class='codenum'>3</span>   mu    sync.Mutex
+<span class='codenum'>4</span>   count int <comment>// number of active goroutines</comment>
 <span class='codenum'>5</span>}
 </pre>
     </div>
     <span class='pagenumber'>8</span>
   </article>
   <article>
-    <h1>Fixing busy-waiting Wait</h1>
+    <h1>Wait without busy-waiting</h1>
     <div class="flex"><div>
     <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>WaitGroup</defn> struct {
-<span class='codenum'>2</span>   mu    sync.Mutex
-<span class='codenum'>3</span>   count int           <comment>// number of active goroutines</comment>
-<span class='codenum'>4</span>   done  chan struct{} <comment>// closed when count == 0</comment>
+<span class='codenum'>2</span>   done  chan struct{} <comment>// closed when count == 0</comment>
+<span class='codenum'>3</span>   mu    sync.Mutex
+<span class='codenum'>4</span>   count int <comment>// number of active goroutines</comment>
 <span class='codenum'>5</span>}
 
 <span class='codenum'>6</span>func <defn>NewWaitGroup</defn>() *WaitGroup {
@@ -325,14 +325,14 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>6</span>func (g *WaitGroup) <defn>Add</defn>(n int) {
 <span class='codenum'>7</span>   g.mu.Lock()
 <span class='codenum'>8</span>   defer g.mu.Unlock()
-<span class='codenum'>9</span>   <comment>// Lazily create the channel</comment>
+<span class='codenum'>9</span>   <comment>// Lazily create the channel.</comment>
 <span class='codenum'>10</span>   if g.done == nil {
 <span class='codenum'>11</span>      g.done = make(chan struct{})
 <span class='codenum'>12</span>   }
 <span class='codenum'>13</span>   g.count += n
 <span class='codenum'>14</span>   if g.count == 0 {
 <span class='codenum'>15</span>      close(g.done)
-<span class='codenum'>16</span>      g.done = nil <comment>// Allow reuse for next round</comment>
+<span class='codenum'>16</span>      g.done = nil <comment>// Allow reuse for next round.</comment>
 <span class='codenum'>17</span>   }
 <span class='codenum'>18</span>}</pre>
       </div>
@@ -356,8 +356,35 @@ but reading and writing a channel <em>variable</em> is not.</p>
       <h1>A concurrent function cache</h1>
       <div class='text'>
 <p>Memoize a function: cache results of previous calls.</p>
-<p>First version: not concurrency-safe</p>
       </div>
+      <div class="flex"><div>
+      <div class='code'><pre>
+<comment>// fib computes the nth number in</comment>
+<comment>// the Fibonacci sequence.</comment>
+<span class='codenum'>1</span>func <defn>fib</defn>(n int) int {
+<span class='codenum'>2</span>   switch n {
+<span class='codenum'>3</span>   case 0:
+<span class='codenum'>4</span>      return 0
+<span class='codenum'>5</span>   case 1:
+<span class='codenum'>6</span>      return 1
+<span class='codenum'>7</span>   default:
+<span class='codenum'>8</span>      return fib(n-1) + fib(n-2)
+<span class='codenum'>9</span>   }
+<span class='codenum'>10</span>}
+</pre>
+      </div>
+      </div><div>
+      <div class='code'><pre>
+<span class='codenum'>1</span>memo := NewMemo(fib)
+<span class='codenum'>2</span>memo.Call(3) <comment>// fib(3), fib(2), fib(1), fib(0)</comment>
+<span class='codenum'>3</span>memo.Call(4) <comment>// only calls fib(4)</comment>
+</pre>
+      </div>
+      </div></div> <!-- flex -->
+      <span class='pagenumber'>12</span>
+    </article>
+    <article>
+      <h1>First version: not concurrency-safe</h1>
       <div class="flex"><div>
       <div class='code weak'><pre>
 <comment>// Memo memoizes function calls.</comment>
@@ -391,7 +418,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
       <div class='text'>
 <p>(Adapted from Donovan and Kernighan, <em>The Go Programming Language</em>)</p>
       </div>
-      <span class='pagenumber'>12</span>
+      <span class='pagenumber'>13</span>
     </article>
     <article>
       <h1>Safe but not concurrent</h1>
@@ -427,7 +454,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>10</span>}
 </pre>
       </div>
-      <span class='pagenumber'>13</span>
+      <span class='pagenumber'>14</span>
     </article>
     <article>
       <h1>Safe and concurrent Memo, 1</h1>
@@ -442,7 +469,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>5</span>}
 
 <span class='codenum'>6</span>func <defn>NewMemo[In comparable, Out any]</defn>(
-<span class='codenum'>7</span>   func(In) Out,
+<span class='codenum'>7</span>   f func(In) Out,
 <span class='codenum'>8</span>) *Memo[In, Out] {
 <span class='codenum'>9</span>   return &amp;Memo[In, Out]{f: f, m: map[In]*entry[Out]{}}
 <span class='codenum'>10</span>}
@@ -453,7 +480,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>14</span>}
 </pre>
       </div>
-      <span class='pagenumber'>14</span>
+      <span class='pagenumber'>15</span>
     </article>
     <article>
       <h1>Safe and concurrent Memo, 2</h1>
@@ -478,7 +505,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>18</span>}
 </pre>
       </div>
-      <span class='pagenumber'>15</span>
+      <span class='pagenumber'>16</span>
     </article>
     <article>
       <h1>Safe and concurrent Memo, 2</h1>
@@ -510,27 +537,25 @@ but reading and writing a channel <em>variable</em> is not.</p>
       </div><div>
       <details>
         <summary>
-Why safe to access to e.waitc unlocked</p>
+Why is it safe to access to <code>e.waitc</code> unlocked?</p>
         </summary>
         <div class='answer'>
-<p>TODO</p>
+<p>It's immutable (unchanged after initialization)</p>
         </div>
       </details>
       <details>
         <summary>
-&quot; &quot; &quot; &quot;set e.out unlocked</p>
+Why is it safe to access <code>e.out</code> unlocked?</p>
         </summary>
         <div class='answer'>
-<p>TODO</p>
+<ul>
+<li>The first goroutine writes <code>e.out</code>, then closes the channel.</li>
+<li>Other goroutines wait for the close, then read <code>e.out</code>.</li>
+<li>The close <em>happens before</em> the wait returns.</li>
+</ul>
         </div>
       </details>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>16</span>
-    </article>
-    
-<!-- slides/patterns/cache_test.go -->
-    <article>
-      <h1>cache_test.go</h1>
       <span class='pagenumber'>17 and last</span>
     </article>
 

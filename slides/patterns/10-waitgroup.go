@@ -71,7 +71,7 @@ func (g *WaitGroup_1) Wait() {
 // !code
 
 ////////////////////////////////////
-// heading Busy-waiting (wrong)
+// heading Busy-waiting
 
 // text
 // `Wait` should block until the count is zero.
@@ -114,7 +114,7 @@ func (g *WaitGroup_2) Wait() {
 // !cols
 
 // //////////////////////////////////
-// heading Busy-waiting (better)
+// heading Busy-waiting, 2
 // cols
 type WaitGroup_3 struct {
 	mu    sync.Mutex
@@ -146,7 +146,7 @@ func (g *WaitGroup_3) Wait() {
 // nextcol
 
 // question
-// Find the bug.
+// Find the issue.
 // answer
 // `Wait` might not notice a 0 count.
 //
@@ -188,23 +188,23 @@ func (g *WaitGroup_3) Wait() {
 // all waiting goroutines.
 // code
 type WaitGroup_answer struct {
-	mu    sync.Mutex
-	count int           // number of active goroutines
 	done  chan struct{} // closed when count == 0
+	mu    sync.Mutex
+	count int // number of active goroutines
 }
 
 // !code
 // !question
 
 ////////////////////////////////////
-// heading Fixing busy-waiting Wait
+// heading Wait without busy-waiting
 
 // cols
 // code
 type WaitGroup_5 struct {
-	mu    sync.Mutex
-	count int           // number of active goroutines
 	done  chan struct{} // closed when count == 0
+	mu    sync.Mutex
+	count int // number of active goroutines
 }
 
 func NewWaitGroup() *WaitGroup_5 {
