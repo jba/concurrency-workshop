@@ -94,3 +94,21 @@ func TestMemo_3Concurrent(t *testing.T) {
 		t.Errorf("got %d calls, want 1", got)
 	}
 }
+
+func TestMemo_3Recursive(t *testing.T) {
+	// Make sure it works with a recursive function.
+	m := NewMemo_3(fib)
+	c := make(chan int, 10)
+	for range cap(c) {
+		go func() {
+			c <- m.Call(6)
+		}()
+	}
+
+	want := fib(6)
+	for range cap(c) {
+		if g := <-c; g != want {
+			t.Errorf("got %d, want %d", g, want)
+		}
+	}
+}

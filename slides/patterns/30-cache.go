@@ -4,8 +4,10 @@ import (
 	"sync"
 )
 
+// title A concurrent function cache
+
 ////////////////////////////////////
-// heading A concurrent function cache
+// heading Use
 
 // text Memoize a function: cache results of previous calls.
 
@@ -162,7 +164,7 @@ func (m *Memo_3[In, Out]) Call(in In) Out {
 // !code
 
 ////////////////////////////////////
-// heading Safe and concurrent Memo, 2
+// heading Safe and concurrent Memo: locking
 
 // cols
 
