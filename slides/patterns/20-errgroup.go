@@ -32,7 +32,8 @@ func checkURLs(urls []string) error {
 
 // !code
 
-// question How do we implement the comment?
+// question
+// How do we implement the comment?
 // answer
 // - A channel of errors
 // - A context for cancellation
@@ -45,34 +46,49 @@ func checkURLs(urls []string) error {
 
 // text "errgroup.Group is related to sync.WaitGroup but adds handling of tasks returning errors."
 
-// moo
+// text
 // ```
 // package errgroup
-
+//
 // type Group
-// func WithContext(ctx context.Context) (*Group, context.Context)
 // func (g *Group) Go(f func() error)
+// func (g *Group) Wait() error
+
+// func WithContext(ctx context.Context) (*Group, context.Context)
 // func (g *Group) SetLimit(n int)
 // func (g *Group) TryGo(f func() error) bool
-// func (g *Group) Wait() error
 // ```
-// !moo
+// !text
+
+////////////////////////////////////
+// heading A useful helper function
+
+// text This will simplify later code.
+
+// code
+func getURLErr(url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close() // always close the body!
+	return nil
+}
+
+// !code
 
 ////////////////////////////////////
 // heading Just collecting errors
+
+// text `Wait` returns the first non-nil error.
 
 // code
 func checkURLs_1(urls []string) error {
 	var eg errgroup.Group // em
 	for _, u := range urls {
 		eg.Go(func() error { // em error
-			resp, err := http.Get(u)
-			if err != nil {
-				return err
-				// TODO: stop the other goroutines.
-			}
-			resp.Body.Close() // always close the body!
-			return nil
+			// TODO: stop the other goroutines.
+			return getURLErr(u)
 		})
 	}
 	return eg.Wait()
@@ -80,25 +96,58 @@ func checkURLs_1(urls []string) error {
 
 // !code
 
-// //////////////////////////////////
+////////////////////////////////////
+// heading getURLErr with a context
+
+// code
+func getURLErr_1(ctx context.Context, url string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close() // always close the body!
+	return nil
+}
+
+// !code
+
+// ////////////////////////////////
 // heading Errors and cancellation
+
+// text The context is canceled on the first non-nil error.
+
 // code
 func checkURLs_2(ctx context.Context, urls []string) error {
 	eg, ctx := errgroup.WithContext(ctx) // em
 	for _, u := range urls {
 		eg.Go(func() error {
-			// em
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-			if err != nil {
-				return err
-			}
-			resp, err := http.DefaultClient.Do(req)
-			// em
-			if err != nil {
-				return err
-			}
-			resp.Body.Close() // always close the body!
-			return nil
+			return getURLErr_1(ctx, u)
+		})
+	}
+	return eg.Wait()
+}
+
+// !code
+
+//////////////////////////////////
+// heading Setting limits
+
+// text `SetLimit` puts a cap on the number of active goroutines.
+
+// text Useful even if you don't care about errors.
+
+// code
+func checkURLs_3(ctx context.Context, urls []string) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.SetLimit(4) // em
+	for _, u := range urls {
+		// Go blocks if there are more than 4 active goroutines.
+		eg.Go(func() error {
+			return getURLErr_1(ctx, u)
 		})
 	}
 	return eg.Wait()

@@ -4,17 +4,31 @@ import (
 	"sync"
 )
 
-// xtitle A concurrent function cache
+// title A concurrent function cache
+// subtitle
+// Adapted from Donovan and Kernighan, _The Go Programming Language_
+// !subtitle
 
 ////////////////////////////////////
-// heading Using the cache
+// heading API
 
-// text Memoize a function: cache results of previous calls.
+// text To _memoize_ a function is to cache results of previous calls.
 
+// text
+// ```
+// type Memo[In comparable, Out any]
+//
+// func NewMemo[In comparable, Out any](func(In) Out) *Memo[In, Out]
+//
+// func (m *Memo[In, Out]) Call(in In) Out
+// ````
+// !text
+
+// //////////////////////////////////
+// heading Computing Fibonacci
 // cols
 // code
-// fib computes the nth number in
-// the Fibonacci sequence.
+// fib computes the nth number in the Fibonacci sequence.
 func fib(n int) int {
 	switch n {
 	case 0:
@@ -27,6 +41,50 @@ func fib(n int) int {
 }
 
 // !code
+// nextcol
+
+// text
+// &nbsp;
+//
+// This is a classic counterexample to using recursion!
+//
+// `fib(4)` calls `fib(3)` and `fib(2)`<br/>
+// `fib(3)` calls `fib(2)` and `fib(1)`<br/>
+// `fib(2)` calls `fib(1)` and `fib(0)`<br/>
+// !text
+// !cols
+
+////////////////////////////////////
+// heading Using the cache
+
+// cols
+// code
+
+// fib computes the nth number in the Fibonacci sequence.
+func fib_1(n int) int {
+	return fibMemo.Call(n)
+}
+
+var fibMemo *Memo_2[int, int]
+
+func init() {
+	fibMemo = NewMemo_2(mfib)
+}
+
+func mfib(n int) int {
+	switch n {
+	case 0:
+		return 0
+	case 1:
+		return 1
+	default:
+		return fibMemo.Call(n-1) + fibMemo.Call(n-2)
+	}
+}
+
+// !code
+// nextcol
+// cols
 // nextcol
 
 func ex() {
@@ -74,7 +132,6 @@ func (m *Memo[In, Out]) Call(in In) Out {
 
 // !code
 // !cols
-// text (Adapted from Donovan and Kernighan, _The Go Programming Language_)
 ////////////////////////////////////
 // heading Safe but not concurrent
 

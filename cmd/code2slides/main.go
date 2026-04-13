@@ -249,6 +249,13 @@ func (w *indentWriter) linef(format string, args ...any) {
 	fmt.Fprintln(w)
 }
 
+func (w *indentWriter) lines(lines string) {
+	for line := range strings.Lines(lines) {
+		w.indent()
+		fmt.Fprint(w, line)
+	}
+}
+
 func (w *indentWriter) Write(data []byte) (int, error) {
 	if w.err != nil {
 		return 0, w.err
@@ -535,7 +542,8 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			add(sectionHTML, nil, "</div></div> <!-- flex -->", false)
 
 		case "nextcol":
-			add(sectionHTML, nil, "</div><div>", false)
+			add(sectionHTML, nil, "</div>", false)
+			add(sectionHTML, nil, "<div> <!-- next col -->", false)
 
 		default:
 			matchFirst = false
@@ -592,10 +600,10 @@ func scanFile(filename string) (_ []*Slide, err error) {
 							break
 						}
 						// Check for inline em: code // em PATTERN,PATTERN,... or code // em (whole line)
-						if idx := strings.Index(line, "// em"); idx >= 0 {
-							suffix := line[idx+len("// em"):]
+						if before, after, ok := strings.Cut(line, "// em"); ok {
+							suffix := after
 							if suffix == "" || suffix[0] == ' ' || suffix[0] == '\t' {
-								codePart := strings.TrimRight(line[:idx], " \t")
+								codePart := strings.TrimRight(before, " \t")
 								patternsStr := strings.TrimSpace(suffix)
 								if patternsStr == "" {
 									// No pattern: highlight the whole line
@@ -716,6 +724,7 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 	// 	return
 	// }
 
+	w.linef("\n<!-- slide %d -->", pageNum)
 	eh := html.EscapeString(slide.heading)
 	if slide.isTitle {
 		w.open("<article class='title-slide'>")
@@ -735,17 +744,18 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 				classes := append([]string{"code"}, sec.options...)
 				w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
 				fmt.Fprint(w, renderCode(sec.content))
-				fmt.Fprintln(w, "</pre>")
-				w.close("</div>")
+				w.close("</pre></div>")
 			} else {
 				classes := append([]string{"code"}, sec.options...)
 				w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
 				fmt.Fprint(w, renderCode(sec.content))
-				fmt.Fprintln(w, "</pre>") // indenting adds a blank line
+				fmt.Fprintln(w, "</pre>") // don't use close, avoid blank line
 				w.close("</div>")
 			}
 		case sectionText:
 			w.open("<div class='text'>")
+			// Don't use w.lines, because the markdown may render
+			// with a <pre> and then the indentation will show up.
 			fmt.Fprint(w, renderMarkdown(sec.content))
 			w.close("</div>")
 		case sectionQuestion:
@@ -777,7 +787,7 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 			w.linef("%s", sec.content)
 		case sectionSubtitle:
 			w.open("<div class='subtitle-text'>")
-			fmt.Fprint(w, renderMarkdown(sec.content))
+			w.lines(renderMarkdown(sec.content))
 			w.close("</div>")
 		}
 	}

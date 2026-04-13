@@ -3,6 +3,7 @@ package patterns
 import (
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestFib(t *testing.T) {
@@ -42,6 +43,20 @@ func TestCache(t *testing.T) {
 
 	if calls != 2 {
 		t.Errorf("got %d calls, want 2", calls)
+	}
+}
+
+func TestMemo_2Deadlock(t *testing.T) {
+	done := make(chan struct{})
+	go func() {
+		t.Log(fib_1(3))
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("no deadlock, expected one")
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 
