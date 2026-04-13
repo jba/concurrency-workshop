@@ -4,10 +4,10 @@ import (
 	"sync"
 )
 
-// title A concurrent function cache
+// xtitle A concurrent function cache
 
 ////////////////////////////////////
-// heading Use
+// heading Using the cache
 
 // text Memoize a function: cache results of previous calls.
 

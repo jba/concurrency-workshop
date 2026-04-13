@@ -1,58 +1,40 @@
 package patterns
 
 import (
-	"hash/fnv"
-	"io"
-	"os"
+	"context"
+	"net/http"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
-// title A ErrGroup: WaitGroup with Errors
+// title ErrGroup: WaitGroup with Errors
 
 // //////////////////////////////////
 // heading Using WaitGroup with errors
 
 // code
-// hashFile computes the FNV64a hash of the contents
-// of filename.
-func hashFile(filename string) (uint64, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	h := fnv.New64a()
-	if _, err := io.Copy(h, f); err != nil {
-		return 0, err
-	}
-	return h.Sum64(), nil
-}
-
-// !code
-
-// code
-// hashFiles returns the FNV64a hashes of the given files.
-func hashFiles(filenames []string) ([]uint64, error) {
+// checkURLs returns the first error found when getting the URLs.
+func checkURLs(urls []string) error {
 	var wg sync.WaitGroup
-	result := make([]uint64, len(filenames))
-	for i, f := range filenames {
+	for _, u := range urls {
 		wg.Go(func() {
-			h, err := hashFile(f)
+			resp, err := http.Get(u)
 			if err != nil {
-				// Stop the other goroutines and return the error.
+				// TODO: stop the other goroutines and return the error.
 			}
-			result[i] = h
+			resp.Body.Close() // always close the body!
 		})
 	}
-	return result, nil
+	wg.Wait()
+	return nil
 }
 
 // !code
 
 // question How do we implement the comment?
 // answer
-// - A channel of `struct { h uint64; err error }`
+// - A channel of errors
 // - A context for cancellation
 // !question
 
@@ -63,37 +45,63 @@ func hashFiles(filenames []string) ([]uint64, error) {
 
 // text "errgroup.Group is related to sync.WaitGroup but adds handling of tasks returning errors."
 
-// text
-// `package errgroup`
+// moo
+// ```
+// package errgroup
 
-// `type Group`
-// `func WithContext(ctx context.Context) (*Group, context.Context)``
-// `func (g *Group) Go(f func() error)``
-// `func (g *Group) SetLimit(n int)``
-// `func (g *Group) TryGo(f func() error) bool`
-// `func (g *Group) Wait() error`
-// !text
+// type Group
+// func WithContext(ctx context.Context) (*Group, context.Context)
+// func (g *Group) Go(f func() error)
+// func (g *Group) SetLimit(n int)
+// func (g *Group) TryGo(f func() error) bool
+// func (g *Group) Wait() error
+// ```
+// !moo
 
 ////////////////////////////////////
 // heading Just collecting errors
 
-////////////////////////////////////
-// heading
+// code
+func checkURLs_1(urls []string) error {
+	var eg errgroup.Group // em
+	for _, u := range urls {
+		eg.Go(func() error { // em error
+			resp, err := http.Get(u)
+			if err != nil {
+				return err
+				// TODO: stop the other goroutines.
+			}
+			resp.Body.Close() // always close the body!
+			return nil
+		})
+	}
+	return eg.Wait()
+}
 
-////////////////////////////////////
-// heading
+// !code
 
-////////////////////////////////////
-// heading
+// //////////////////////////////////
+// heading Errors and cancellation
+// code
+func checkURLs_2(ctx context.Context, urls []string) error {
+	eg, ctx := errgroup.WithContext(ctx) // em
+	for _, u := range urls {
+		eg.Go(func() error {
+			// em
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+			if err != nil {
+				return err
+			}
+			resp, err := http.DefaultClient.Do(req)
+			// em
+			if err != nil {
+				return err
+			}
+			resp.Body.Close() // always close the body!
+			return nil
+		})
+	}
+	return eg.Wait()
+}
 
-////////////////////////////////////
-// heading
-
-////////////////////////////////////
-// heading
-
-////////////////////////////////////
-// heading
-
-////////////////////////////////////
-// heading
+// !code

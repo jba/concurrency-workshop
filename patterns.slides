@@ -16,7 +16,7 @@
 <!-- slides/patterns/00-intro.go -->
 <article class='title-slide'>
   <div class='title-text'>Concurrency Patterns</div>
-  <div class='subtitle-text'
+  <div class='subtitle-text'>
 <p>Demystifying Concurrency</p>
 <p>GopherCon Europe 2026</p>
   </div>
@@ -351,9 +351,105 @@ but reading and writing a channel <em>variable</em> is not.</p>
       <span class='pagenumber'>11</span>
     </article>
     
-<!-- slides/patterns/20-cache.go -->
+<!-- slides/patterns/20-errgroup.go -->
+    <article class='title-slide'>
+      <div class='title-text'>ErrGroup: WaitGroup with Errors</div>
+      <span class='pagenumber'>12</span>
+    </article>
     <article>
-      <h1>A concurrent function cache</h1>
+      <h1>Using WaitGroup with errors</h1>
+      <div class='code'><pre>
+<comment>// checkURLs returns the first error found when getting the URLs.</comment>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
+<span class='codenum'>2</span>   var wg sync.WaitGroup
+<span class='codenum'>3</span>   for _, u := range urls {
+<span class='codenum'>4</span>      wg.Go(func() {
+<span class='codenum'>5</span>         resp, err := http.Get(u)
+<span class='codenum'>6</span>         if err != nil {
+<span class='codenum'>7</span>            <comment>// TODO: stop the other goroutines and return the error.</comment>
+<span class='codenum'>8</span>         }
+<span class='codenum'>9</span>         resp.Body.Close() <comment>// always close the body!</comment>
+<span class='codenum'>10</span>      })
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>   wg.Wait()
+<span class='codenum'>13</span>   return nil
+<span class='codenum'>14</span>}
+</pre>
+      </div>
+      <details>
+        <summary>
+How do we implement the comment?</p>
+        </summary>
+        <div class='answer'>
+<ul>
+<li>A channel of errors</li>
+<li>A context for cancellation</li>
+</ul>
+        </div>
+      </details>
+      <span class='pagenumber'>13</span>
+    </article>
+    <article>
+      <h1>errgroup.Group</h1>
+      <div class='text'>
+<p>golang.org/x/sync/errgroup.Group</p>
+      </div>
+      <div class='text'>
+<p>&quot;errgroup.Group is related to sync.WaitGroup but adds handling of tasks returning errors.&quot;</p>
+      </div>
+      <span class='pagenumber'>14</span>
+    </article>
+    <article>
+      <h1>Just collecting errors</h1>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
+<span class='codenum'>2</span><span class="em">   var eg errgroup.Group</span>
+<span class='codenum'>3</span>   for _, u := range urls {
+<span class='codenum'>4</span>      eg.Go(func() <span class="em">error</span> {
+<span class='codenum'>5</span>         resp, err := http.Get(u)
+<span class='codenum'>6</span>         if err != nil {
+<span class='codenum'>7</span>            return err
+<span class='codenum'>8</span>            <comment>// TODO: stop the other goroutines.</comment>
+<span class='codenum'>9</span>         }
+<span class='codenum'>10</span>         resp.Body.Close() <comment>// always close the body!</comment>
+<span class='codenum'>11</span>         return nil
+<span class='codenum'>12</span>      })
+<span class='codenum'>13</span>   }
+<span class='codenum'>14</span>   return eg.Wait()
+<span class='codenum'>15</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>15</span>
+    </article>
+    <article>
+      <h1>Errors and cancellation</h1>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(ctx context.Context, urls []string) error {
+<span class='codenum'>2</span><span class="em">   eg, ctx := errgroup.WithContext(ctx)</span>
+<span class='codenum'>3</span>   for _, u := range urls {
+<span class='codenum'>4</span>      eg.Go(func() error {
+<span class='codenum'>5</span><span class="em">         req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+<span class='codenum'>6</span>         if err != nil {
+<span class='codenum'>7</span>            return err
+<span class='codenum'>8</span>         }
+<span class='codenum'>9</span>         resp, err := http.DefaultClient.Do(req)
+<span class='codenum'>10</span><span class="em">         if err != nil {
+<span class='codenum'>11</span>            return err
+<span class='codenum'>12</span>         }
+<span class='codenum'>13</span>         resp.Body.Close() <comment>// always close the body!</comment>
+<span class='codenum'>14</span>         return nil
+<span class='codenum'>15</span>      })
+<span class='codenum'>16</span>   }
+<span class='codenum'>17</span>   return eg.Wait()
+<span class='codenum'>18</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>16</span>
+    </article>
+    
+<!-- slides/patterns/30-cache.go -->
+    <article>
+      <h1>Using the cache</h1>
       <div class='text'>
 <p>Memoize a function: cache results of previous calls.</p>
       </div>
@@ -381,7 +477,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
 </pre>
       </div>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>12</span>
+      <span class='pagenumber'>17</span>
     </article>
     <article>
       <h1>First version: not concurrency-safe</h1>
@@ -418,7 +514,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
       <div class='text'>
 <p>(Adapted from Donovan and Kernighan, <em>The Go Programming Language</em>)</p>
       </div>
-      <span class='pagenumber'>13</span>
+      <span class='pagenumber'>18</span>
     </article>
     <article>
       <h1>Safe but not concurrent</h1>
@@ -454,7 +550,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>10</span>}
 </pre>
       </div>
-      <span class='pagenumber'>14</span>
+      <span class='pagenumber'>19</span>
     </article>
     <article>
       <h1>Safe and concurrent Memo, 1</h1>
@@ -480,7 +576,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>14</span>}
 </pre>
       </div>
-      <span class='pagenumber'>15</span>
+      <span class='pagenumber'>20</span>
     </article>
     <article>
       <h1>Safe and concurrent Memo, 2</h1>
@@ -505,10 +601,10 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>18</span>}
 </pre>
       </div>
-      <span class='pagenumber'>16</span>
+      <span class='pagenumber'>21</span>
     </article>
     <article>
-      <h1>Safe and concurrent Memo, 2</h1>
+      <h1>Safe and concurrent Memo: locking</h1>
       <div class="flex"><div>
       <div class='code'><pre>
 <span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
@@ -556,7 +652,7 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
         </div>
       </details>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>17 and last</span>
+      <span class='pagenumber'>22 and last</span>
     </article>
 
     <div id="help">

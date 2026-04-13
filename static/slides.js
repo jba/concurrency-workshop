@@ -153,6 +153,7 @@ function updateSlideClass(slideNo, className) {
     return;
   }
 
+  console.log('updateSlideClass', slideNo, className);
   if (className) {
     el.classList.add(className);
   }

@@ -776,7 +776,7 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 		case sectionHTML:
 			w.linef("%s", sec.content)
 		case sectionSubtitle:
-			w.open("<div class='subtitle-text'")
+			w.open("<div class='subtitle-text'>")
 			fmt.Fprint(w, renderMarkdown(sec.content))
 			w.close("</div>")
 		}
