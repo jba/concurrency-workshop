@@ -1,12 +1,23 @@
-SPORTS
+BASEBALL
 Three strikes and you're out.
-Hit one out of the park.
+To hit one out of the park.
+They're a heavy hitter.
 Born on third and thinks they hit a home run.
+Batting a thousand.
+Step up to the plate.
+On deck.
+
+FOOTBALL
+Kickoff
+End run
+Hail Mary
+
 
 ANIMALS
 Look a gift horse in the mouth.
-You can lead a horse to water...
+You can lead a horse to water, but you can't make it drink
 To close the barn door after the horse has bolted.
+
 
 
 

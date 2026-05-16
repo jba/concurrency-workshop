@@ -200,7 +200,7 @@ var (
 )
 
 func main() {
-	outputFile := flag.String("o", "output.html", "output file name")
+	outputFile := flag.String("o", "output.slides", "output file name")
 	title := flag.String("title", "Title", "HTML page title")
 	flag.BoolVar(&includeNotes, "notes", false, "include notes and answers in output")
 	flag.BoolVar(&debug, "debug", false, "debug output")

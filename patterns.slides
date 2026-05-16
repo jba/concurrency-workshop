@@ -838,7 +838,225 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
         </div>
       </details>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>28 and last</span>
+      <span class='pagenumber'>28</span>
+    </article>
+    
+<!-- slides/patterns/40-actor.go -->
+    
+<!-- slide 29 -->
+    <article class='title-slide'>
+      <div class='title-text'>The actor pattern</div>
+      <span class='pagenumber'>29</span>
+    </article>
+    
+<!-- slide 30 -->
+    <article>
+      <h1>Concept</h1>
+      <div class="flex"><div>
+      <div class='text'>
+<p>Actor: something with behavior and state.</p>
+<p>Only the actor can access its own state.</p>
+<p>Communication is by message passing.</p>
+      </div>
+      </div>
+      <div> <!-- next col -->
+      <img src="slides/patterns/gopher-actor.png" alt="gopher-actor.png" />
+      </div></div> <!-- flex -->
+      <span class='pagenumber'>30</span>
+    </article>
+    
+<!-- slide 31 -->
+    <article>
+      <h1>Balances actor, 1</h1>
+      <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
+<span class='codenum'>2</span>   balances map[string]int <comment>// account name to balance</comment>
+<span class='codenum'>3</span>   mailbox  chan accountsMessage
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>type <defn>accountsMessage</defn> interface{ isAccountsMessage() }
+
+<span class='codenum'>6</span>type <defn>getBalance</defn> struct {
+<span class='codenum'>7</span>   name     string   <comment>// account name</comment>
+<span class='codenum'>8</span>   response chan int <comment>// where to send the result</comment>
+<span class='codenum'>9</span>}
+
+<span class='codenum'>10</span>func (getBalance) <defn>isAccountsMessage</defn>() {}
+
+<span class='codenum'>11</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>12</span>   response := make(chan int)
+<span class='codenum'>13</span>   a.mailbox &lt;- getBalance{name: name, response: response}
+<span class='codenum'>14</span>   return &lt;-response
+<span class='codenum'>15</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>31</span>
+    </article>
+    
+<!-- slide 32 -->
+    <article>
+      <h1>Balances actor, 2</h1>
+      <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>changeBalance</defn> struct {
+<span class='codenum'>2</span>   name     string
+<span class='codenum'>3</span>   amount   int
+<span class='codenum'>4</span>   response chan error
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (changeBalance) <defn>isAccountsMessage</defn>() {}
+
+<span class='codenum'>7</span>func (a *Accounts) <defn>Deposit</defn>(name string, amount int) error {
+<span class='codenum'>8</span>   response := make(chan error)
+<span class='codenum'>9</span>   a.mailbox &lt;- changeBalance{name: name, amount: amount, response: response}
+<span class='codenum'>10</span>   return &lt;-response
+<span class='codenum'>11</span>}
+
+<span class='codenum'>12</span>func (a *Accounts) <defn>Withdraw</defn>(name string, amount int) error {
+<span class='codenum'>13</span>   return a.Deposit(name, -amount)
+<span class='codenum'>14</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>32</span>
+    </article>
+    
+<!-- slide 33 -->
+    <article>
+      <h1>Balances actor, 3</h1>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>NewAccounts</defn>(names []string) *Accounts {
+<span class='codenum'>2</span>   a := &amp;Accounts{
+<span class='codenum'>3</span>      balances: map[string]int{},
+<span class='codenum'>4</span>      mailbox:  make(chan accountsMessage),
+<span class='codenum'>5</span>   }
+<span class='codenum'>6</span>   for _, name := range names {
+<span class='codenum'>7</span>      a.balances[name] = 0
+<span class='codenum'>8</span>   }
+<span class='codenum'>9</span>   go a.run()
+<span class='codenum'>10</span>   return a
+<span class='codenum'>11</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>33</span>
+    </article>
+    
+<!-- slide 34 -->
+    <article>
+      <h1>Balances actor, 4</h1>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() {
+<span class='codenum'>2</span>   for msg := range a.mailbox {
+<span class='codenum'>3</span>      switch m := msg.(type) {
+<span class='codenum'>4</span>      case changeBalance:
+<span class='codenum'>5</span>         if a.balances[m.name]+m.amount &lt; 0 {
+<span class='codenum'>6</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
+<span class='codenum'>7</span>         } else {
+<span class='codenum'>8</span>            a.balances[m.name] += m.amount
+<span class='codenum'>9</span>            m.response &lt;- nil
+<span class='codenum'>10</span>         }
+<span class='codenum'>11</span>      case getBalance:
+<span class='codenum'>12</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>13</span>      }
+<span class='codenum'>14</span>   }
+<span class='codenum'>15</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>34</span>
+    </article>
+    
+<!-- slide 35 -->
+    <article>
+      <h1>Actor pros and cons</h1>
+      <div style="line-height:6rem">
+      <div class='text'>
+<p>+ a single goroutine: no deadlocks or race conditions<br/>
++ responses can be asynchronous<br/>
++ live code controls access</p>
+<p>– a lot of code to set up<br/>
+– lots of runtime overhead</p>
+      </div>
+      </div>
+      <span class='pagenumber'>35</span>
+    </article>
+    
+<!-- slide 36 -->
+    <article>
+      <h1>Actor vs. Mutex</h1>
+      <div class='text'>
+<p>A single mutex also eliminates deadlocks and races.</p>
+      </div>
+      <div class="flex"><div>
+      <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
+<span class='codenum'>2</span>   mu       sync.Mutex
+<span class='codenum'>3</span>   balances map[string]int
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>6</span>   a.mu.Lock()
+<span class='codenum'>7</span>   defer a.mu.Unlock()
+<span class='codenum'>8</span>   return a.balances[name]
+<span class='codenum'>9</span>}
+</pre>
+      </div>
+      </div>
+      <div> <!-- next col -->
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>2</span>   response := make(chan int)
+<span class='codenum'>3</span>   a.mailbox &lt;- getBalance{
+<span class='codenum'>4</span>      name:     name,
+<span class='codenum'>5</span>      response: response,
+<span class='codenum'>6</span>   }
+<span class='codenum'>7</span>   return &lt;-response
+<span class='codenum'>8</span>}
+</pre>
+      </div>
+      </div></div> <!-- flex -->
+      <span class='pagenumber'>36</span>
+    </article>
+    
+<!-- slide 37 -->
+    <article>
+      <h1>Actor responses can be asynchronous</h1>
+      <div class='text'>
+<p>If messages are exported, callers can wait for responses.</p>
+      </div>
+      <div class='code'><pre>
+
+<span class='codenum'>1</span>func (a *Accounts) <defn>SendBalance</defn>(name string) chan int {
+<span class='codenum'>2</span>   r := make(chan int)
+<span class='codenum'>3</span>   a.mailbox &lt;- getBalance{name: name, response: r}
+<span class='codenum'>4</span><span class="em">   return r</span>
+<span class='codenum'>5</span>}
+</pre>
+      </div>
+      <div class='code'><pre>
+<span class='codenum'>1</span>accounts := NewAccounts([]string{&#34;Alice&#34;, &#34;Bob&#34;})
+<span class='codenum'>2</span>ac := accounts.SendBalance(&#34;Alice&#34;)
+<span class='codenum'>3</span>bc := accounts.SendBalance(&#34;Bob&#34;)
+
+<span class='codenum'>4</span>doOtherStuff()
+
+<span class='codenum'>5</span>abal := &lt;-ac
+<span class='codenum'>6</span>bbal := &lt;-bc</pre>
+      </div>
+      <span class='pagenumber'>37</span>
+    </article>
+    
+<!-- slides/patterns/40-actor_test.go -->
+    
+<!-- slide 38 -->
+    <article>
+      <h1>40-actor_test.go</h1>
+      <span class='pagenumber'>38</span>
+    </article>
+    
+<!-- slides/patterns/cache_test.go -->
+    
+<!-- slide 39 -->
+    <article>
+      <h1>cache_test.go</h1>
+      <span class='pagenumber'>39 and last</span>
     </article>
 
     <div id="help">
