@@ -1,3 +1,4 @@
+// TODO: use ? instead of fib--recursion is harder.
 package patterns
 
 import (

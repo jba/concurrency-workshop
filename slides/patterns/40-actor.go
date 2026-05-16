@@ -30,21 +30,18 @@ import (
 // code
 type Accounts struct {
 	balances map[string]int // account name to balance
-	mailbox  chan accountsMessage
+	getc     chan getBalance
+	changec  chan changeBalance
 }
-
-type accountsMessage interface{ isAccountsMessage() }
 
 type getBalance struct {
 	name     string   // account name
 	response chan int // where to send the result
 }
 
-func (getBalance) isAccountsMessage() {}
-
 func (a *Accounts) Balance(name string) int {
 	response := make(chan int)
-	a.mailbox <- getBalance{name: name, response: response}
+	a.getc <- getBalance{name: name, response: response}
 	return <-response
 }
 
@@ -60,11 +57,9 @@ type changeBalance struct {
 	response chan error
 }
 
-func (changeBalance) isAccountsMessage() {}
-
 func (a *Accounts) Deposit(name string, amount int) error {
 	response := make(chan error)
-	a.mailbox <- changeBalance{name: name, amount: amount, response: response}
+	a.changec <- changeBalance{name: name, amount: amount, response: response}
 	return <-response
 }
 
@@ -81,7 +76,8 @@ func (a *Accounts) Withdraw(name string, amount int) error {
 func NewAccounts(names []string) *Accounts {
 	a := &Accounts{
 		balances: map[string]int{},
-		mailbox:  make(chan accountsMessage),
+		getc:     make(chan getBalance),
+		changec:  make(chan changeBalance),
 	}
 	for _, name := range names {
 		a.balances[name] = 0
@@ -97,17 +93,17 @@ func NewAccounts(names []string) *Accounts {
 
 // code
 func (a *Accounts) run() {
-	for msg := range a.mailbox {
-		switch m := msg.(type) {
-		case changeBalance:
+	for {
+		select {
+		case m := <-a.getc:
+			m.response <- a.balances[m.name]
+		case m := <-a.changec:
 			if a.balances[m.name]+m.amount < 0 {
 				m.response <- fmt.Errorf("%s: insufficient funds", m.name)
 			} else {
 				a.balances[m.name] += m.amount
 				m.response <- nil
 			}
-		case getBalance:
-			m.response <- a.balances[m.name]
 		}
 	}
 }
@@ -152,7 +148,7 @@ func (a *Accounts_1) Balance(name string) int {
 // code
 func (a *Accounts) Balance_1(name string) int {
 	response := make(chan int)
-	a.mailbox <- getBalance{
+	a.getc <- getBalance{
 		name:     name,
 		response: response,
 	}
@@ -167,14 +163,14 @@ func (a *Accounts) Balance_1(name string) int {
 // heading Actor responses can be asynchronous
 
 // text
-// If messages are exported, callers can wait for responses.
+// By separating sending from receiving, callers can wait for responses.
 // !text
 
 // code
 
 func (a *Accounts) SendBalance(name string) chan int {
 	r := make(chan int)
-	a.mailbox <- getBalance{name: name, response: r}
+	a.getc <- getBalance{name: name, response: r}
 	return r // em
 }
 
@@ -202,22 +198,31 @@ func f() {
 // Example: priorities
 
 // code
-
 func (a *Accounts) run_1() {
-	for msg := range a.mailbox {
-		switch m := msg.(type) {
-		case changeBalance:
+	for {
+		// em
+		// If a get and change are both waiting, take the
+		// get first.
+		select {
+		case m := <-a.getc:
+			m.response <- a.balances[m.name]
+			continue
+		default:
+		}
+		// !em
+		// Take whichever is ready.
+		select {
+		case m := <-a.getc:
+			m.response <- a.balances[m.name]
+		case m := <-a.changec:
 			if a.balances[m.name]+m.amount < 0 {
 				m.response <- fmt.Errorf("%s: insufficient funds", m.name)
 			} else {
 				a.balances[m.name] += m.amount
 				m.response <- nil
 			}
-		case getBalance:
-			m.response <- a.balances[m.name]
 		}
 	}
-
 }
 
 // !code

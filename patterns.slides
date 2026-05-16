@@ -494,13 +494,15 @@ func (g *Group) TryGo(f func() error) bool
 <span class='codenum'>3</span>   if err != nil {
 <span class='codenum'>4</span>      return err
 <span class='codenum'>5</span>   }
-<span class='codenum'>6</span>   resp, err := http.DefaultClient.Do(req)
-<span class='codenum'>7</span>   if err != nil {
-<span class='codenum'>8</span>      return err
-<span class='codenum'>9</span>   }
-<span class='codenum'>10</span>   resp.Body.Close() <comment>// always close the body!</comment>
-<span class='codenum'>11</span>   return nil
-<span class='codenum'>12</span>}
+<span class='codenum'>6</span>   <comment>// Do returns immediately when req.Context is cancelled</comment>
+<span class='codenum'>7</span>   <comment>// or times out.</comment>
+<span class='codenum'>8</span>   resp, err := http.DefaultClient.Do(req)
+<span class='codenum'>9</span>   if err != nil {
+<span class='codenum'>10</span>      return err
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>   resp.Body.Close() <comment>// always close the body!</comment>
+<span class='codenum'>13</span>   return nil
+<span class='codenum'>14</span>}
 </pre>
       </div>
       <span class='pagenumber'>17</span>
@@ -871,23 +873,20 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
       <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>Accounts</defn> struct {
 <span class='codenum'>2</span>   balances map[string]int <comment>// account name to balance</comment>
-<span class='codenum'>3</span>   mailbox  chan accountsMessage
-<span class='codenum'>4</span>}
-
-<span class='codenum'>5</span>type <defn>accountsMessage</defn> interface{ isAccountsMessage() }
+<span class='codenum'>3</span>   getc     chan getBalance
+<span class='codenum'>4</span>   changec  chan changeBalance
+<span class='codenum'>5</span>}
 
 <span class='codenum'>6</span>type <defn>getBalance</defn> struct {
 <span class='codenum'>7</span>   name     string   <comment>// account name</comment>
 <span class='codenum'>8</span>   response chan int <comment>// where to send the result</comment>
 <span class='codenum'>9</span>}
 
-<span class='codenum'>10</span>func (getBalance) <defn>isAccountsMessage</defn>() {}
-
-<span class='codenum'>11</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
-<span class='codenum'>12</span>   response := make(chan int)
-<span class='codenum'>13</span>   a.mailbox &lt;- getBalance{name: name, response: response}
-<span class='codenum'>14</span>   return &lt;-response
-<span class='codenum'>15</span>}
+<span class='codenum'>10</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>11</span>   response := make(chan int)
+<span class='codenum'>12</span>   a.getc &lt;- getBalance{name: name, response: response}
+<span class='codenum'>13</span>   return &lt;-response
+<span class='codenum'>14</span>}
 </pre>
       </div>
       <span class='pagenumber'>31</span>
@@ -903,17 +902,15 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
 <span class='codenum'>4</span>   response chan error
 <span class='codenum'>5</span>}
 
-<span class='codenum'>6</span>func (changeBalance) <defn>isAccountsMessage</defn>() {}
+<span class='codenum'>6</span>func (a *Accounts) <defn>Deposit</defn>(name string, amount int) error {
+<span class='codenum'>7</span>   response := make(chan error)
+<span class='codenum'>8</span>   a.changec &lt;- changeBalance{name: name, amount: amount, response: response}
+<span class='codenum'>9</span>   return &lt;-response
+<span class='codenum'>10</span>}
 
-<span class='codenum'>7</span>func (a *Accounts) <defn>Deposit</defn>(name string, amount int) error {
-<span class='codenum'>8</span>   response := make(chan error)
-<span class='codenum'>9</span>   a.mailbox &lt;- changeBalance{name: name, amount: amount, response: response}
-<span class='codenum'>10</span>   return &lt;-response
-<span class='codenum'>11</span>}
-
-<span class='codenum'>12</span>func (a *Accounts) <defn>Withdraw</defn>(name string, amount int) error {
-<span class='codenum'>13</span>   return a.Deposit(name, -amount)
-<span class='codenum'>14</span>}
+<span class='codenum'>11</span>func (a *Accounts) <defn>Withdraw</defn>(name string, amount int) error {
+<span class='codenum'>12</span>   return a.Deposit(name, -amount)
+<span class='codenum'>13</span>}
 </pre>
       </div>
       <span class='pagenumber'>32</span>
@@ -926,14 +923,15 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
 <span class='codenum'>1</span>func <defn>NewAccounts</defn>(names []string) *Accounts {
 <span class='codenum'>2</span>   a := &amp;Accounts{
 <span class='codenum'>3</span>      balances: map[string]int{},
-<span class='codenum'>4</span>      mailbox:  make(chan accountsMessage),
-<span class='codenum'>5</span>   }
-<span class='codenum'>6</span>   for _, name := range names {
-<span class='codenum'>7</span>      a.balances[name] = 0
-<span class='codenum'>8</span>   }
-<span class='codenum'>9</span>   go a.run()
-<span class='codenum'>10</span>   return a
-<span class='codenum'>11</span>}
+<span class='codenum'>4</span>      getc:     make(chan getBalance),
+<span class='codenum'>5</span>      changec:  make(chan changeBalance),
+<span class='codenum'>6</span>   }
+<span class='codenum'>7</span>   for _, name := range names {
+<span class='codenum'>8</span>      a.balances[name] = 0
+<span class='codenum'>9</span>   }
+<span class='codenum'>10</span>   go a.run()
+<span class='codenum'>11</span>   return a
+<span class='codenum'>12</span>}
 </pre>
       </div>
       <span class='pagenumber'>33</span>
@@ -944,17 +942,17 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
       <h1>Balances actor, 4</h1>
       <div class='code'><pre>
 <span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() {
-<span class='codenum'>2</span>   for msg := range a.mailbox {
-<span class='codenum'>3</span>      switch m := msg.(type) {
-<span class='codenum'>4</span>      case changeBalance:
-<span class='codenum'>5</span>         if a.balances[m.name]+m.amount &lt; 0 {
-<span class='codenum'>6</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
-<span class='codenum'>7</span>         } else {
-<span class='codenum'>8</span>            a.balances[m.name] += m.amount
-<span class='codenum'>9</span>            m.response &lt;- nil
-<span class='codenum'>10</span>         }
-<span class='codenum'>11</span>      case getBalance:
-<span class='codenum'>12</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>2</span>   for {
+<span class='codenum'>3</span>      select {
+<span class='codenum'>4</span>      case m := &lt;-a.getc:
+<span class='codenum'>5</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>6</span>      case m := &lt;-a.changec:
+<span class='codenum'>7</span>         if a.balances[m.name]+m.amount &lt; 0 {
+<span class='codenum'>8</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
+<span class='codenum'>9</span>         } else {
+<span class='codenum'>10</span>            a.balances[m.name] += m.amount
+<span class='codenum'>11</span>            m.response &lt;- nil
+<span class='codenum'>12</span>         }
 <span class='codenum'>13</span>      }
 <span class='codenum'>14</span>   }
 <span class='codenum'>15</span>}
@@ -1003,7 +1001,7 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
       <div class='code'><pre>
 <span class='codenum'>1</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
 <span class='codenum'>2</span>   response := make(chan int)
-<span class='codenum'>3</span>   a.mailbox &lt;- getBalance{
+<span class='codenum'>3</span>   a.getc &lt;- getBalance{
 <span class='codenum'>4</span>      name:     name,
 <span class='codenum'>5</span>      response: response,
 <span class='codenum'>6</span>   }
@@ -1019,13 +1017,13 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
     <article>
       <h1>Actor responses can be asynchronous</h1>
       <div class='text'>
-<p>If messages are exported, callers can wait for responses.</p>
+<p>By separating sending from receiving, callers can wait for responses.</p>
       </div>
       <div class='code'><pre>
 
 <span class='codenum'>1</span>func (a *Accounts) <defn>SendBalance</defn>(name string) chan int {
 <span class='codenum'>2</span>   r := make(chan int)
-<span class='codenum'>3</span>   a.mailbox &lt;- getBalance{name: name, response: r}
+<span class='codenum'>3</span>   a.getc &lt;- getBalance{name: name, response: r}
 <span class='codenum'>4</span><span class="em">   return r</span>
 <span class='codenum'>5</span>}
 </pre>
@@ -1034,29 +1032,45 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
 <span class='codenum'>1</span>accounts := NewAccounts([]string{&#34;Alice&#34;, &#34;Bob&#34;})
 <span class='codenum'>2</span>ac := accounts.SendBalance(&#34;Alice&#34;)
 <span class='codenum'>3</span>bc := accounts.SendBalance(&#34;Bob&#34;)
-
 <span class='codenum'>4</span>doOtherStuff()
-
 <span class='codenum'>5</span>abal := &lt;-ac
 <span class='codenum'>6</span>bbal := &lt;-bc</pre>
       </div>
       <span class='pagenumber'>37</span>
     </article>
     
-<!-- slides/patterns/40-actor_test.go -->
-    
 <!-- slide 38 -->
     <article>
-      <h1>40-actor_test.go</h1>
-      <span class='pagenumber'>38</span>
-    </article>
-    
-<!-- slides/patterns/cache_test.go -->
-    
-<!-- slide 39 -->
-    <article>
-      <h1>cache_test.go</h1>
-      <span class='pagenumber'>39 and last</span>
+      <h1>Live code controls access</h1>
+      <div class='text'>
+<p>The actor goroutine determines how to access the state.</p>
+      </div>
+      <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() {
+<span class='codenum'>2</span>   for {
+<span class='codenum'>3</span><span class="em">      <comment>// If a get and change are both waiting, take the</comment>
+<span class='codenum'>4</span>      <comment>// get first.</comment>
+<span class='codenum'>5</span>      select {
+<span class='codenum'>6</span>      case m := &lt;-a.getc:
+<span class='codenum'>7</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>8</span>      default:
+<span class='codenum'>9</span>      }</span>
+<span class='codenum'>10</span>      select {
+<span class='codenum'>11</span>      case m := &lt;-a.getc:
+<span class='codenum'>12</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>13</span>      case m := &lt;-a.changec:
+<span class='codenum'>14</span>         if a.balances[m.name]+m.amount &lt; 0 {
+<span class='codenum'>15</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
+<span class='codenum'>16</span>         } else {
+<span class='codenum'>17</span>            a.balances[m.name] += m.amount
+<span class='codenum'>18</span>            m.response &lt;- nil
+<span class='codenum'>19</span>         }
+<span class='codenum'>20</span>      }
+<span class='codenum'>21</span>   }
+<span class='codenum'>22</span>}
+</pre>
+      </div>
+      <span class='pagenumber'>38 and last</span>
     </article>
 
     <div id="help">

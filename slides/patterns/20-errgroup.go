@@ -105,6 +105,8 @@ func getURLErr_1(ctx context.Context, url string) error {
 	if err != nil {
 		return err
 	}
+	// Do returns immediately when req.Context is cancelled
+	// or times out.
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
