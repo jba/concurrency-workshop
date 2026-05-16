@@ -616,6 +616,34 @@ func (m *Memo[In, Out]) Call(in In) Out
     <article>
       <h1>Using the cache</h1>
       <div class="flex"><div>
+      <div class='code'><pre>
+
+<comment>// fib computes the nth number in the Fibonacci sequence.</comment>
+<span class='codenum'>1</span>func <defn>fib</defn>(n int) int {
+<span class='codenum'>2</span>   return fibMemo.Call(n)
+<span class='codenum'>3</span>}
+
+<span class='codenum'>4</span>var fibMemo *Memo[int, int]
+
+<span class='codenum'>5</span>func <defn>init</defn>() {
+<span class='codenum'>6</span>   fibMemo = NewMemo(mfib)
+<span class='codenum'>7</span>}
+
+<span class='codenum'>8</span>func <defn>mfib</defn>(n int) int {
+<span class='codenum'>9</span>   switch n {
+<span class='codenum'>10</span>   case 0:
+<span class='codenum'>11</span>      return 0
+<span class='codenum'>12</span>   case 1:
+<span class='codenum'>13</span>      return 1
+<span class='codenum'>14</span>   default:
+<span class='codenum'>15</span>      return fibMemo.Call(n-1) + fibMemo.Call(n-2)
+<span class='codenum'>16</span>   }
+<span class='codenum'>17</span>}
+</pre>
+      </div>
+      </div>
+      <div> <!-- next col -->
+      <div class="flex"><div>
       </div>
       <div> <!-- next col -->
       <div class='code'><pre>
