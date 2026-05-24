@@ -320,6 +320,11 @@ pre {
   color: black;
 }
 
+pre.mermaid {
+  background: white;
+  border: 0;
+}
+
 pre.numbers span:before {
   content: attr(num);
   margin-right: 1em;

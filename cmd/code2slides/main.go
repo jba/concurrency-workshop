@@ -991,5 +991,9 @@ const bottom = `
       (Press 'H' or navigate to hide this message.)
     </div>
     <script type="application/javascript" src='static/play.js'></script>
+	<script type="module">
+	   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	   mermaid.initialize({ startOnLoad: true });
+	</script>
   </body>
 </html>`

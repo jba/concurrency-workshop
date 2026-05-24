@@ -33,8 +33,32 @@ Jba  and Ronna
   <p>
     Go 1.4 is one year old (happy birthday!)
   </p>
-  
 
+<pre class="mermaid">
+---
+config:
+  theme: 'base'
+  themeVariables:
+    fontSize: 30px
+---
+    graph LR
+    a[file1] --> b[Parse] --> c[Check]
+    a2[file2] --> b2[Parse] --> c2[Check]
+    a3[file3] --> b3[Parse] --> c3[Check]
+</pre>
+
+<pre class="mermaid">
+---
+config:
+  theme: 'base'
+  themeVariables:
+    fontSize: 30px
+---
+    graph LR
+    a[file1] --> b[Parse] --> c[Check]
+    a2[file2] --> b2[Parse] --> c2[Check]
+    a3[file3] --> b3[Parse] --> c3[Check]
+</pre>
   
   <p>
     Go 1.5 is already 6 months old!
@@ -1512,6 +1536,10 @@ BenchmarkCount_1000-4         50          30176034 ns/op</pre></div>
     
     <script type="application/javascript" src='static/play.js'></script>
     
+	<script type="module">
+	   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	   mermaid.initialize({ startOnLoad: true });
+	</script>
 
   </body>
 </html>

@@ -1053,24 +1053,115 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
 <span class='codenum'>5</span>      select {
 <span class='codenum'>6</span>      case m := &lt;-a.getc:
 <span class='codenum'>7</span>         m.response &lt;- a.balances[m.name]
-<span class='codenum'>8</span>      default:
-<span class='codenum'>9</span>      }</span>
-<span class='codenum'>10</span>      select {
-<span class='codenum'>11</span>      case m := &lt;-a.getc:
-<span class='codenum'>12</span>         m.response &lt;- a.balances[m.name]
-<span class='codenum'>13</span>      case m := &lt;-a.changec:
-<span class='codenum'>14</span>         if a.balances[m.name]+m.amount &lt; 0 {
-<span class='codenum'>15</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
-<span class='codenum'>16</span>         } else {
-<span class='codenum'>17</span>            a.balances[m.name] += m.amount
-<span class='codenum'>18</span>            m.response &lt;- nil
-<span class='codenum'>19</span>         }
-<span class='codenum'>20</span>      }
-<span class='codenum'>21</span>   }
-<span class='codenum'>22</span>}
+<span class='codenum'>8</span>         continue
+<span class='codenum'>9</span>      default:
+<span class='codenum'>10</span>      }</span>
+<span class='codenum'>11</span>      <comment>// Take whichever is ready.</comment>
+<span class='codenum'>12</span>      select {
+<span class='codenum'>13</span>      case m := &lt;-a.getc:
+<span class='codenum'>14</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>15</span>      case m := &lt;-a.changec:
+<span class='codenum'>16</span>         if a.balances[m.name]+m.amount &lt; 0 {
+<span class='codenum'>17</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
+<span class='codenum'>18</span>         } else {
+<span class='codenum'>19</span>            a.balances[m.name] += m.amount
+<span class='codenum'>20</span>            m.response &lt;- nil
+<span class='codenum'>21</span>         }
+<span class='codenum'>22</span>      }
+<span class='codenum'>23</span>   }
+<span class='codenum'>24</span>}
 </pre>
       </div>
-      <span class='pagenumber'>38 and last</span>
+      <span class='pagenumber'>38</span>
+    </article>
+    
+<!-- slides/patterns/50-pipelines.go -->
+    
+<!-- slide 39 -->
+    <article class='title-slide'>
+      <div class='title-text'>Pipelines</div>
+      <span class='pagenumber'>39</span>
+    </article>
+    
+<!-- slide 40 -->
+    <article>
+      <h1>Concept</h1>
+      <div class='text'>
+<p>You have many items.</p>
+<p>Each requires processing which can be done in parts.</p>
+<p>So:</p>
+<ul>
+<li>Process the items concurrently.</li>
+<li><em>Process the parts concurrently.</em></li>
+<li>Usually with channels.</li>
+</ul>
+      </div>
+      <span class='pagenumber'>40</span>
+    </article>
+    
+<!-- slide 41 -->
+    <article>
+      <h1>Not a pipeline</h1>
+      <div class='text'>
+<p>Each goroutine does the entire task.</p>
+      </div>
+      <img src="slides/patterns/pipelines-1.png" alt="pipelines-1.png" />
+      <span class='pagenumber'>41</span>
+    </article>
+    
+<!-- slide 42 -->
+    <article>
+      <h1>Using a pipeline</h1>
+      <div class='text'>
+<p>Each stage does one part.</p>
+      </div>
+      <img src="slides/patterns/pipelines-2.png" alt="pipelines-2.png" />
+      <br/>
+      <div class='text'>
+<p> </p>
+      </div>
+      <div class='text'>
+<p>Use buffered channels to avoid stalls.</p>
+      </div>
+      <span class='pagenumber'>42</span>
+    </article>
+    
+<!-- slide 43 -->
+    <article>
+      <h1>Advantages of pipelines</h1>
+      <div class='text'>
+<ul>
+<li>Better use of resources<br/>
+Some goroutines do I/O, some compute</li>
+<li>Plug-and-play architecture<br/>
+Wire up separate components</li>
+</ul>
+      </div>
+      <span class='pagenumber'>43</span>
+    </article>
+    
+<!-- slide 44 -->
+    <article>
+      <h1>Example: OpenTelemetry Collector</h1>
+      <img src="slides/patterns/pipelines-3.png" alt="pipelines-3.png" />
+      <span class='pagenumber'>44</span>
+    </article>
+    
+<!-- slide 45 -->
+    <article>
+      <h1>Disadvantages of pipelines</h1>
+      <div class='text'>
+<ul>
+<li>
+<p>Lots of overhead<br/>
+Each stage should involve a lot of work</p>
+</li>
+<li>
+<p>More complex code<br/></p>
+</li>
+</ul>
+      </div>
+      <span class='pagenumber'>45 and last</span>
     </article>
 
     <div id="help">
@@ -1079,5 +1170,9 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
       (Press 'H' or navigate to hide this message.)
     </div>
     <script type="application/javascript" src='static/play.js'></script>
+	<script type="module">
+	   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	   mermaid.initialize({ startOnLoad: true });
+	</script>
   </body>
 </html>
