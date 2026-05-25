@@ -892,5 +892,4 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 // heading Exercise
 
 // text TODO?
-TODO https://github.com/modelcontextprotocol/go-sdk/pull/851/changes
-
+// TODO https://github.com/modelcontextprotocol/go-sdk/pull/851/changes

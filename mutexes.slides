@@ -1264,7 +1264,7 @@ yuri.TransferTo(xena, 100)</pre>
 
 <!-- slide 39 -->
 <article>
-  <h1>Solution 1: Lower granularity</h1>
+  <h1>Solution 1: coarser granularity</h1>
   Locks protect larger critical sections.<br/>
   <div class="flex"><div>
   <div class='code small'><pre>
@@ -1357,7 +1357,84 @@ What's the problem with this approach?    </summary>
 <span class='codenum'>15</span>}
 </pre>
   </div>
-  <span class='pagenumber'>40 and last</span>
+  <span class='pagenumber'>40</span>
+</article>
+
+<!-- slides/mutexes/30-checklocks.go -->
+
+<!-- slide 41 -->
+<article class='title-slide'>
+  <div class='title-text'>checklocks</div>
+  <span class='pagenumber'>41</span>
+</article>
+
+<!-- slide 42 -->
+<article>
+  <h1>Overview</h1>
+  <div class='text'>
+<p>Checklocks is a tool developed by Google's gvisor team.</p>
+<p>Installation:</p>
+<pre><code>go install gvisor.dev/gvisor/tools/checklocks/cmd/checklocks@go
+</code></pre>
+<p>Use:</p>
+<pre><code>checklocks ./...
+</code></pre>
+  </div>
+  <span class='pagenumber'>42</span>
+</article>
+
+<!-- slide 43 -->
+<article>
+  <h1>Example</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Account</defn> struct {
+<span class='codenum'>2</span>   mu      sync.Mutex
+<span class='codenum'>3</span>   balance int
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
+<span class='codenum'>6</span>   a.balance += amount
+<span class='codenum'>7</span>}
+
+<span class='codenum'>8</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>9</span>   a.mu.Lock()
+<span class='codenum'>10</span>   defer a.mu.Unlock()
+<span class='codenum'>11</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>12</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>43</span>
+</article>
+
+<!-- slide 44 -->
+<article>
+  <h1>Example</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Account</defn> struct {
+<span class='codenum'>2</span>   mu sync.Mutex
+<span class='codenum'>3</span>   <comment>// +checklocks:mu</comment>
+<span class='codenum'>4</span>   balance int
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
+<span class='codenum'>7</span>   a.balance += amount
+<span class='codenum'>8</span>}
+
+<span class='codenum'>9</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>10</span>   a.mu.Lock()
+<span class='codenum'>11</span>   defer a.mu.Unlock()
+<span class='codenum'>12</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>13</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
+</pre>
+  </div>
+  <span class='pagenumber'>44 and last</span>
 </article>
 
     <div id="help">
