@@ -299,6 +299,16 @@ div.code.weak pre {
   border: 3px solid rgb(255, 200, 0);
 }
 
+div.code.small pre {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+div.code.smaller pre {
+  font-size: 21px;
+  line-height: 28px;
+}
+
 div.answer {
   padding: 0 2rem;
 }

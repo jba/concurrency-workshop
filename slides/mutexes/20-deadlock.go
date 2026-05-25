@@ -68,7 +68,7 @@ func (a *Account_d) TransferTo(b *Account_d, amount int) {
 // !cols
 
 // //////////////////////////////////
-// heading Solution: redesign
+// heading Solution: refactor
 
 type Account_d2 struct {
 	mu      sync.Mutex
@@ -91,7 +91,7 @@ func (a *Account_d2) Withdraw(amount int) {
 
 // The caller must hold a.mu.
 func (a *Account_d2) changeBalanceLocked(amount int) {
-	a.balance -= amount
+	a.balance += amount
 }
 
 // !code
@@ -103,6 +103,8 @@ func (a *Account_d2) TransferTo(
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.changeBalanceLocked(-amount)
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.changeBalanceLocked(amount)
 }
 
@@ -112,7 +114,7 @@ func (a *Account_d2) TransferTo(
 ////////////////////////////////////
 // heading A real-world example
 
-// text From net/http/transport.go
+// line Modified from net/http/transport.go
 
 type connLRU struct {
 	m map[any]any
@@ -120,34 +122,85 @@ type connLRU struct {
 
 func (connLRU) remove(any) {}
 
-type persistConn struct {
+type pConn struct {
 	t            *Transport
 	isClientConn bool
 	idleTimer    *time.Timer
 }
+type pConn_1 struct {
+	t            *Transport_1
+	isClientConn bool
+	idleTimer    *time.Timer
+}
 
-func (pc *persistConn) close(err error) {}
+func (pc *pConn) close(err error)   {}
+func (pc *pConn_1) close(err error) {}
 
 var errIdleConnTimeout error
 
 // cols
-// code
+// code small
 type Transport struct {
 	idleMu  sync.Mutex
 	idleLRU connLRU
 	// ...
 }
 
-func (t *Transport) removeIdleConn(pconn *persistConn) bool {
+func (t *Transport) removeIdleConn1(pconn *pConn) bool {
+	t.idleMu.Lock() // em
+	defer t.idleMu.Unlock()
+	if pconn.idleTimer != nil {
+		pconn.idleTimer.Stop()
+	}
+	t.idleLRU.remove(pconn) // em t.idleLRU
+	// elide
+	return false
+	// !elide
+}
+
+// !code
+
+// nextcol
+// code small
+func (t *Transport) removeIdleConn(pconn *pConn) bool {
 	if pconn.isClientConn {
 		return true
 	}
-	return t.removeIdleConn1(pconn)
+	return t.removeIdleConn1(pconn) // em removeIdleConn1
 }
 
-func (t *Transport) removeIdleConn1(pconn *persistConn) bool {
-	t.idleMu.Lock()
+// !code
+
+// code small
+func (pc *pConn) closeConnIfStillIdle() {
+	t := pc.t
+	t.idleMu.Lock() // em
 	defer t.idleMu.Unlock()
+	if _, ok := t.idleLRU.m[pc]; !ok { // em t.idleLRU
+		return
+	}
+	t.removeIdleConn1(pc) // em removeIdleConn1
+	pc.close(errIdleConnTimeout)
+}
+
+// !code
+// !cols
+
+////////////////////////////////////
+// heading Solution: refactor
+
+// line Actually from net/http/transport.go
+
+// cols
+// code small
+type Transport_1 struct {
+	idleMu  sync.Mutex
+	idleLRU connLRU
+	// ...
+}
+
+// t.idleMu must be held.
+func (t *Transport_1) removeIdleConnLocked(pconn *pConn_1) bool {
 	if pconn.idleTimer != nil {
 		pconn.idleTimer.Stop()
 	}
@@ -159,16 +212,134 @@ func (t *Transport) removeIdleConn1(pconn *persistConn) bool {
 
 // !code
 // nextcol
-// code
-func (pc *persistConn) closeConnIfStillIdle() {
+// code small
+func (t *Transport_1) removeIdleConn_1(pconn *pConn_1) bool {
+	if pconn.isClientConn {
+		return true
+	}
+	// em
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	return t.removeIdleConnLocked(pconn)
+	// !em
+}
+
+// !code
+// code small
+func (pc *pConn_1) closeConnIfStillIdle() {
 	t := pc.t
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
 	if _, ok := t.idleLRU.m[pc]; !ok {
 		return
 	}
-	t.removeIdleConn1(pc)
+	t.removeIdleConnLocked(pc) // em
 	pc.close(errIdleConnTimeout)
+}
+
+// !code
+// !cols
+
+// //////////////////////////////////
+// heading Multi-goroutine deadlocks
+type Account_d3 struct {
+	mu      sync.Mutex
+	balance int
+}
+
+func (*Account_d3) changeBalanceLocked(any) {}
+func (*Account_d3) Deposit(any)             {}
+
+// cols
+// line Reminder:
+// code
+func (a *Account_d3) TransferTo(b *Account_d3, amount int) {
+	// Must happen atomically.
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+var xena, yuri *Account_d3
+
+// html <br/>
+// line Concurrently:
+func g() {
+	// code
+	xena.TransferTo(yuri, 100)
+	// !code
+	// code
+	yuri.TransferTo(xena, 100)
+	// !code
+
+}
+
+// nextcol
+
+// text
+// <div class="interleave" style="font-size: 70%">
+//
+// | X&rarr;Y | Y&rarr;X |
+// | -- | -- |
+// | x.TransferTo(y) | y.TransferTo(x) |
+// | **x**.mu.Lock() | **y**.mu.Lock() |
+// | x.changeBalanceLocked() | y.changeBalanceLocked() |
+// | **y**.mu.Lock() | **x**.mu.Lock() |
+// | DEADLOCK | DEADLOCK |
+// !text
+
+// html <br/>
+// text That is only one interleaving!
+
+// !col
+
+// heading Solution 1: Lower granularity
+
+// text Locks protect larger critical sections.
+
+// code
+type Accounts struct {
+	mu       sync.Mutex
+	balances map[string]int // account name to balance
+}
+
+func (a *Accounts) Balance(name string) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.balances[name]
+}
+
+func (a *Accounts) Deposit(name string, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(name, amount)
+}
+
+func (a *Accounts) Withdraw(name string, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(name, -amount)
+}
+
+// The caller must hold a.mu.
+func (a *Accounts) changeBalanceLocked(name string, amount int) {
+	a.balances[name] += amount
+}
+
+// code
+
+// heading One lock, continued
+// code
+func (a *Accounts) TransferTo(fromName, toName string, amount int) {
+	// Must happen atomically.
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.changeBalanceLocked(amount)
 }
 
 // !code

@@ -473,8 +473,7 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
   <div> <!-- next col -->
   <details>
     <summary>
-What do we think about this optimization?</p>
-    </summary>
+What do we think about this optimization?    </summary>
     <div class='answer'>
 <p>There is still a data race: a read can happen concurrently with a write.</p>
 <div class="interleave" style="font-size: 70%">
@@ -525,8 +524,7 @@ What do we think about this optimization?</p>
   <div> <!-- next col -->
   <details>
     <summary>
-What do we think about this optimization?</p>
-    </summary>
+What do we think about this optimization?    </summary>
     <div class='answer'>
 <p>There is no data race, but this code is still incorrect:
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXX TODO subscript x</p>
@@ -571,8 +569,7 @@ Every data race is a race (almost).</p>
   </div>
   <details>
     <summary>
-Why doesn't Go make maps concurrency-safe?</p>
-    </summary>
+Why doesn't Go make maps concurrency-safe?    </summary>
     <div class='answer'>
 <p>It would be slower, and <em>it wouldn't help in many cases</em>.<br/>
 The runtime doesn't know what your transactions are.</p>
@@ -610,8 +607,7 @@ The runtime doesn't know what your transactions are.</p>
   <div> <!-- next col -->
   <details>
     <summary>
-What can happen if two goroutines call <code>g.NewID()</code> at the same time?</p>
-    </summary>
+What can happen if two goroutines call <code>g.NewID()</code> at the same time?    </summary>
     <div class='answer'>
 <p>You might get the same ID twice.</p>
     </div>
@@ -674,8 +670,7 @@ above the fields it protects</p>
   </div>
   <details>
     <summary>
-Find and fix the bug.</p>
-    </summary>
+Find and fix the bug.    </summary>
     <div class='code'><pre>
 <span class='codenum'>1</span>func (g *IDGenerator) <defn>NewID</defn>() string {
 <span class='codenum'>2</span>   g.mu.Lock()
@@ -822,8 +817,7 @@ Find and fix the bug.</p>
   </div>
   <details>
     <summary>
-Why is a mutex needed here?</p>
-    </summary>
+Why is a mutex needed here?    </summary>
     <div class='answer'>
 <p>There is a data race:
 both goroutines write to the same location, <code>s</code>.</p>
@@ -861,8 +855,7 @@ both goroutines write to the same location, <code>s</code>.</p>
   </div>
   <details>
     <summary>
-Why aren't maps like slices?</p>
-    </summary>
+Why aren't maps like slices?    </summary>
     <div class='answer'>
 <p>The underlying memory locations can change as the map grows and shrinks.</p>
     </div>
@@ -948,8 +941,7 @@ Why aren't maps like slices?</p>
   </div>
   <details>
     <summary>
-What about the race?</p>
-    </summary>
+What about the race?    </summary>
     <div class='answer'>
 <p>&quot;If we lose the race, we'll waste a little CPU and create a little garbage
 but return the existing value anyway.&quot;</p>
@@ -1060,7 +1052,7 @@ but return the existing value anyway.&quot;</p>
 
 <!-- slide 35 -->
 <article>
-  <h1>Solution: redesign</h1>
+  <h1>Solution: refactor</h1>
   <div class="flex"><div>
   <div class='code'><pre>
 <span class='codenum'>1</span>func (a *Account) <defn>Deposit</defn>(amount int) {
@@ -1090,8 +1082,10 @@ but return the existing value anyway.&quot;</p>
 <span class='codenum'>4</span>   a.mu.Lock()
 <span class='codenum'>5</span>   defer a.mu.Unlock()
 <span class='codenum'>6</span>   a.changeBalanceLocked(-amount)
-<span class='codenum'>7</span>   b.changeBalanceLocked(amount)
-<span class='codenum'>8</span>}
+<span class='codenum'>7</span>   b.mu.Lock()
+<span class='codenum'>8</span>   defer b.mu.Unlock()
+<span class='codenum'>9</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>10</span>}
 </pre>
   </div>
   </div></div> <!-- flex -->
@@ -1101,51 +1095,171 @@ but return the existing value anyway.&quot;</p>
 <!-- slide 36 -->
 <article>
   <h1>A real-world example</h1>
-  <div class='text'>
-<p>From net/http/transport.go</p>
-  </div>
+  Modified from net/http/transport.go<br/>
   <div class="flex"><div>
-  <div class='code'><pre>
+  <div class='code small'><pre>
 <span class='codenum'>1</span>type <defn>Transport</defn> struct {
 <span class='codenum'>2</span>   idleMu  sync.Mutex
 <span class='codenum'>3</span>   idleLRU connLRU
 <span class='codenum'>4</span>   <comment>// ...</comment>
 <span class='codenum'>5</span>}
 
-<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *persistConn) bool {
-<span class='codenum'>7</span>   if pconn.isClientConn {
-<span class='codenum'>8</span>      return true
-<span class='codenum'>9</span>   }
-<span class='codenum'>10</span>   return t.removeIdleConn1(pconn)
-<span class='codenum'>11</span>}
-
-<span class='codenum'>12</span>func (t *Transport) <defn>removeIdleConn1</defn>(pconn *persistConn) bool {
-<span class='codenum'>13</span>   t.idleMu.Lock()
-<span class='codenum'>14</span>   defer t.idleMu.Unlock()
-<span class='codenum'>15</span>   if pconn.idleTimer != nil {
-<span class='codenum'>16</span>      pconn.idleTimer.Stop()
-<span class='codenum'>17</span>   }
-<span class='codenum'>18</span>   t.idleLRU.remove(pconn)
-<span class='codenum'>19</span>   <comment>// ...</comment>
-<span class='codenum'>20</span>}
+<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConn1</defn>(pconn *pConn) bool {
+<span class='codenum'>7</span><span class="em">   t.idleMu.Lock()</span>
+<span class='codenum'>8</span>   defer t.idleMu.Unlock()
+<span class='codenum'>9</span>   if pconn.idleTimer != nil {
+<span class='codenum'>10</span>      pconn.idleTimer.Stop()
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>   <span class="em">t.idleLRU</span>.remove(pconn)
+<span class='codenum'>13</span>   <comment>// ...</comment>
+<span class='codenum'>14</span>}
 </pre>
   </div>
   </div>
   <div> <!-- next col -->
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (pc *persistConn) <defn>closeConnIfStillIdle</defn>() {
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *pConn) bool {
+<span class='codenum'>2</span>   if pconn.isClientConn {
+<span class='codenum'>3</span>      return true
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span>   return t.<span class="em">removeIdleConn1</span>(pconn)
+<span class='codenum'>6</span>}
+</pre>
+  </div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (pc *pConn) <defn>closeConnIfStillIdle</defn>() {
+<span class='codenum'>2</span>   t := pc.t
+<span class='codenum'>3</span><span class="em">   t.idleMu.Lock()</span>
+<span class='codenum'>4</span>   defer t.idleMu.Unlock()
+<span class='codenum'>5</span>   if _, ok := <span class="em">t.idleLRU</span>.m[pc]; !ok {
+<span class='codenum'>6</span>      return
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>   t.<span class="em">removeIdleConn1</span>(pc)
+<span class='codenum'>9</span>   pc.close(errIdleConnTimeout)
+<span class='codenum'>10</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>36</span>
+</article>
+
+<!-- slide 37 -->
+<article>
+  <h1>Solution: refactor</h1>
+  Actually from net/http/transport.go<br/>
+  <div class="flex"><div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>type <defn>Transport</defn> struct {
+<span class='codenum'>2</span>   idleMu  sync.Mutex
+<span class='codenum'>3</span>   idleLRU connLRU
+<span class='codenum'>4</span>   <comment>// ...</comment>
+<span class='codenum'>5</span>}
+
+<comment>// t.idleMu must be held.</comment>
+<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConnLocked</defn>(pconn *pConn) bool {
+<span class='codenum'>7</span>   if pconn.idleTimer != nil {
+<span class='codenum'>8</span>      pconn.idleTimer.Stop()
+<span class='codenum'>9</span>   }
+<span class='codenum'>10</span>   t.idleLRU.remove(pconn)
+<span class='codenum'>11</span>   <comment>// ...</comment>
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *pConn) bool {
+<span class='codenum'>2</span>   if pconn.isClientConn {
+<span class='codenum'>3</span>      return true
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span><span class="em">   t.idleMu.Lock()
+<span class='codenum'>6</span>   defer t.idleMu.Unlock()
+<span class='codenum'>7</span>   return t.removeIdleConnLocked(pconn)</span>
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (pc *pConn) <defn>closeConnIfStillIdle</defn>() {
 <span class='codenum'>2</span>   t := pc.t
 <span class='codenum'>3</span>   t.idleMu.Lock()
 <span class='codenum'>4</span>   defer t.idleMu.Unlock()
 <span class='codenum'>5</span>   if _, ok := t.idleLRU.m[pc]; !ok {
 <span class='codenum'>6</span>      return
 <span class='codenum'>7</span>   }
-<span class='codenum'>8</span>   t.removeIdleConn1(pc)
+<span class='codenum'>8</span><span class="em">   t.removeIdleConnLocked(pc)</span>
 <span class='codenum'>9</span>   pc.close(errIdleConnTimeout)
 <span class='codenum'>10</span>}
 </pre>
   </div>
-  <span class='pagenumber'>36 and last</span>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>37</span>
+</article>
+
+<!-- slide 38 -->
+<article>
+  <h1>Multi-goroutine deadlocks</h1>
+  <div class="flex"><div>
+  Reminder:<br/>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>2</span>   <comment>// Must happen atomically.</comment>
+<span class='codenum'>3</span>   a.mu.Lock()
+<span class='codenum'>4</span>   defer a.mu.Unlock()
+<span class='codenum'>5</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>6</span>   b.mu.Lock()
+<span class='codenum'>7</span>   defer b.mu.Unlock()
+<span class='codenum'>8</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  <br/>
+  Concurrently:<br/>
+  <div class='code'><pre>
+<span class='codenum'>1</span>xena.TransferTo(yuri, 100)</pre>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>yuri.TransferTo(xena, 100)</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>X→Y</th>
+<th>Y→X</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>x.TransferTo(y)</td>
+<td>y.TransferTo(x)</td>
+</tr>
+<tr>
+<td><strong>x</strong>.mu.Lock()</td>
+<td><strong>y</strong>.mu.Lock()</td>
+</tr>
+<tr>
+<td>x.changeBalanceLocked()</td>
+<td>y.changeBalanceLocked()</td>
+</tr>
+<tr>
+<td><strong>y</strong>.mu.Lock()</td>
+<td><strong>x</strong>.mu.Lock()</td>
+</tr>
+<tr>
+<td>DEADLOCK</td>
+<td>DEADLOCK</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <br/>
+  <div class='text'>
+<p>That is only one interleaving!</p>
+  </div>
+  <span class='pagenumber'>38 and last</span>
 </article>
 
     <div id="help">

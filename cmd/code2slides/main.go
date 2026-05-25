@@ -13,17 +13,21 @@
 //
 //	Set the slide's heading to TEXT. Each heading starts a new slide.
 //
-// code / !code
+// code [OPTIONS] / !code
 //
 //	Begin and end a code block. Lines between these directives are rendered
 //	as preformatted source code. Comments in the code are syntax-highlighted.
 //	Type and function definitions are highlighted as well.
 //
-// code bad / !code
+//	OPTIONS is a space-separated list of words that can include:
+//	  bad     - Render the code block with a red border (incorrect code).
+//	  weak    - Render the code block with a yellow border.
+//	  small   - Use a font size 20% smaller than default.
+//	  smaller - Use a font size 30% smaller than default.
 //
-//	Like code / !code, but the code block is rendered with a red background
-//	to indicate incorrect or problematic code.
-//
+//	"small" and "smaller" cannot be used together, but they can coexist with
+//	"bad" or "weak".
+
 // note / !note
 //
 //	Begin and end a presenter note block. Lines between these directives are
@@ -58,6 +62,13 @@
 // html CONTENT
 //
 //	Emit CONTENT as raw HTML in the slide.
+//
+// line CONTENT
+//
+//	Emit CONTENT directly to the output followed by <br/>. The CONTENT is
+//	processed as markdown (just like the "text" directive), but the outer
+//	<p>...</p> tags are stripped so it can appear as a single line.
+
 //
 // image FILENAME (or img FILENAME)
 //
@@ -135,6 +146,7 @@ const (
 	sectionHTML
 	sectionOutput
 	sectionSubtitle
+	sectionLine
 )
 
 func (k sectionKind) String() string {
@@ -155,10 +167,13 @@ func (k sectionKind) String() string {
 		return "output"
 	case sectionSubtitle:
 		return "subtitle"
+	case sectionLine:
+		return "line"
 	default:
 		return "unknown"
 	}
 }
+
 
 var simpleOpens = map[string]sectionKind{
 	"note":     sectionNote,
@@ -370,6 +385,9 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				parentKind = sectionAnswer
 				kind = sectionCode
 				options = strings.Fields(rest)
+				if err := validateCodeOptions(options); err != nil {
+					return nil, err
+				}
 				continue
 			}
 			if kind != sectionUndefined {
@@ -377,6 +395,11 @@ func scanFile(filename string) (_ []*Slide, err error) {
 			}
 			kind = sec
 			options = strings.Fields(rest)
+			if kind == sectionCode {
+				if err := validateCodeOptions(options); err != nil {
+					return nil, err
+				}
+			}
 			continue
 		}
 		if strings.HasPrefix(first, "!") {
@@ -425,6 +448,13 @@ func scanFile(filename string) (_ []*Slide, err error) {
 
 		case "html":
 			add(sectionHTML, nil, rest, false)
+
+		case "line":
+			if kind != sectionUndefined {
+				return nil, fmt.Errorf("line inside %s", kind)
+			}
+			add(sectionLine, nil, rest+"\n", false)
+
 
 		case "image", "img":
 			if rest == "" {
@@ -716,6 +746,27 @@ func splitFirstWord(s string) (string, string, bool) {
 	return s[:i], strings.TrimSpace(s[i+1:]), true
 }
 
+func validateCodeOptions(options []string) error {
+	hasSmall := false
+	hasSmaller := false
+	for _, opt := range options {
+		switch opt {
+		case "small":
+			hasSmall = true
+		case "smaller":
+			hasSmaller = true
+		case "weak", "bad":
+			// allowed
+		default:
+			return fmt.Errorf("invalid code option %q", opt)
+		}
+	}
+	if hasSmall && hasSmaller {
+		return errors.New("cannot use both 'small' and 'smaller'")
+	}
+	return nil
+}
+
 func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 	// 	for _, st := range slide.subtitles {
 	// 		w.linef("<div class='subtitle-text'>%s<br/></div>", html.EscapeString(st))
@@ -739,16 +790,13 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 
 		switch sec.kind {
 		case sectionCode:
+			classes := append([]string{"code"}, sec.options...)
+			w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
+			fmt.Fprint(w, renderCode(sec.content))
 			if sec.inAnswer {
 				// Code inside answer: render without outer div structure
-				classes := append([]string{"code"}, sec.options...)
-				w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
-				fmt.Fprint(w, renderCode(sec.content))
 				w.close("</pre></div>")
 			} else {
-				classes := append([]string{"code"}, sec.options...)
-				w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
-				fmt.Fprint(w, renderCode(sec.content))
 				fmt.Fprintln(w, "</pre>") // don't use close, avoid blank line
 				w.close("</div>")
 			}
@@ -785,6 +833,9 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 			}
 		case sectionHTML:
 			w.linef("%s", sec.content)
+		case sectionLine:
+			w.linef("%s<br/>", stripPara(renderMarkdown(sec.content)))
+
 		case sectionSubtitle:
 			w.open("<div class='subtitle-text'>")
 			w.lines(renderMarkdown(sec.content))
@@ -964,9 +1015,11 @@ func renderMarkdown(s string) string {
 }
 
 func stripPara(s string) string {
+	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "<p>")
 	return strings.TrimSuffix(s, "</p>")
 }
+
 
 const top = `<!DOCTYPE html>
 <html>

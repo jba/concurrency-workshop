@@ -31,6 +31,9 @@ func TestScanFileErrors(t *testing.T) {
 		{"testdata/unclosed_question.go", "unclosed answer section"},
 		{"testdata/unmatched_endquestion.go", "!question without matching question"},
 		{"testdata/question_without_answer.go", "!question without answer"},
+		{"testdata/code_small_smaller.go", "cannot use both 'small' and 'smaller'"},
+		{"testdata/code_invalid_option.go", "invalid code option \"unknown\""},
+		{"testdata/line_inside_code.go", "line inside code"},
 	}
 
 	for _, tt := range tests {
@@ -430,3 +433,84 @@ func TestRenderCode(t *testing.T) {
 		}
 	}
 }
+
+func TestScanFileValidOptions(t *testing.T) {
+	slides, err := scanFile("testdata/code_valid_options.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+	slide := slides[0]
+
+	wantSections := []section{
+		{
+			kind:    sectionCode,
+			options: []string{"small", "weak"},
+			content: "func foo() {}",
+		},
+		{
+			kind:    sectionCode,
+			options: []string{"smaller", "bad"},
+			content: "func bar() {}",
+		},
+	}
+
+	if !sectionsEqual(slide.sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
+	}
+}
+
+func TestScanFileLine(t *testing.T) {
+	slides, err := scanFile("testdata/line_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+	slide := slides[0]
+
+	wantSections := []section{
+		{
+			kind:    sectionLine,
+			content: "Hello\n",
+		},
+		{
+			kind:    sectionLine,
+			content: "World **bold**\n",
+		},
+	}
+
+	if !sectionsEqual(slide.sections, wantSections) {
+		t.Errorf("got:\n%v\nwant:\n%v", slide.sections, wantSections)
+	}
+}
+
+func TestFileLineHTML(t *testing.T) {
+	slides, err := scanFile("testdata/line_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	slide := slides[0]
+
+	var buf strings.Builder
+	w := &indentWriter{w: &buf}
+	writeSlideHTML(w, slide, 1, false)
+	html := buf.String()
+
+	want1 := "Hello<br/>"
+	want2 := "World <strong>bold</strong><br/>"
+	if !strings.Contains(html, want1) {
+		t.Errorf("expected html to contain %q, got:\n%s", want1, html)
+	}
+	if !strings.Contains(html, want2) {
+		t.Errorf("expected html to contain %q, got:\n%s", want2, html)
+	}
+}
+
+
+
