@@ -26,78 +26,25 @@ import (
 // !text
 
 // //////////////////////////////////
-// heading Computing Fibonacci
-// cols
-// code
-// fib computes the nth number in the Fibonacci sequence.
-func fib(n int) int {
-	switch n {
-	case 0:
-		return 0
-	case 1:
-		return 1
-	default:
-		return fib(n-1) + fib(n-2)
-	}
-}
-
-// !code
-// nextcol
-
-// text
-// &nbsp;
-//
-// This is a classic counterexample to using recursion!
-//
-// `fib(4)` calls `fib(3)` and `fib(2)`<br/>
-// `fib(3)` calls `fib(2)` and `fib(1)`<br/>
-// `fib(2)` calls `fib(1)` and `fib(0)`<br/>
-// !text
-// !cols
-
-////////////////////////////////////
 // heading Using the cache
 
-// cols
 // code
-
-// fib computes the nth number in the Fibonacci sequence.
-func fib_1(n int) int {
-	return fibMemo.Call(n)
-}
-
-var fibMemo *Memo_2[int, int]
-
-func init() {
-	fibMemo = NewMemo_2(mfib)
-}
-
-func mfib(n int) int {
-	switch n {
-	case 0:
-		return 0
-	case 1:
-		return 1
-	default:
-		return fibMemo.Call(n-1) + fibMemo.Call(n-2)
-	}
-}
+var compute = NewMemo(func(in int) (out string) {
+	// a long computation
+	// ...
+	return out
+})
 
 // !code
-// nextcol
-// cols
-// nextcol
 
-func ex() {
+func g() {
 	// code
-	memo := NewMemo(fib)
-	memo.Call(3) // fib(3), fib(2), fib(1), fib(0)
-	memo.Call(4) // only calls fib(4)
-
+	s1 := compute.Call(5) // slow
+	s2 := compute.Call(5) // fast
 	// !code
+	_ = s1
+	_ = s2
 }
-
-// !cols
 
 ////////////////////////////////////
 // heading First version: not concurrency-safe

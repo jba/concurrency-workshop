@@ -13,15 +13,19 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- slides/mutexes/mutexes.go -->
+<!-- slides/mutexes/10-mutexes.go -->
+
+<!-- slide 1 -->
 <article class='title-slide'>
   <div class='title-text'>Introduction to Synchronization</div>
-  <div class='subtitle-text'
-<p>Demystifying Concurrency</p>
-<p>GopherCon Europe 2026</p>
+  <div class='subtitle-text'>
+    <p>Demystifying Concurrency</p>
+    <p>GopherCon Europe 2026</p>
   </div>
   <span class='pagenumber'>1</span>
 </article>
+
+<!-- slide 2 -->
 <article>
   <h1>Sharing memory</h1>
   <div class='text'>
@@ -46,7 +50,8 @@
 <span class='codenum'>13</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div style="height: 10vw"></div>
   <div class='text'>
 <p>One possible output:</p>
@@ -65,6 +70,8 @@
   </div></div> <!-- flex -->
   <span class='pagenumber'>2</span>
 </article>
+
+<!-- slide 3 -->
 <article>
   <h1>Interleavings</h1>
   <div class='text'>
@@ -94,7 +101,8 @@
 <span class='codenum'>3</span>c = R0</pre>
   </div>
   <div style="width: 25vw"></div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p>What we want:</p>
 <div class="interleave" style="font-size: 70%">
@@ -119,7 +127,8 @@
 </div>
   </div>
   <div style="width: 25vw"></div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p>What we might get:</p>
 <div class="interleave" style="font-size: 70%">
@@ -150,6 +159,8 @@
   </div></div> <!-- flex -->
   <span class='pagenumber'>3</span>
 </article>
+
+<!-- slide 4 -->
 <article>
   <h1>Race condition</h1>
   <div class='text'>
@@ -158,6 +169,8 @@ allows interleavings that are incorrect.</p>
   </div>
   <span class='pagenumber'>4</span>
 </article>
+
+<!-- slide 5 -->
 <article>
   <h1>Using a mutex</h1>
   <div class="flex"><div>
@@ -183,7 +196,8 @@ allows interleavings that are incorrect.</p>
 <span class='codenum'>16</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p>Use a mutex to prevent a race condition.</p>
   </div>
@@ -226,6 +240,8 @@ indivisibly.</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>5</span>
 </article>
+
+<!-- slide 6 -->
 <article>
   <h1>Transactions</h1>
   <div class='text'>
@@ -242,6 +258,8 @@ that makes sense for the application.</p>
   </div>
   <span class='pagenumber'>6</span>
 </article>
+
+<!-- slide 7 -->
 <article>
   <h1>Exercise: Bank Account</h1>
   <a href="../exercises/account/account.go">Code</a>
@@ -249,6 +267,8 @@ that makes sense for the application.</p>
   <a href="../exercises/account/solution/account.go">Solution</a>
   <span class='pagenumber'>7</span>
 </article>
+
+<!-- slide 8 -->
 <article>
   <h1>Synchronization: more than interleavings</h1>
   <div class='code'><pre>
@@ -267,6 +287,8 @@ that makes sense for the application.</p>
   </div>
   <span class='pagenumber'>8</span>
 </article>
+
+<!-- slide 9 -->
 <article>
   <h1>Synchronization is a signal</h1>
   <div class='text'>
@@ -284,6 +306,8 @@ that makes sense for the application.</p>
   </div>
   <span class='pagenumber'>9</span>
 </article>
+
+<!-- slide 10 -->
 <article>
   <h1>Synchronize all accesses</h1>
   <div class='text'>
@@ -308,6 +332,8 @@ that makes sense for the application.</p>
   </div>
   <span class='pagenumber'>10</span>
 </article>
+
+<!-- slide 11 -->
 <article>
   <h1>Data races</h1>
   <div class='text'>
@@ -327,7 +353,8 @@ that makes sense for the application.</p>
 <span class='codenum'>1</span>c++
 <span class='codenum'>2</span>fmt.Println(c)</pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <p style="margin-bottom:0">different memory</p>
   <div class='code'><pre>
 <span class='codenum'>1</span>wg.Go(func() {
@@ -337,7 +364,8 @@ that makes sense for the application.</p>
 <span class='codenum'>5</span>   c2++
 <span class='codenum'>6</span>})</pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <p style="margin-bottom:0">no writes</p>
   <div class='code'><pre>
 <span class='codenum'>1</span>wg.Go(func() {
@@ -347,7 +375,8 @@ that makes sense for the application.</p>
 <span class='codenum'>5</span>   fmt.Println(c)
 <span class='codenum'>6</span>})</pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <p style="margin-bottom:0">data race</p>
   <div class='code bad'><pre>
 <span class='codenum'>1</span>wg.Go(func() { c++ })
@@ -356,6 +385,8 @@ that makes sense for the application.</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>11</span>
 </article>
+
+<!-- slide 12 -->
 <article>
   <h1>The race detector</h1>
   <div class='text'>
@@ -385,7 +416,8 @@ that makes sense for the application.</p>
 27357
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p><code>go run -race .</code></p>
   </div>
@@ -409,6 +441,8 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
   </div></div> <!-- flex -->
   <span class='pagenumber'>12</span>
 </article>
+
+<!-- slide 13 -->
 <article>
   <h1>Exercise</h1>
   <div class='text'>
@@ -419,6 +453,8 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
   </div>
   <span class='pagenumber'>13</span>
 </article>
+
+<!-- slide 14 -->
 <article>
   <h1>Let&#39;s be clever</h1>
   <div class="flex"><div>
@@ -433,7 +469,8 @@ jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
 <span class='codenum'>8</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <details>
     <summary>
 What do we think about this optimization?</p>
@@ -465,6 +502,8 @@ What do we think about this optimization?</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>14</span>
 </article>
+
+<!-- slide 15 -->
 <article>
   <h1>Let&#39;s be even cleverer!</h1>
   <div class="flex"><div>
@@ -482,7 +521,8 @@ What do we think about this optimization?</p>
 <span class='codenum'>11</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <details>
     <summary>
 What do we think about this optimization?</p>
@@ -519,6 +559,8 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXX TODO subscript x</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>15</span>
 </article>
+
+<!-- slide 16 -->
 <article>
   <h1>Our story so far</h1>
   <div class='text'>
@@ -538,6 +580,8 @@ The runtime doesn't know what your transactions are.</p>
   </details>
   <span class='pagenumber'>16</span>
 </article>
+
+<!-- slide 17 -->
 <article>
   <h1>Generating unique IDs, unsafe version</h1>
   <div class="flex"><div>
@@ -562,7 +606,8 @@ The runtime doesn't know what your transactions are.</p>
 <span class='codenum'>11</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <details>
     <summary>
 What can happen if two goroutines call <code>g.NewID()</code> at the same time?</p>
@@ -574,6 +619,8 @@ What can happen if two goroutines call <code>g.NewID()</code> at the same time?<
   </div></div> <!-- flex -->
   <span class='pagenumber'>17</span>
 </article>
+
+<!-- slide 18 -->
 <article>
   <h1>Generating unique IDs, safe version</h1>
   <div class="flex"><div>
@@ -594,7 +641,8 @@ What can happen if two goroutines call <code>g.NewID()</code> at the same time?<
 <span class='codenum'>11</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p><code>num</code> must be synchronized to make <code>NewID</code> concurrency-safe</p>
 <p><code>prefix</code> is written <em>before</em> all calls to <code>NewID</code></p>
@@ -604,6 +652,8 @@ above the fields it protects</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>18</span>
 </article>
+
+<!-- slide 19 -->
 <article>
   <h1>Limit critical section size</h1>
   <div class="flex"><div>
@@ -616,7 +666,8 @@ above the fields it protects</p>
 <span class='codenum'>6</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p>Keep critical sections small to avoid contention</p>
 <p><code>defer</code> is not always needed or useful</p>
@@ -633,14 +684,15 @@ Find and fix the bug.</p>
 <span class='codenum'>5</span>   g.mu.Unlock()
 <span class='codenum'>6</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, <span class="em">n</span>)
 <span class='codenum'>7</span>}
-</pre>
-    </div>
+    </pre></div>
     <div class='answer'>
     </div>
   </details>
   </div></div> <!-- flex -->
   <span class='pagenumber'>19</span>
 </article>
+
+<!-- slide 20 -->
 <article>
   <h1>Atomics</h1>
   <div class="flex"><div>
@@ -654,7 +706,8 @@ Find and fix the bug.</p>
 </ul>
 <p>Recommendation: use only for counters</p>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='code'><pre>
 <span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
 <span class='codenum'>2</span>   prefix string
@@ -672,6 +725,8 @@ Find and fix the bug.</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>20</span>
 </article>
+
+<!-- slide 21 -->
 <article>
   <h1>Avoid locking during I/O</h1>
   <div class='text'>
@@ -699,6 +754,8 @@ Find and fix the bug.</p>
   </div>
   <span class='pagenumber'>21</span>
 </article>
+
+<!-- slide 22 -->
 <article>
   <h1>Avoid locking during I/O...unless you need it</h1>
   <div class='code'><pre>
@@ -711,6 +768,8 @@ Find and fix the bug.</p>
   </div>
   <span class='pagenumber'>22</span>
 </article>
+
+<!-- slide 23 -->
 <article>
   <h1>Another example of copying</h1>
   <div class='text'>
@@ -731,6 +790,8 @@ Find and fix the bug.</p>
   </div>
   <span class='pagenumber'>23</span>
 </article>
+
+<!-- slide 24 -->
 <article>
   <h1>Mutexes and slices</h1>
   <div class='text'>
@@ -748,6 +809,8 @@ Find and fix the bug.</p>
   </div>
   <span class='pagenumber'>24</span>
 </article>
+
+<!-- slide 25 -->
 <article>
   <h1>Mutexes and slices, 2</h1>
   <div class='code bad'><pre>
@@ -768,6 +831,8 @@ both goroutines write to the same location, <code>s</code>.</p>
   </details>
   <span class='pagenumber'>25</span>
 </article>
+
+<!-- slide 26 -->
 <article>
   <h1>Mutexes and maps</h1>
   <div class="flex"><div>
@@ -789,7 +854,8 @@ both goroutines write to the same location, <code>s</code>.</p>
 <span class='codenum'>12</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p>Maps need synchronization.</p>
   </div>
@@ -804,6 +870,8 @@ Why aren't maps like slices?</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>26</span>
 </article>
+
+<!-- slide 27 -->
 <article>
   <h1>Mutexes and maps, safely</h1>
   <div class="flex"><div>
@@ -825,7 +893,8 @@ Why aren't maps like slices?</p>
 <span class='codenum'>12</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div style="height: 15vw"></div>
   <div class='text'>
 <p>Concurrency-safe maps wouldn't help here.</p>
@@ -833,6 +902,8 @@ Why aren't maps like slices?</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>27</span>
 </article>
+
+<!-- slide 28 -->
 <article>
   <h1>Optimizations</h1>
   <div class='text'>
@@ -842,6 +913,8 @@ Why aren't maps like slices?</p>
   </div>
   <span class='pagenumber'>28</span>
 </article>
+
+<!-- slide 29 -->
 <article>
   <h1>sync.Map example</h1>
   <div class="flex"><div>
@@ -865,7 +938,8 @@ Why aren't maps like slices?</p>
 <span class='codenum'>13</span>}
 </pre>
   </div>
-  </div><div>
+  </div>
+  <div> <!-- next col -->
   <div class='text'>
 <p> </p>
   </div>
@@ -884,6 +958,8 @@ but return the existing value anyway.&quot;</p>
   </div></div> <!-- flex -->
   <span class='pagenumber'>29</span>
 </article>
+
+<!-- slide 30 -->
 <article>
   <h1>Find the bug</h1>
   <div class='text'>
@@ -891,12 +967,185 @@ but return the existing value anyway.&quot;</p>
   </div>
   <span class='pagenumber'>30</span>
 </article>
+
+<!-- slide 31 -->
 <article>
   <h1>Exercise</h1>
   <div class='text'>
 <p>TODO?</p>
   </div>
-  <span class='pagenumber'>31 and last</span>
+  <span class='pagenumber'>31</span>
+</article>
+
+<!-- slides/mutexes/20-deadlock.go -->
+
+<!-- slide 32 -->
+<article>
+  <h1>Our next subject</h1>
+  <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
+  <span class='pagenumber'>32</span>
+</article>
+
+<!-- slide 33 -->
+<article>
+  <h1>Deadlock</h1>
+  <div class='text'>
+<p>Goroutines can't make progress because they block each other.</p>
+  </div>
+  <div class='text'>
+<p>Or a single goroutine blocks itself.</p>
+  </div>
+  <span class='pagenumber'>33</span>
+</article>
+
+<!-- slide 34 -->
+<article>
+  <h1>Self-deadlock: example</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>Deposit</defn>(amount int) {
+<span class='codenum'>2</span>   a.mu.Lock()
+<span class='codenum'>3</span>   defer a.mu.Unlock()
+<span class='codenum'>4</span>   a.balance += amount
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Account) <defn>Withdraw</defn>(amount int) {
+<span class='codenum'>7</span>   a.mu.Lock()
+<span class='codenum'>8</span>   defer a.mu.Unlock()
+<span class='codenum'>9</span>   a.balance -= amount
+<span class='codenum'>10</span>}
+
+<span class='codenum'>11</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>12</span>   <comment>// Must happen atomically.</comment>
+<span class='codenum'>13</span>   a.mu.Lock()
+<span class='codenum'>14</span>   defer a.mu.Unlock()
+<span class='codenum'>15</span>   a.Withdraw(amount)
+<span class='codenum'>16</span>   b.Deposit(amount)
+<span class='codenum'>17</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>astrid.TransferTo(baxter, 100)</td>
+</tr>
+<tr>
+<td>astrid.mu.Lock()</td>
+</tr>
+<tr>
+<td>astrid.Withdraw(100)</td>
+</tr>
+<tr>
+<td>astrid.mu.Lock()</td>
+</tr>
+<tr>
+<td>DEADLOCK</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>34</span>
+</article>
+
+<!-- slide 35 -->
+<article>
+  <h1>Solution: redesign</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>Deposit</defn>(amount int) {
+<span class='codenum'>2</span>   a.mu.Lock()
+<span class='codenum'>3</span>   defer a.mu.Unlock()
+<span class='codenum'>4</span>   a.changeBalanceLocked(amount)
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Account) <defn>Withdraw</defn>(amount int) {
+<span class='codenum'>7</span>   a.mu.Lock()
+<span class='codenum'>8</span>   defer a.mu.Unlock()
+<span class='codenum'>9</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>10</span>}
+
+<comment>// The caller must hold a.mu.</comment>
+<span class='codenum'>11</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
+<span class='codenum'>12</span>   a.balance -= amount
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(
+<span class='codenum'>2</span>   b *Account, amount int) {
+<span class='codenum'>3</span>   <comment>// Must happen atomically.</comment>
+<span class='codenum'>4</span>   a.mu.Lock()
+<span class='codenum'>5</span>   defer a.mu.Unlock()
+<span class='codenum'>6</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>7</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>35</span>
+</article>
+
+<!-- slide 36 -->
+<article>
+  <h1>A real-world example</h1>
+  <div class='text'>
+<p>From net/http/transport.go</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Transport</defn> struct {
+<span class='codenum'>2</span>   idleMu  sync.Mutex
+<span class='codenum'>3</span>   idleLRU connLRU
+<span class='codenum'>4</span>   <comment>// ...</comment>
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *persistConn) bool {
+<span class='codenum'>7</span>   if pconn.isClientConn {
+<span class='codenum'>8</span>      return true
+<span class='codenum'>9</span>   }
+<span class='codenum'>10</span>   return t.removeIdleConn1(pconn)
+<span class='codenum'>11</span>}
+
+<span class='codenum'>12</span>func (t *Transport) <defn>removeIdleConn1</defn>(pconn *persistConn) bool {
+<span class='codenum'>13</span>   t.idleMu.Lock()
+<span class='codenum'>14</span>   defer t.idleMu.Unlock()
+<span class='codenum'>15</span>   if pconn.idleTimer != nil {
+<span class='codenum'>16</span>      pconn.idleTimer.Stop()
+<span class='codenum'>17</span>   }
+<span class='codenum'>18</span>   t.idleLRU.remove(pconn)
+<span class='codenum'>19</span>   <comment>// ...</comment>
+<span class='codenum'>20</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (pc *persistConn) <defn>closeConnIfStillIdle</defn>() {
+<span class='codenum'>2</span>   t := pc.t
+<span class='codenum'>3</span>   t.idleMu.Lock()
+<span class='codenum'>4</span>   defer t.idleMu.Unlock()
+<span class='codenum'>5</span>   if _, ok := t.idleLRU.m[pc]; !ok {
+<span class='codenum'>6</span>      return
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>   t.removeIdleConn1(pc)
+<span class='codenum'>9</span>   pc.close(errIdleConnTimeout)
+<span class='codenum'>10</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>36 and last</span>
 </article>
 
     <div id="help">
@@ -905,5 +1154,9 @@ but return the existing value anyway.&quot;</p>
       (Press 'H' or navigate to hide this message.)
     </div>
     <script type="application/javascript" src='static/play.js'></script>
+	<script type="module">
+	   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	   mermaid.initialize({ startOnLoad: true });
+	</script>
   </body>
 </html>
