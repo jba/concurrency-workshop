@@ -273,7 +273,7 @@ func TestInlineEm(t *testing.T) {
 	}
 
 	// Verify rendered HTML
-	got := renderCode(slides[0].sections[0].content)
+	got := renderCode(slides[0].sections[0].content, true)
 	if !strings.Contains(got, "<span class=\"em\">foo</span>") {
 		t.Errorf("rendered code does not contain <span class=\"em\">foo</span>: %s", got)
 	}
@@ -301,7 +301,7 @@ func TestInlineEmWholeLine(t *testing.T) {
 	}
 
 	// Verify rendered HTML
-	got := renderCode(slides[0].sections[0].content)
+	got := renderCode(slides[0].sections[0].content, true)
 	if !strings.Contains(got, "<span class=\"em\">x := foo()</span>") {
 		t.Errorf("rendered code does not contain whole line em: %s", got)
 	}
@@ -427,7 +427,7 @@ func TestRenderCode(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		got := renderCode(tt.input)
+		got := renderCode(tt.input, true)
 		if got != tt.want {
 			t.Errorf("renderCode(%q) = %q, want %q", tt.input, got, tt.want)
 		}
@@ -511,6 +511,32 @@ func TestFileLineHTML(t *testing.T) {
 		t.Errorf("expected html to contain %q, got:\n%s", want2, html)
 	}
 }
+
+func TestNoLineNumbersHTML(t *testing.T) {
+	slides, err := scanFile("testdata/code_nonumbers.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(slides) != 1 {
+		t.Fatalf("got %d slides, want 1", len(slides))
+	}
+	slide := slides[0]
+
+	var buf strings.Builder
+	w := &indentWriter{w: &buf}
+	writeSlideHTML(w, slide, 1, false)
+	html := buf.String()
+
+	// The HTML should contain the code, but NOT the codenum spans.
+	if !strings.Contains(html, "func <defn>foo</defn>()") {
+		t.Errorf("expected html to contain %q, got:\n%s", "func <defn>foo</defn>()", html)
+	}
+
+	if strings.Contains(html, "codenum") {
+		t.Errorf("expected html to NOT contain %q, got:\n%s", "codenum", html)
+	}
+}
+
 
 
 

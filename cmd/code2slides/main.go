@@ -20,13 +20,16 @@
 //	Type and function definitions are highlighted as well.
 //
 //	OPTIONS is a space-separated list of words that can include:
-//	  bad     - Render the code block with a red border (incorrect code).
-//	  weak    - Render the code block with a yellow border.
-//	  small   - Use a font size 20% smaller than default.
-//	  smaller - Use a font size 30% smaller than default.
+//	  bad       - Render the code block with a red border (incorrect code).
+//	  weak      - Render the code block with a yellow border.
+//	  small     - Use a font size 20% smaller than default.
+//	  smaller   - Use a font size 30% smaller than default.
+//	  nonumbers - Omit line numbers in the output.
+//	  nonum     - Synonym for "nonumbers".
 //
 //	"small" and "smaller" cannot be used together, but they can coexist with
-//	"bad" or "weak".
+//	other options.
+
 
 // note / !note
 //
@@ -755,11 +758,12 @@ func validateCodeOptions(options []string) error {
 			hasSmall = true
 		case "smaller":
 			hasSmaller = true
-		case "weak", "bad":
+		case "weak", "bad", "nonumbers", "nonum":
 			// allowed
 		default:
 			return fmt.Errorf("invalid code option %q", opt)
 		}
+
 	}
 	if hasSmall && hasSmaller {
 		return errors.New("cannot use both 'small' and 'smaller'")
@@ -792,7 +796,9 @@ func writeSlideHTML(w *indentWriter, slide *Slide, pageNum int, isLast bool) {
 		case sectionCode:
 			classes := append([]string{"code"}, sec.options...)
 			w.open(fmt.Sprintf("<div class='%s'><pre>", strings.Join(classes, " ")))
-			fmt.Fprint(w, renderCode(sec.content))
+			showLineNumbers := !slices.Contains(sec.options, "nonumbers") && !slices.Contains(sec.options, "nonum")
+			fmt.Fprint(w, renderCode(sec.content, showLineNumbers))
+
 			if sec.inAnswer {
 				// Code inside answer: render without outer div structure
 				w.close("</pre></div>")
@@ -864,7 +870,7 @@ func stripUnderscoreSuffixes(s string) string {
 	})
 }
 
-func renderCode(s string) string {
+func renderCode(s string, showLineNumbers bool) string {
 	s = strings.ReplaceAll(s, "\t", "    ")
 	lines := strings.Split(s, "\n")
 
@@ -923,10 +929,14 @@ func renderCode(s string) string {
 		}
 		// Render code portion with definition highlighting
 		// and line numbers.
-		if len(code) > 0 {
+		if len(code) > 0 && showLineNumbers {
 			nonBlankLineNum++
 		}
-		result.WriteString(renderCodeLine(code, nonBlankLineNum))
+		lineNum := 0
+		if showLineNumbers {
+			lineNum = nonBlankLineNum
+		}
+		result.WriteString(renderCodeLine(code, lineNum))
 		// Render comment if present
 		if comment != "" {
 			result.WriteString("<comment>")
@@ -943,9 +953,10 @@ func renderCode(s string) string {
 func renderCodeLine(line string, num int) string {
 	prefix := ""
 	// Non-blank lines begin with a line number.
-	if len(line) > 0 {
+	if len(line) > 0 && num > 0 {
 		prefix = fmt.Sprintf("<span class='codenum'>%d</span>", num)
 	}
+
 	// Handle emphasis markers that may prefix the line.
 	if strings.HasPrefix(line, "\x00em\x00") {
 		prefix += "\x00em\x00"

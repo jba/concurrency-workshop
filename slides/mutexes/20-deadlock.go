@@ -269,10 +269,10 @@ var xena, yuri *Account_d3
 // html <br/>
 // line Concurrently:
 func g() {
-	// code
+	// code nonum
 	xena.TransferTo(yuri, 100)
 	// !code
-	// code
+	// code nonum
 	yuri.TransferTo(xena, 100)
 	// !code
 
@@ -297,11 +297,13 @@ func g() {
 
 // !col
 
-// heading Solution 1: Lower granularity
+// //////////////////////////////////
+// heading Solution 1: coarser granularity
 
-// text Locks protect larger critical sections.
+// line Locks protect larger critical sections.
 
-// code
+// cols
+// code small
 type Accounts struct {
 	mu       sync.Mutex
 	balances map[string]int // account name to balance
@@ -325,19 +327,65 @@ func (a *Accounts) Withdraw(name string, amount int) {
 	a.changeBalanceLocked(name, -amount)
 }
 
-// The caller must hold a.mu.
+// !code
+// nextcol
+// code small
+
 func (a *Accounts) changeBalanceLocked(name string, amount int) {
 	a.balances[name] += amount
 }
 
-// code
-
-// heading One lock, continued
-// code
 func (a *Accounts) TransferTo(fromName, toName string, amount int) {
-	// Must happen atomically.
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.changeBalanceLocked(fromName, -amount)
+	a.changeBalanceLocked(toName, amount)
+}
+
+// !code
+
+// text Either Xena grabs the lock first, or Yuri does.
+
+// question What's the problem with this approach?
+// answer
+// No concurrency: only one goroutine can work with _any_ account at a time.
+// !question
+// !cols
+
+////////////////////////////////////
+// heading Solution 2: lock ordering
+
+// line If all goroutines obtain locks in the same order, deadlock is impossible.
+
+func (*Account_d4) changeBalanceLocked(any) {}
+
+// cols
+// code
+type Account_d4 struct {
+	mu      sync.Mutex
+	balance int
+	id      int // unique for each account // em
+}
+
+// !code
+// nextcol
+// code
+
+func (a *Account_d4) TransferTo(b *Account_d4, amount int) {
+	// Acquire locks in ID order.
+	// em
+	if a.id < b.id {
+		a.mu.Lock()
+		b.mu.Lock()
+	} else {
+		b.mu.Lock()
+		a.mu.Lock()
+	}
+	// !em
+	// Unlock order doesn't matter.
+	defer a.mu.Unlock()
+	defer b.mu.Unlock()
+
 	a.changeBalanceLocked(-amount)
 	b.changeBalanceLocked(amount)
 }
