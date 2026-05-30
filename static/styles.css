@@ -322,7 +322,7 @@ pre {
   background: rgb(255, 252, 230);
   border: 1px solid rgb(224, 224, 224);
 
-  font-family: 'Droid Sans Mono', 'Courier New', monospace;
+  font-family: 'Consolas', 'Droid Sans Mono', 'Courier New', monospace;
   font-size: 30px;
   line-height: 40px;
   letter-spacing: -1px;

@@ -540,13 +540,17 @@ func (a *Account) WithdrawTOCTOU(amount int) error {
 
 // nextcol
 
-// question
-// Does this code have a data race?
-// answer No: every memory access is protected by a mutex.
+// question Does this code have a data race?
+// answer
+// No: every memory access is protected by a mutex.
 // !question
+
 // question
 // Does it have a race?
-// answer Yes: the balance can go negative.
+// answer
+// Yes: the balance can go negative.
+// !question
+
 // !cols
 
 ////////////////////////////////////////////////
@@ -831,11 +835,9 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 // !cols
 
 ////////////////////////////////
-// heading Find the bug
-// text TODO find example that Mac found in mcp or jsonschema-go
+// heading Exercise: Find the bug
 
-////////////////////////////////
-// heading Exercise
-
-// text TODO?
-// TODO https://github.com/modelcontextprotocol/go-sdk/pull/851/changes
+// link ../../../exercises/logger/logger.go Code
+// html <br/><br/><br/>
+// link ../../../exercises/account/solution/account.go Solution
+//

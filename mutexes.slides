@@ -104,7 +104,7 @@
   </div>
   <div> <!-- next col -->
   <div class='text'>
-<p>What we want:</p>
+<p>What we want (G1, G2 are goroutines):</p>
 <div class="interleave" style="font-size: 70%">
 <table>
 <thead>
@@ -300,7 +300,7 @@ that makes sense for the application.</p>
 <ul>
 <li>Other threads must wait</li>
 <li>Coordinate CPU caches</li>
-<li>Reconcile registers with memory</li>
+<li>Reconcile registers (CPU-local storage) with main memory</li>
 <li>Don't reorder</li>
 </ul>
   </div>
@@ -526,8 +526,7 @@ What do we think about this optimization?    </summary>
     <summary>
 What do we think about this optimization?    </summary>
     <div class='answer'>
-<p>There is no data race, but this code is still incorrect:
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXX TODO subscript x</p>
+<p>There is no data race, but this code is still incorrect:</p>
 <div class="interleave" style="font-size: 70%">
 <table>
 <thead>
@@ -538,16 +537,16 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXX TODO subscript x</p>
 </thead>
 <tbody>
 <tr>
-<td>x = c</td>
-<td>x = c</td>
+<td>x₁ = c</td>
+<td>x₂ = c</td>
 </tr>
 <tr>
-<td>x++</td>
-<td>x++</td>
+<td>x₁++</td>
+<td>x₂++</td>
 </tr>
 <tr>
-<td>c = x</td>
-<td>c = x</td>
+<td>c = x₁</td>
+<td>c = x₂</td>
 </tr>
 </tbody>
 </table>
@@ -579,6 +578,48 @@ The runtime doesn't know what your transactions are.</p>
 </article>
 
 <!-- slide 17 -->
+<article>
+  <h1>Another example: WithdrawTOCTOU</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>WithdrawTOCTOU</defn>(amount int) error {
+<span class='codenum'>2</span>   if amount &lt; 0 {
+<span class='codenum'>3</span>      return errors.New(&#34;withdraw amount must be non-negative&#34;)
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span>   a.mu.Lock()
+<span class='codenum'>6</span>   bal := a.balance
+<span class='codenum'>7</span>   a.mu.Unlock()
+<span class='codenum'>8</span>   if bal-amount &lt; 0 {
+<span class='codenum'>9</span>      return errors.New(&#34;insufficient balance&#34;)
+<span class='codenum'>10</span>   }
+<span class='codenum'>11</span>   a.mu.Lock()
+<span class='codenum'>12</span>   defer a.mu.Unlock()
+<span class='codenum'>13</span>   a.balance -= amount
+<span class='codenum'>14</span>   return nil
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <details>
+    <summary>
+Does this code have a data race?    </summary>
+    <div class='answer'>
+<p>No: every memory access is protected by a mutex.</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+Does it have a race?    </summary>
+    <div class='answer'>
+<p>Yes: the balance can go negative.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>17</span>
+</article>
+
+<!-- slide 18 -->
 <article>
   <h1>Generating unique IDs, unsafe version</h1>
   <div class="flex"><div>
@@ -613,10 +654,10 @@ What can happen if two goroutines call <code>g.NewID()</code> at the same time? 
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>17</span>
+  <span class='pagenumber'>18</span>
 </article>
 
-<!-- slide 18 -->
+<!-- slide 19 -->
 <article>
   <h1>Generating unique IDs, safe version</h1>
   <div class="flex"><div>
@@ -645,44 +686,6 @@ What can happen if two goroutines call <code>g.NewID()</code> at the same time? 
 <p>The &quot;mutex hat&quot; convention: declare the mutex field
 above the fields it protects</p>
   </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>18</span>
-</article>
-
-<!-- slide 19 -->
-<article>
-  <h1>Limit critical section size</h1>
-  <div class="flex"><div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (g *IDGenerator) <defn>NewID</defn>() string {
-<span class='codenum'>2</span>   g.mu.Lock()
-<span class='codenum'>3</span>   g.num++
-<span class='codenum'>4</span>   g.mu.Unlock()
-<span class='codenum'>5</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
-<span class='codenum'>6</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='text'>
-<p>Keep critical sections small to avoid contention</p>
-<p><code>defer</code> is not always needed or useful</p>
-  </div>
-  <details>
-    <summary>
-Find and fix the bug.    </summary>
-    <div class='code'><pre>
-<span class='codenum'>1</span>func (g *IDGenerator) <defn>NewID</defn>() string {
-<span class='codenum'>2</span>   g.mu.Lock()
-<span class='codenum'>3</span>   g.num++
-<span class='codenum'>4</span><span class="em">   n := g.num</span>
-<span class='codenum'>5</span>   g.mu.Unlock()
-<span class='codenum'>6</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, <span class="em">n</span>)
-<span class='codenum'>7</span>}
-    </pre></div>
-    <div class='answer'>
-    </div>
-  </details>
   </div></div> <!-- flex -->
   <span class='pagenumber'>19</span>
 </article>
@@ -723,71 +726,6 @@ Find and fix the bug.    </summary>
 
 <!-- slide 21 -->
 <article>
-  <h1>Avoid locking during I/O</h1>
-  <div class='text'>
-<p>I/O is slow.</p>
-  </div>
-  <div class='text'>
-<p>Network peers can be <em>arbitrarily</em> slow.</p>
-  </div>
-  <div class='text'>
-<p>Sometimes you have to copy.</p>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (s *Server) <defn>notifySessions</defn>(n string) {
-<span class='codenum'>2</span>   s.mu.Lock() <comment>// required to access s.sessions</comment>
-<span class='codenum'>3</span>   sessions := slices.Clone(s.sessions)
-<span class='codenum'>4</span>   s.pendingNotifications[n] = nil
-<span class='codenum'>5</span>   s.mu.Unlock()
-<span class='codenum'>6</span>   <comment>// Do I/O with no locks held.</comment>
-<span class='codenum'>7</span>   notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
-<span class='codenum'>8</span>}
-</pre>
-  </div>
-  <div class='text'>
-<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
-  </div>
-  <span class='pagenumber'>21</span>
-</article>
-
-<!-- slide 22 -->
-<article>
-  <h1>Avoid locking during I/O...unless you need it</h1>
-  <div class='code'><pre>
-<span class='codenum'>1</span>l.outMu.Lock()
-<span class='codenum'>2</span>defer l.outMu.Unlock()
-<span class='codenum'>3</span>_, err := l.out.Write(*buf) <comment>// avoid interleaved log lines</comment></pre>
-  </div>
-  <div class='text'>
-<p>From The <a href="https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go">log package</a></p>
-  </div>
-  <span class='pagenumber'>22</span>
-</article>
-
-<!-- slide 23 -->
-<article>
-  <h1>Another example of copying</h1>
-  <div class='text'>
-<p>We don't know how long the caller will hold on to the iterator.</p>
-  </div>
-  <div class='code'><pre>
-<comment>// Sessions returns an iterator that yields a snapshot of the server sessions.</comment>
-<span class='codenum'>1</span>func (s *Server) <defn>Sessions</defn>() iter.Seq[*ServerSession] {
-<span class='codenum'>2</span>   s.mu.Lock()
-<span class='codenum'>3</span>   clients := slices.Clone(s.sessions)
-<span class='codenum'>4</span>   s.mu.Unlock()
-<span class='codenum'>5</span>   return slices.Values(clients)
-<span class='codenum'>6</span>}
-</pre>
-  </div>
-  <div class='text'>
-<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
-  </div>
-  <span class='pagenumber'>23</span>
-</article>
-
-<!-- slide 24 -->
-<article>
   <h1>Mutexes and slices</h1>
   <div class='text'>
 <p>Each slice element is a separate memory location.</p>
@@ -802,10 +740,10 @@ Find and fix the bug.    </summary>
 <span class='codenum'>4</span>wg.Go(func() { s[1] = 2 })
 <span class='codenum'>5</span>wg.Wait()</pre>
   </div>
-  <span class='pagenumber'>24</span>
+  <span class='pagenumber'>21</span>
 </article>
 
-<!-- slide 25 -->
+<!-- slide 22 -->
 <article>
   <h1>Mutexes and slices, 2</h1>
   <div class='code bad'><pre>
@@ -823,10 +761,37 @@ Why is a mutex needed here?    </summary>
 both goroutines write to the same location, <code>s</code>.</p>
     </div>
   </details>
-  <span class='pagenumber'>25</span>
+  <span class='pagenumber'>22</span>
 </article>
 
-<!-- slide 26 -->
+<!-- slide 23 -->
+<article>
+  <h1>IDGenerator with a slice</h1>
+  <div class='text'>
+<p>No mutex needed: slice elements are independent</p>
+  </div>
+  <div class='code'><pre>
+<comment>// IDGenerator generates unique IDs with different numerical prefixes.</comment>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span>   nums []int
+<span class='codenum'>3</span>}
+
+<span class='codenum'>4</span>func <defn>NewIDGenerator</defn>(max int) *IDGenerator {
+<span class='codenum'>5</span>   return &amp;IDGenerator{nums: make([]int, max)}
+<span class='codenum'>6</span>}
+
+<span class='codenum'>7</span>func (g *IDGenerator) <defn>NewID</defn>(prefix int) string {
+<span class='codenum'>8</span>   n := g.nums[prefix]
+<span class='codenum'>9</span>   n++
+<span class='codenum'>10</span>   g.nums[prefix] = n
+<span class='codenum'>11</span>   return fmt.Sprintf(&#34;%d%d&#34;, prefix, n)
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>23</span>
+</article>
+
+<!-- slide 24 -->
 <article>
   <h1>Mutexes and maps</h1>
   <div class="flex"><div>
@@ -861,10 +826,10 @@ Why aren't maps like slices?    </summary>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>26</span>
+  <span class='pagenumber'>24</span>
 </article>
 
-<!-- slide 27 -->
+<!-- slide 25 -->
 <article>
   <h1>Mutexes and maps, safely</h1>
   <div class="flex"><div>
@@ -889,14 +854,19 @@ Why aren't maps like slices?    </summary>
   </div>
   <div> <!-- next col -->
   <div style="height: 15vw"></div>
-  <div class='text'>
-<p>Concurrency-safe maps wouldn't help here.</p>
-  </div>
+  <details>
+    <summary>
+Concurrency-safe maps wouldn't help here.
+Why not?    </summary>
+    <div class='answer'>
+<p>The read-increment-write section is a transaction.</p>
+    </div>
+  </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>27</span>
+  <span class='pagenumber'>25</span>
 </article>
 
-<!-- slide 28 -->
+<!-- slide 26 -->
 <article>
   <h1>Optimizations</h1>
   <div class='text'>
@@ -904,10 +874,10 @@ Why aren't maps like slices?    </summary>
 <p><code>sync.RWMutex</code> if there are many more reads than writes.</p>
 <p><code>sync.Map</code> if there are very few writes (often just one).</p>
   </div>
-  <span class='pagenumber'>28</span>
+  <span class='pagenumber'>26</span>
 </article>
 
-<!-- slide 29 -->
+<!-- slide 27 -->
 <article>
   <h1>sync.Map example</h1>
   <div class="flex"><div>
@@ -948,493 +918,25 @@ but return the existing value anyway.&quot;</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>29</span>
+  <span class='pagenumber'>27</span>
 </article>
 
-<!-- slide 30 -->
+<!-- slide 28 -->
 <article>
   <h1>Find the bug</h1>
   <div class='text'>
 <p>TODO find example that Mac found in mcp or jsonschema-go</p>
   </div>
-  <span class='pagenumber'>30</span>
+  <span class='pagenumber'>28</span>
 </article>
 
-<!-- slide 31 -->
+<!-- slide 29 -->
 <article>
   <h1>Exercise</h1>
   <div class='text'>
 <p>TODO?</p>
   </div>
-  <span class='pagenumber'>31</span>
-</article>
-
-<!-- slides/mutexes/20-deadlock.go -->
-
-<!-- slide 32 -->
-<article>
-  <h1>Our next subject</h1>
-  <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
-  <span class='pagenumber'>32</span>
-</article>
-
-<!-- slide 33 -->
-<article>
-  <h1>Deadlock</h1>
-  <div class='text'>
-<p>Goroutines can't make progress because they block each other.</p>
-  </div>
-  <div class='text'>
-<p>Or a single goroutine blocks itself.</p>
-  </div>
-  <span class='pagenumber'>33</span>
-</article>
-
-<!-- slide 34 -->
-<article>
-  <h1>Self-deadlock: example</h1>
-  <div class="flex"><div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (a *Account) <defn>Deposit</defn>(amount int) {
-<span class='codenum'>2</span>   a.mu.Lock()
-<span class='codenum'>3</span>   defer a.mu.Unlock()
-<span class='codenum'>4</span>   a.balance += amount
-<span class='codenum'>5</span>}
-
-<span class='codenum'>6</span>func (a *Account) <defn>Withdraw</defn>(amount int) {
-<span class='codenum'>7</span>   a.mu.Lock()
-<span class='codenum'>8</span>   defer a.mu.Unlock()
-<span class='codenum'>9</span>   a.balance -= amount
-<span class='codenum'>10</span>}
-
-<span class='codenum'>11</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
-<span class='codenum'>12</span>   <comment>// Must happen atomically.</comment>
-<span class='codenum'>13</span>   a.mu.Lock()
-<span class='codenum'>14</span>   defer a.mu.Unlock()
-<span class='codenum'>15</span>   a.Withdraw(amount)
-<span class='codenum'>16</span>   b.Deposit(amount)
-<span class='codenum'>17</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='text'>
-<div class="interleave" style="font-size: 70%">
-<table>
-<thead>
-<tr>
-<th>G</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>astrid.TransferTo(baxter, 100)</td>
-</tr>
-<tr>
-<td>astrid.mu.Lock()</td>
-</tr>
-<tr>
-<td>astrid.Withdraw(100)</td>
-</tr>
-<tr>
-<td>astrid.mu.Lock()</td>
-</tr>
-<tr>
-<td>DEADLOCK</td>
-</tr>
-</tbody>
-</table>
-</div>
-  </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>34</span>
-</article>
-
-<!-- slide 35 -->
-<article>
-  <h1>Solution: refactor</h1>
-  <div class="flex"><div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (a *Account) <defn>Deposit</defn>(amount int) {
-<span class='codenum'>2</span>   a.mu.Lock()
-<span class='codenum'>3</span>   defer a.mu.Unlock()
-<span class='codenum'>4</span>   a.changeBalanceLocked(amount)
-<span class='codenum'>5</span>}
-
-<span class='codenum'>6</span>func (a *Account) <defn>Withdraw</defn>(amount int) {
-<span class='codenum'>7</span>   a.mu.Lock()
-<span class='codenum'>8</span>   defer a.mu.Unlock()
-<span class='codenum'>9</span>   a.changeBalanceLocked(-amount)
-<span class='codenum'>10</span>}
-
-<comment>// The caller must hold a.mu.</comment>
-<span class='codenum'>11</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
-<span class='codenum'>12</span>   a.balance += amount
-<span class='codenum'>13</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(
-<span class='codenum'>2</span>   b *Account, amount int) {
-<span class='codenum'>3</span>   <comment>// Must happen atomically.</comment>
-<span class='codenum'>4</span>   a.mu.Lock()
-<span class='codenum'>5</span>   defer a.mu.Unlock()
-<span class='codenum'>6</span>   a.changeBalanceLocked(-amount)
-<span class='codenum'>7</span>   b.mu.Lock()
-<span class='codenum'>8</span>   defer b.mu.Unlock()
-<span class='codenum'>9</span>   b.changeBalanceLocked(amount)
-<span class='codenum'>10</span>}
-</pre>
-  </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>35</span>
-</article>
-
-<!-- slide 36 -->
-<article>
-  <h1>A real-world example</h1>
-  Modified from net/http/transport.go<br/>
-  <div class="flex"><div>
-  <div class='code small'><pre>
-<span class='codenum'>1</span>type <defn>Transport</defn> struct {
-<span class='codenum'>2</span>   idleMu  sync.Mutex
-<span class='codenum'>3</span>   idleLRU connLRU
-<span class='codenum'>4</span>   <comment>// ...</comment>
-<span class='codenum'>5</span>}
-
-<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConn1</defn>(pconn *pConn) bool {
-<span class='codenum'>7</span><span class="em">   t.idleMu.Lock()</span>
-<span class='codenum'>8</span>   defer t.idleMu.Unlock()
-<span class='codenum'>9</span>   if pconn.idleTimer != nil {
-<span class='codenum'>10</span>      pconn.idleTimer.Stop()
-<span class='codenum'>11</span>   }
-<span class='codenum'>12</span>   <span class="em">t.idleLRU</span>.remove(pconn)
-<span class='codenum'>13</span>   <comment>// ...</comment>
-<span class='codenum'>14</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='code small'><pre>
-<span class='codenum'>1</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *pConn) bool {
-<span class='codenum'>2</span>   if pconn.isClientConn {
-<span class='codenum'>3</span>      return true
-<span class='codenum'>4</span>   }
-<span class='codenum'>5</span>   return t.<span class="em">removeIdleConn1</span>(pconn)
-<span class='codenum'>6</span>}
-</pre>
-  </div>
-  <div class='code small'><pre>
-<span class='codenum'>1</span>func (pc *pConn) <defn>closeConnIfStillIdle</defn>() {
-<span class='codenum'>2</span>   t := pc.t
-<span class='codenum'>3</span><span class="em">   t.idleMu.Lock()</span>
-<span class='codenum'>4</span>   defer t.idleMu.Unlock()
-<span class='codenum'>5</span>   if _, ok := <span class="em">t.idleLRU</span>.m[pc]; !ok {
-<span class='codenum'>6</span>      return
-<span class='codenum'>7</span>   }
-<span class='codenum'>8</span>   t.<span class="em">removeIdleConn1</span>(pc)
-<span class='codenum'>9</span>   pc.close(errIdleConnTimeout)
-<span class='codenum'>10</span>}
-</pre>
-  </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>36</span>
-</article>
-
-<!-- slide 37 -->
-<article>
-  <h1>Solution: refactor</h1>
-  Actually from net/http/transport.go<br/>
-  <div class="flex"><div>
-  <div class='code small'><pre>
-<span class='codenum'>1</span>type <defn>Transport</defn> struct {
-<span class='codenum'>2</span>   idleMu  sync.Mutex
-<span class='codenum'>3</span>   idleLRU connLRU
-<span class='codenum'>4</span>   <comment>// ...</comment>
-<span class='codenum'>5</span>}
-
-<comment>// t.idleMu must be held.</comment>
-<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConnLocked</defn>(pconn *pConn) bool {
-<span class='codenum'>7</span>   if pconn.idleTimer != nil {
-<span class='codenum'>8</span>      pconn.idleTimer.Stop()
-<span class='codenum'>9</span>   }
-<span class='codenum'>10</span>   t.idleLRU.remove(pconn)
-<span class='codenum'>11</span>   <comment>// ...</comment>
-<span class='codenum'>12</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='code small'><pre>
-<span class='codenum'>1</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *pConn) bool {
-<span class='codenum'>2</span>   if pconn.isClientConn {
-<span class='codenum'>3</span>      return true
-<span class='codenum'>4</span>   }
-<span class='codenum'>5</span><span class="em">   t.idleMu.Lock()
-<span class='codenum'>6</span>   defer t.idleMu.Unlock()
-<span class='codenum'>7</span>   return t.removeIdleConnLocked(pconn)</span>
-<span class='codenum'>8</span>}
-</pre>
-  </div>
-  <div class='code small'><pre>
-<span class='codenum'>1</span>func (pc *pConn) <defn>closeConnIfStillIdle</defn>() {
-<span class='codenum'>2</span>   t := pc.t
-<span class='codenum'>3</span>   t.idleMu.Lock()
-<span class='codenum'>4</span>   defer t.idleMu.Unlock()
-<span class='codenum'>5</span>   if _, ok := t.idleLRU.m[pc]; !ok {
-<span class='codenum'>6</span>      return
-<span class='codenum'>7</span>   }
-<span class='codenum'>8</span><span class="em">   t.removeIdleConnLocked(pc)</span>
-<span class='codenum'>9</span>   pc.close(errIdleConnTimeout)
-<span class='codenum'>10</span>}
-</pre>
-  </div>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>37</span>
-</article>
-
-<!-- slide 38 -->
-<article>
-  <h1>Multi-goroutine deadlocks</h1>
-  <div class="flex"><div>
-  Reminder:<br/>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
-<span class='codenum'>2</span>   <comment>// Must happen atomically.</comment>
-<span class='codenum'>3</span>   a.mu.Lock()
-<span class='codenum'>4</span>   defer a.mu.Unlock()
-<span class='codenum'>5</span>   a.changeBalanceLocked(-amount)
-<span class='codenum'>6</span>   b.mu.Lock()
-<span class='codenum'>7</span>   defer b.mu.Unlock()
-<span class='codenum'>8</span>   b.changeBalanceLocked(amount)
-<span class='codenum'>9</span>}
-</pre>
-  </div>
-  <br/>
-  Concurrently:<br/>
-  <div class='code nonum'><pre>
-xena.TransferTo(yuri, 100)</pre>
-  </div>
-  <div class='code nonum'><pre>
-yuri.TransferTo(xena, 100)</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='text'>
-<div class="interleave" style="font-size: 70%">
-<table>
-<thead>
-<tr>
-<th>X→Y</th>
-<th>Y→X</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>x.TransferTo(y)</td>
-<td>y.TransferTo(x)</td>
-</tr>
-<tr>
-<td><strong>x</strong>.mu.Lock()</td>
-<td><strong>y</strong>.mu.Lock()</td>
-</tr>
-<tr>
-<td>x.changeBalanceLocked()</td>
-<td>y.changeBalanceLocked()</td>
-</tr>
-<tr>
-<td><strong>y</strong>.mu.Lock()</td>
-<td><strong>x</strong>.mu.Lock()</td>
-</tr>
-<tr>
-<td>DEADLOCK</td>
-<td>DEADLOCK</td>
-</tr>
-</tbody>
-</table>
-  </div>
-  <br/>
-  <div class='text'>
-<p>That is only one interleaving!</p>
-  </div>
-  <span class='pagenumber'>38</span>
-</article>
-
-<!-- slide 39 -->
-<article>
-  <h1>Solution 1: coarser granularity</h1>
-  Locks protect larger critical sections.<br/>
-  <div class="flex"><div>
-  <div class='code small'><pre>
-<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
-<span class='codenum'>2</span>   mu       sync.Mutex
-<span class='codenum'>3</span>   balances map[string]int <comment>// account name to balance</comment>
-<span class='codenum'>4</span>}
-
-<span class='codenum'>5</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
-<span class='codenum'>6</span>   a.mu.Lock()
-<span class='codenum'>7</span>   defer a.mu.Unlock()
-<span class='codenum'>8</span>   return a.balances[name]
-<span class='codenum'>9</span>}
-
-<span class='codenum'>10</span>func (a *Accounts) <defn>Deposit</defn>(name string, amount int) {
-<span class='codenum'>11</span>   a.mu.Lock()
-<span class='codenum'>12</span>   defer a.mu.Unlock()
-<span class='codenum'>13</span>   a.changeBalanceLocked(name, amount)
-<span class='codenum'>14</span>}
-
-<span class='codenum'>15</span>func (a *Accounts) <defn>Withdraw</defn>(name string, amount int) {
-<span class='codenum'>16</span>   a.mu.Lock()
-<span class='codenum'>17</span>   defer a.mu.Unlock()
-<span class='codenum'>18</span>   a.changeBalanceLocked(name, -amount)
-<span class='codenum'>19</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='code small'><pre>
-
-<span class='codenum'>1</span>func (a *Accounts) <defn>changeBalanceLocked</defn>(name string, amount int) {
-<span class='codenum'>2</span>   a.balances[name] += amount
-<span class='codenum'>3</span>}
-
-<span class='codenum'>4</span>func (a *Accounts) <defn>TransferTo</defn>(fromName, toName string, amount int) {
-<span class='codenum'>5</span>   a.mu.Lock()
-<span class='codenum'>6</span>   defer a.mu.Unlock()
-<span class='codenum'>7</span>   a.changeBalanceLocked(fromName, -amount)
-<span class='codenum'>8</span>   a.changeBalanceLocked(toName, amount)
-<span class='codenum'>9</span>}
-</pre>
-  </div>
-  <div class='text'>
-<p>Either Xena grabs the lock first, or Yuri does.</p>
-  </div>
-  <details>
-    <summary>
-What's the problem with this approach?    </summary>
-    <div class='answer'>
-<p>No concurrency: only one goroutine can work with <em>any</em> account at a time.</p>
-    </div>
-  </details>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>39</span>
-</article>
-
-<!-- slide 40 -->
-<article>
-  <h1>Solution 2: lock ordering</h1>
-  If all goroutines obtain locks in the same order, deadlock is impossible.<br/>
-  <div class="flex"><div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>Account</defn> struct {
-<span class='codenum'>2</span>   mu      sync.Mutex
-<span class='codenum'>3</span>   balance int
-<span class='codenum'>4</span><span class="em">   id      int <comment>// unique for each account</span></comment>
-<span class='codenum'>5</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='code'><pre>
-
-<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
-<span class='codenum'>2</span>   <comment>// Acquire locks in ID order.</comment>
-<span class='codenum'>3</span><span class="em">   if a.id &lt; b.id {
-<span class='codenum'>4</span>      a.mu.Lock()
-<span class='codenum'>5</span>      b.mu.Lock()
-<span class='codenum'>6</span>   } else {
-<span class='codenum'>7</span>      b.mu.Lock()
-<span class='codenum'>8</span>      a.mu.Lock()
-<span class='codenum'>9</span>   }</span>
-<span class='codenum'>10</span>   <comment>// Unlock order doesn&#39;t matter.</comment>
-<span class='codenum'>11</span>   defer a.mu.Unlock()
-<span class='codenum'>12</span>   defer b.mu.Unlock()
-
-<span class='codenum'>13</span>   a.changeBalanceLocked(-amount)
-<span class='codenum'>14</span>   b.changeBalanceLocked(amount)
-<span class='codenum'>15</span>}
-</pre>
-  </div>
-  <span class='pagenumber'>40</span>
-</article>
-
-<!-- slides/mutexes/30-checklocks.go -->
-
-<!-- slide 41 -->
-<article class='title-slide'>
-  <div class='title-text'>checklocks</div>
-  <span class='pagenumber'>41</span>
-</article>
-
-<!-- slide 42 -->
-<article>
-  <h1>Overview</h1>
-  <div class='text'>
-<p>Checklocks is a tool developed by Google's gvisor team.</p>
-<p>Installation:</p>
-<pre><code>go install gvisor.dev/gvisor/tools/checklocks/cmd/checklocks@go
-</code></pre>
-<p>Use:</p>
-<pre><code>checklocks ./...
-</code></pre>
-  </div>
-  <span class='pagenumber'>42</span>
-</article>
-
-<!-- slide 43 -->
-<article>
-  <h1>Example</h1>
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>Account</defn> struct {
-<span class='codenum'>2</span>   mu      sync.Mutex
-<span class='codenum'>3</span>   balance int
-<span class='codenum'>4</span>}
-
-<span class='codenum'>5</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
-<span class='codenum'>6</span>   a.balance += amount
-<span class='codenum'>7</span>}
-
-<span class='codenum'>8</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
-<span class='codenum'>9</span>   a.mu.Lock()
-<span class='codenum'>10</span>   defer a.mu.Unlock()
-<span class='codenum'>11</span>   a.changeBalanceLocked(-amount)
-<span class='codenum'>12</span>   b.changeBalanceLocked(amount)
-<span class='codenum'>13</span>}
-</pre>
-  </div>
-  <span class='pagenumber'>43</span>
-</article>
-
-<!-- slide 44 -->
-<article>
-  <h1>Example</h1>
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>Account</defn> struct {
-<span class='codenum'>2</span>   mu sync.Mutex
-<span class='codenum'>3</span>   <comment>// +checklocks:mu</comment>
-<span class='codenum'>4</span>   balance int
-<span class='codenum'>5</span>}
-
-<span class='codenum'>6</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
-<span class='codenum'>7</span>   a.balance += amount
-<span class='codenum'>8</span>}
-
-<span class='codenum'>9</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
-<span class='codenum'>10</span>   a.mu.Lock()
-<span class='codenum'>11</span>   defer a.mu.Unlock()
-<span class='codenum'>12</span>   a.changeBalanceLocked(-amount)
-<span class='codenum'>13</span>   b.changeBalanceLocked(amount)
-<span class='codenum'>14</span>}
-</pre>
-  </div>
-<div></div>
-  <div class='output'><pre>
-file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
-</pre>
-  </div>
-  <span class='pagenumber'>44 and last</span>
+  <span class='pagenumber'>29 and last</span>
 </article>
 
     <div id="help">
