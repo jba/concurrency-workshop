@@ -1,13 +1,9 @@
-/*
-	TODO:
-
-- mutexes aren't recursive
-- checklocks
-*/
+// TODO: don't copy mutexes
 
 package m
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"iter"
@@ -83,7 +79,8 @@ func f1() {
 
 // text is actually
 func f2() {
-	var R0, c int
+	var R0 int // register 0
+	var c int  // variable in main memory
 	// code
 	R0 = c
 	R0++
@@ -97,7 +94,7 @@ func f2() {
 // nextcol
 /* text
 
-What we want:
+What we want (G1, G2 are goroutines):
 
 <div class="interleave" style="font-size: 70%">
 
@@ -208,8 +205,6 @@ func count_1() {
 // html <br/><br/><br/>
 // link ../../../exercises/account/solution/account.go Solution
 
-// XXXXXXXXXXXXXXXX TODO: explain Withdraw in more detail with separate locks
-
 ////////////////////////////////////////////////
 // heading Synchronization: more than interleavings
 
@@ -246,7 +241,7 @@ func (a *Account) Balance() int {
 // `mu.Lock()` means:
 // - Other threads must wait
 // - Coordinate CPU caches
-// - Reconcile registers with memory
+// - Reconcile registers (CPU-local storage) with main memory
 // - Don't reorder
 // !text
 
@@ -490,14 +485,13 @@ func count_cc() {
 // What do we think about this optimization?
 // answer
 // There is no data race, but this code is still incorrect:
-// XXXXXXXXXXXXXXXXXXXXXXXXXXXXX TODO subscript x
 // <div class="interleave" style="font-size: 70%">
 //
 // | G1 | G2 |
 // | -- | -- |
-// | x = c | x = c |
-// | x++ | x++ |
-// | c = x | c = x |
+// | x₁ = c | x₂ = c |
+// | x₁++ | x₂++ |
+// | c = x₁ | c = x₂ |
 //
 // </div>
 // !question
@@ -521,6 +515,39 @@ func count_cc() {
 // It would be slower, and _it wouldn't help in many cases_.<br/>
 // The runtime doesn't know what your transactions are.
 // !question
+
+// //////////////////////////////////////////////
+// heading Another example: WithdrawTOCTOU
+// cols
+// code
+func (a *Account) WithdrawTOCTOU(amount int) error {
+	if amount < 0 {
+		return errors.New("withdraw amount must be non-negative")
+	}
+	a.mu.Lock()
+	bal := a.balance
+	a.mu.Unlock()
+	if bal-amount < 0 {
+		return errors.New("insufficient balance")
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.balance -= amount
+	return nil
+}
+
+// !code
+
+// nextcol
+
+// question
+// Does this code have a data race?
+// answer No: every memory access is protected by a mutex.
+// !question
+// question
+// Does it have a race?
+// answer Yes: the balance can go negative.
+// !cols
 
 ////////////////////////////////////////////////
 // heading Generating unique IDs, unsafe version
@@ -589,45 +616,6 @@ func (g *IDGenerator_1) NewID_1() string {
 // above the fields it protects
 
 // !text
-// !cols
-
-// ///////////////////////////////////////
-// heading Limit critical section size
-// XXXXXXXXXXXXXXXXXXXXXXXXx TODO remove
-// cols
-// code
-func (g *IDGenerator_1) NewID_2() string {
-	g.mu.Lock()
-	g.num++
-	g.mu.Unlock()
-	return fmt.Sprintf("%s%d", g.prefix, g.num)
-}
-
-// !code
-
-// nextcol
-
-// text
-// Keep critical sections small to avoid contention
-//
-// `defer` is not always needed or useful
-// !text
-// question
-// Find and fix the bug.
-// answer
-// code
-func (g *IDGenerator_1) NewID_3() string {
-	g.mu.Lock()
-	g.num++
-	n := g.num // em
-	g.mu.Unlock()
-	return fmt.Sprintf("%s%d", g.prefix, n) // em \bn\b
-}
-
-// !code
-
-// !question
-
 // !cols
 
 //////////////////////////////////////////
@@ -772,6 +760,7 @@ func fslice2() []int {
 // There is a data race:
 // both goroutines write to the same location, `s`.
 // !question
+
 // ////////////////////////////////////////
 // heading Mutexes and maps
 // XXXXXXXXXXXXXXXX TODO first match slices example
