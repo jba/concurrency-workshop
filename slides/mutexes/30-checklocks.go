@@ -68,3 +68,30 @@ func (a *Account_cl2) TransferTo(b *Account_cl2, amount int) {
 // output
 // file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
 // !output
+
+// /////////////////////
+// heading Example, v2
+
+// code
+type Account_cl3 struct {
+	mu      sync.Mutex
+	balance int
+}
+
+// +checklocks:a.mu
+func (a *Account_cl3) changeBalanceLocked(amount int) {
+	a.balance += amount
+}
+
+func (a *Account_cl3) TransferTo(b *Account_cl3, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+
+// output
+// TODO
+// !output
