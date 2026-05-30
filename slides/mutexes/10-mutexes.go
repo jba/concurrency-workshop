@@ -653,78 +653,6 @@ func (g *IDGenerator_2) NewID_3() string {
 // !cols
 
 //////////////////////////////////////////
-// heading Avoid locking during I/O
-// XXXXXXXXXXXXXXXXXXXXXXXX TODO move to patterns
-// text I/O is slow.
-// text Network peers can be _arbitrarily_ slow.
-// text Sometimes you have to copy.
-
-// code
-func (s *Server) notifySessions(n string) {
-	s.mu.Lock() // required to access s.sessions
-	sessions := slices.Clone(s.sessions)
-	s.pendingNotifications[n] = nil
-	s.mu.Unlock()
-	// Do I/O with no locks held.
-	notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
-}
-
-// !code
-
-// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
-
-type Server struct {
-	mu                   sync.Mutex
-	sessions             []*ServerSession
-	pendingNotifications map[string]*int
-	opts                 struct{ Logger int }
-}
-
-type ServerSession int
-
-var changeNotificationParams map[string]int
-
-func notifySessions([]*ServerSession, string, int, int) {}
-
-//////////////////////////////////////////
-// heading Avoid locking during I/O...unless you need it
-// XXXXXXXXXXXXXXXXX TODO pseudocode
-
-func flog() {
-	var l struct {
-		outMu sync.Mutex
-		out   io.Writer
-	}
-	var buf *[]byte
-	// code
-	l.outMu.Lock()
-	defer l.outMu.Unlock()
-	_, err := l.out.Write(*buf) // avoid interleaved log lines
-	// !code
-	_ = err
-}
-
-// text From The [log package](https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go)
-//////////////////////////////////////////
-// heading Another example of copying
-
-// XXXXXXXXXXXXXXXXX TODO just return a slice
-// text We don't know how long the caller will hold on to the iterator.
-
-// code
-// Sessions returns an iterator that yields a snapshot of the server sessions.
-func (s *Server) Sessions() iter.Seq[*ServerSession] {
-	s.mu.Lock()
-	clients := slices.Clone(s.sessions)
-	s.mu.Unlock()
-	return slices.Values(clients)
-}
-
-// !code
-
-// text From The [Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go)
-
-//////////////////////////////////////////
 // heading Mutexes and slices
 
 // text Each slice element is a separate memory location.
@@ -762,8 +690,31 @@ func fslice2() []int {
 // !question
 
 // ////////////////////////////////////////
+// heading IDGenerator with a slice
+
+// text No mutex needed: slice elements are independent
+// code
+// IDGenerator generates unique IDs with different numerical prefixes.
+type IDGenerator_s1 struct {
+	nums []int
+}
+
+func NewIDGenerator_s1(max int) *IDGenerator_s1 {
+	return &IDGenerator_s1{nums: make([]int, max)}
+}
+
+func (g *IDGenerator_s1) NewID_s1(prefix int) string { // em prefix string
+	n := g.nums[prefix]
+	n++
+	g.nums[prefix] = n
+	return fmt.Sprintf("%d_%d", prefix, n)
+}
+
+// !code
+
+// ////////////////////////////////////////
 // heading Mutexes and maps
-// XXXXXXXXXXXXXXXX TODO first match slices example
+
 // cols
 // code bad
 // IDGenerator generates unique IDs with different prefixes.
@@ -822,7 +773,13 @@ func (g *IDGenerator_m2) NewID_m2(prefix string) string {
 
 // html <div style="height: 15vw"></div>
 
-// text Concurrency-safe maps wouldn't help here.
+// question
+// Concurrency-safe maps wouldn't help here.
+// Why not?
+// answer
+// The read-increment-write section is a transaction.
+// !question
+
 // !cols
 ////////////////////////////////
 // heading Optimizations
