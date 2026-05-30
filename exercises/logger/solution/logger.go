@@ -1,21 +1,23 @@
+// Exercise: find the race.
+
 package lograce
 
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"slices"
 	"sync"
 )
 
 type Logger struct {
-	out io.Writer
-	mu  sync.Mutex
-	buf bytes.Buffer
+	emit func([]byte)
+	mu   sync.Mutex
+	buf  bytes.Buffer
 }
 
-func NewLogger(out io.Writer) *Logger {
-	return &Logger{out: out}
+// NewLogger constructs a Logger that calls emit with complete log lines to emit.
+func NewLogger(emit func([]byte)) *Logger {
+	return &Logger{emit: emit}
 }
 
 func (l *Logger) Logf(format string, args ...any) {
@@ -24,9 +26,8 @@ func (l *Logger) Logf(format string, args ...any) {
 	l.mu.Lock()
 	l.buf.Reset()
 	fmt.Fprintf(&l.buf, format, args...)
-	// Copy the shared byte slice inside the bytes.Buffer.
 	data = slices.Clone(l.buf.Bytes())
 	l.mu.Unlock()
 
-	_, _ = l.out.Write(data)
+	l.emit(data)
 }

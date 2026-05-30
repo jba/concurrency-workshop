@@ -839,5 +839,5 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 
 // link ../../../exercises/logger/logger.go Code
 // html <br/><br/><br/>
-// link ../../../exercises/account/solution/account.go Solution
+// link ../../../exercises/logger/solution/logger.go Solution
 //

@@ -923,20 +923,11 @@ but return the existing value anyway.&quot;</p>
 
 <!-- slide 28 -->
 <article>
-  <h1>Find the bug</h1>
-  <div class='text'>
-<p>TODO find example that Mac found in mcp or jsonschema-go</p>
-  </div>
-  <span class='pagenumber'>28</span>
-</article>
-
-<!-- slide 29 -->
-<article>
-  <h1>Exercise</h1>
-  <div class='text'>
-<p>TODO?</p>
-  </div>
-  <span class='pagenumber'>29 and last</span>
+  <h1>Exercise: Find the bug</h1>
+  <a href="../exercises/logger/logger.go">Code</a>
+  <br/><br/><br/>
+  <a href="../exercises/logger/solution/logger.go">Solution</a>
+  <span class='pagenumber'>28 and last</span>
 </article>
 
     <div id="help">

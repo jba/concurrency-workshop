@@ -80,7 +80,7 @@ func (l *Logger) Printf(format string, v ...any) {
 	})
 }
 
-// output can take either a calldepth or a pc to get source line information.
+// Output can take either a calldepth or a pc to get source line information.
 // It uses the pc if it is non-zero.
 func (l *Logger) output(pc uintptr, calldepth int, appendOutput func([]byte) []byte) error {
 	var buf []byte
