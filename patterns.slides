@@ -146,8 +146,7 @@ for a recent, subtle change to <code>WaitGroup.Go</code>.</p>
   </div>
   <details>
     <summary>
-What's the problem here?</p>
-    </summary>
+What's the problem here?    </summary>
     <div class='answer'>
 <p><code>Wait</code> holds the mutex for its entire lifetime,
 so <code>Done</code> is blocked.</p>
@@ -178,8 +177,7 @@ so <code>Done</code> is blocked.</p>
   </div>
   <details>
     <summary>
-What's wrong with busy-waiting?</p>
-    </summary>
+What's wrong with busy-waiting?    </summary>
     <div class='answer'>
 <ul>
 <li>Sleep too long: waste time</li>
@@ -191,8 +189,7 @@ What's wrong with busy-waiting?</p>
   <div> <!-- next col -->
   <details>
     <summary>
-Find the issue.</p>
-    </summary>
+Find the issue.    </summary>
     <div class='answer'>
 <p><code>Wait</code> might not notice a 0 count.</p>
 <div class="interleave" style="font-size: 70%">
@@ -255,8 +252,7 @@ Find the issue.</p>
     <summary>
 What synchronization feature will make a goroutine
 wait until something happens?<br/>
-And how should we use it?</p>
-    </summary>
+And how should we use it?    </summary>
     <div class='answer'>
 <p>A channel.</p>
 <p>We should close it when <code>count</code> is zero, to broadcast to
@@ -301,8 +297,7 @@ all waiting goroutines.</p>
     <div> <!-- next col -->
     <details>
       <summary>
-What should the body of <code>Wait</code> be?</p>
-      </summary>
+What should the body of <code>Wait</code> be?      </summary>
       <div class='code'><pre>
 <span class='codenum'>1</span>func (g *WaitGroup) <defn>Wait</defn>() {
 <span class='codenum'>2</span>   &lt;-g.done
@@ -310,8 +305,7 @@ What should the body of <code>Wait</code> be?</p>
       </pre></div>
       <details>
         <summary>
-What happens if there is another &quot;round&quot; with the same <code>WaitGroup</code>?</p>
-        </summary>
+What happens if there is another &quot;round&quot; with the same <code>WaitGroup</code>?        </summary>
         <div class='answer'>
 <p><code>Wait</code> immediately returns, and <code>Add</code> panics when the channel is closed again.</p>
         </div>
@@ -407,8 +401,7 @@ but reading and writing a channel <em>variable</em> is not.</p>
       </div>
       <details>
         <summary>
-How do we implement the comment?</p>
-        </summary>
+How do we implement the comment?        </summary>
         <div class='answer'>
 <ul>
 <li>A channel of errors</li>
@@ -764,16 +757,14 @@ func (m *Memo[In, Out]) Call(in In) Out
       <div> <!-- next col -->
       <details>
         <summary>
-Why is it safe to access to <code>e.waitc</code> unlocked?</p>
-        </summary>
+Why is it safe to access to <code>e.waitc</code> unlocked?        </summary>
         <div class='answer'>
 <p>It's immutable (unchanged after initialization)</p>
         </div>
       </details>
       <details>
         <summary>
-Why is it safe to access <code>e.out</code> unlocked?</p>
-        </summary>
+Why is it safe to access <code>e.out</code> unlocked?        </summary>
         <div class='answer'>
 <ul>
 <li>The first goroutine writes <code>e.out</code>, then closes the channel.</li>
@@ -985,34 +976,31 @@ Why is it safe to access <code>e.out</code> unlocked?</p>
 <!-- slide 37 -->
     <article>
       <h1>Live code controls access</h1>
-      <div class='text'>
-<p>The actor goroutine determines how to access the state.</p>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() {
+      The actor goroutine determines how to access the state.<br/>
+      <div class='code small'><pre>
+<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() { <comment>// get has priority</comment>
 <span class='codenum'>2</span>   for {
-<span class='codenum'>3</span><span class="em">      <comment>// If a get and change are both waiting, take the</comment>
-<span class='codenum'>4</span>      <comment>// get first.</comment>
-<span class='codenum'>5</span>      select {
-<span class='codenum'>6</span>      case m := &lt;-a.getc:
-<span class='codenum'>7</span>         m.response &lt;- a.balances[m.name]
-<span class='codenum'>8</span>         continue
-<span class='codenum'>9</span>      default:
-<span class='codenum'>10</span>      }</span>
-<span class='codenum'>11</span>      <comment>// Take whichever is ready.</comment>
-<span class='codenum'>12</span>      select {
-<span class='codenum'>13</span>      case m := &lt;-a.getc:
-<span class='codenum'>14</span>         m.response &lt;- a.balances[m.name]
-<span class='codenum'>15</span>      case m := &lt;-a.changec:
-<span class='codenum'>16</span>         if a.balances[m.name]+m.amount &lt; 0 {
-<span class='codenum'>17</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
-<span class='codenum'>18</span>         } else {
-<span class='codenum'>19</span>            a.balances[m.name] += m.amount
-<span class='codenum'>20</span>            m.response &lt;- nil
-<span class='codenum'>21</span>         }
-<span class='codenum'>22</span>      }
-<span class='codenum'>23</span>   }
-<span class='codenum'>24</span>}
+<span class='codenum'>3</span><span class="em">      <comment>// If a get and change are both waiting, take the get first.</comment>
+<span class='codenum'>4</span>      select {
+<span class='codenum'>5</span>      case m := &lt;-a.getc:
+<span class='codenum'>6</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>7</span>         continue
+<span class='codenum'>8</span>      default:
+<span class='codenum'>9</span>      }</span>
+<span class='codenum'>10</span>      <comment>// Take whichever is ready.</comment>
+<span class='codenum'>11</span>      select {
+<span class='codenum'>12</span>      case m := &lt;-a.getc:
+<span class='codenum'>13</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>14</span>      case m := &lt;-a.changec:
+<span class='codenum'>15</span>         if a.balances[m.name]+m.amount &lt; 0 {
+<span class='codenum'>16</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
+<span class='codenum'>17</span>         } else {
+<span class='codenum'>18</span>            a.balances[m.name] += m.amount
+<span class='codenum'>19</span>            m.response &lt;- nil
+<span class='codenum'>20</span>         }
+<span class='codenum'>21</span>      }
+<span class='codenum'>22</span>   }
+<span class='codenum'>23</span>}
 </pre>
       </div>
       <span class='pagenumber'>37</span>

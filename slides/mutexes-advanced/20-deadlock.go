@@ -5,10 +5,12 @@ import (
 	"time"
 )
 
+// title Advanced Mutex Topics
+
 ////////////////////////////////////
 // heading  Our next subject
 
-// html <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
+// html <img height=500 src="slides/mutexes-advanced/deadlock-rebus.png"/>
 
 ////////////////////////////////////
 // heading Deadlock

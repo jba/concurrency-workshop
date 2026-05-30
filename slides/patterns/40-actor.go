@@ -193,16 +193,12 @@ func f() {
 // //////////////////////////////////
 // heading Live code controls access
 
-// text The actor goroutine determines how to access the state.
-
-// Example: priorities
-
-// code
-func (a *Accounts) run_1() {
+// line The actor goroutine determines how to access the state.
+// code small
+func (a *Accounts) run_1() { // get has priority
 	for {
 		// em
-		// If a get and change are both waiting, take the
-		// get first.
+		// If a get and change are both waiting, take the get first.
 		select {
 		case m := <-a.getc:
 			m.response <- a.balances[m.name]

@@ -16,6 +16,7 @@ type Logger struct {
 }
 
 // NewLogger constructs a Logger that calls emit with complete log lines to emit.
+// emit should take care to output its lines atomically, to prevent interleaving.
 func NewLogger(emit func([]byte)) *Logger {
 	return &Logger{emit: emit}
 }

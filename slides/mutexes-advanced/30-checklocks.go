@@ -93,5 +93,23 @@ func (a *Account_cl3) TransferTo(b *Account_cl3, amount int) {
 // !code
 
 // output
-// TODO
+// file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanceLocked, but not held
 // !output
+
+// heading The race detector vs. checklocks
+//
+// text
+// <div class="interleave" style="font-size: 70%">
+//
+// | -race | checklocks |
+// | -- | -- |
+// | dynamic | static |
+// | program runs 4x slower | no effect on runtime speed |
+// | finds all races that happen | can miss some races (see logger exercise) |
+// | no code changes | needs annotations |
+// | run on any code | only code you can annotate |
+// | mutexes can be anywhere | only works for globals and struct fields |
+// | only data races, not transaction races | only data races, not transaction races |
+// </div>
+
+// !text

@@ -13,7 +13,7 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- slides/mutexes-advanced/10-scope.go -->
+<!-- slides/mutexes-advanced/20-deadlock.go -->
 
 <!-- slide 1 -->
 <article class='title-slide'>
@@ -23,107 +23,12 @@
 
 <!-- slide 2 -->
 <article>
-  <h1>Copy defensively</h1>
-  <div class='text'>
-<p>Copy private mutable data</p>
-  </div>
-  <div class='text'>
-<p><code>Server.sessions</code> is managed by <code>Server</code></p>
-  </div>
-  <div class='text'>
-<p>It doesn't want anyone else to change it.</p>
-  </div>
-  <div class='code'><pre>
-<comment>// Sessions returns a copy of the server&#39;s sessions.</comment>
-<span class='codenum'>1</span>func (s *Server) <defn>Sessions</defn>() []*ServerSession {
-<span class='codenum'>2</span>   s.mu.Lock()
-<span class='codenum'>3</span>   defer s.mu.Unlock()
-<span class='codenum'>4</span>   return slices.Clone(s.sessions)
-<span class='codenum'>5</span>}
-</pre>
-  </div>
-  <div class='text'>
-<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
-  </div>
+  <h1>Our next subject</h1>
+  <img height=500 src="slides/mutexes-advanced/deadlock-rebus.png"/>
   <span class='pagenumber'>2</span>
 </article>
 
 <!-- slide 3 -->
-<article>
-  <h1>Avoid locking during I/O</h1>
-  <div class='text'>
-<p>I/O is slow.</p>
-  </div>
-  <div class='text'>
-<p>Network peers can be <em>arbitrarily</em> slow.</p>
-  </div>
-  <div class='text'>
-<p>Sometimes you have to copy.</p>
-  </div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>func (s *Server) <defn>notifySessions</defn>(n string) {
-<span class='codenum'>2</span>   s.mu.Lock() <comment>// required to access s.sessions</comment>
-<span class='codenum'>3</span>   sessions := slices.Clone(s.sessions)
-<span class='codenum'>4</span>   s.pendingNotifications[n] = nil
-<span class='codenum'>5</span>   s.mu.Unlock()
-<span class='codenum'>6</span>   <comment>// Do I/O with no locks held.</comment>
-<span class='codenum'>7</span>   notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
-<span class='codenum'>8</span>}
-</pre>
-  </div>
-  <div class='text'>
-<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
-  </div>
-  <span class='pagenumber'>3</span>
-</article>
-
-<!-- slide 4 -->
-<article>
-  <h1>Avoid locking during I/O...unless you need it</h1>
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>Logger</defn> struct {
-<span class='codenum'>2</span>   outMu sync.Mutex
-<span class='codenum'>3</span>   out   io.Writer
-<span class='codenum'>4</span>   <comment>// ...</comment>
-<span class='codenum'>5</span>}
-
-<comment>// Printf calls l.Output to print to the logger.</comment>
-<span class='codenum'>6</span>func (l *Logger) <defn>Printf</defn>(format string, v ...any) {
-<span class='codenum'>7</span>   l.output(0, 2, func(b []byte) []byte {
-<span class='codenum'>8</span>      return fmt.Appendf(b, format, v...)
-<span class='codenum'>9</span>   })
-<span class='codenum'>10</span>}
-
-<comment>// Output can take either a calldepth or a pc to get source line information.</comment>
-<comment>// It uses the pc if it is non-zero.</comment>
-<span class='codenum'>11</span>func (l *Logger) <defn>output</defn>(pc uintptr, calldepth int, appendOutput func([]byte) []byte) error {
-<span class='codenum'>12</span>   var buf []byte
-<span class='codenum'>13</span>   <comment>// ...</comment>
-<span class='codenum'>14</span>   buf = appendOutput(buf)
-<span class='codenum'>15</span>   <comment>// ...</comment>
-<span class='codenum'>16</span><span class="em">   l.outMu.Lock()
-<span class='codenum'>17</span>   defer l.outMu.Unlock()
-<span class='codenum'>18</span>   _, err := l.out.Write(buf)</span>
-<span class='codenum'>19</span>   return err
-<span class='codenum'>20</span>}
-</pre>
-  </div>
-  <div class='text'>
-<p>From The <a href="https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go">log package</a></p>
-  </div>
-  <span class='pagenumber'>4</span>
-</article>
-
-<!-- slides/mutexes-advanced/20-deadlock.go -->
-
-<!-- slide 5 -->
-<article>
-  <h1>Our next subject</h1>
-  <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
-  <span class='pagenumber'>5</span>
-</article>
-
-<!-- slide 6 -->
 <article>
   <h1>Deadlock</h1>
   <div class='text'>
@@ -132,10 +37,10 @@
   <div class='text'>
 <p>Or a single goroutine blocks itself.</p>
   </div>
-  <span class='pagenumber'>6</span>
+  <span class='pagenumber'>3</span>
 </article>
 
-<!-- slide 7 -->
+<!-- slide 4 -->
 <article>
   <h1>Self-deadlock: example</h1>
   <div class="flex"><div>
@@ -192,10 +97,10 @@
 </div>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>7</span>
+  <span class='pagenumber'>4</span>
 </article>
 
-<!-- slide 8 -->
+<!-- slide 5 -->
 <article>
   <h1>Solution: refactor</h1>
   <div class="flex"><div>
@@ -234,10 +139,10 @@
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>8</span>
+  <span class='pagenumber'>5</span>
 </article>
 
-<!-- slide 9 -->
+<!-- slide 6 -->
 <article>
   <h1>A real-world example</h1>
   Modified from net/http/transport.go<br/>
@@ -285,10 +190,10 @@
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>9</span>
+  <span class='pagenumber'>6</span>
 </article>
 
-<!-- slide 10 -->
+<!-- slide 7 -->
 <article>
   <h1>Solution: refactor</h1>
   Actually from net/http/transport.go<br/>
@@ -337,10 +242,10 @@
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>10</span>
+  <span class='pagenumber'>7</span>
 </article>
 
-<!-- slide 11 -->
+<!-- slide 8 -->
 <article>
   <h1>Multi-goroutine deadlocks</h1>
   <div class="flex"><div>
@@ -404,10 +309,10 @@ yuri.TransferTo(xena, 100)</pre>
   <div class='text'>
 <p>That is only one interleaving!</p>
   </div>
-  <span class='pagenumber'>11</span>
+  <span class='pagenumber'>8</span>
 </article>
 
-<!-- slide 12 -->
+<!-- slide 9 -->
 <article>
   <h1>Solution 1: coarser granularity</h1>
   Locks protect larger critical sections.<br/>
@@ -464,10 +369,10 @@ What's the problem with this approach?    </summary>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>12</span>
+  <span class='pagenumber'>9</span>
 </article>
 
-<!-- slide 13 -->
+<!-- slide 10 -->
 <article>
   <h1>Solution 2: lock ordering</h1>
   If all goroutines obtain locks in the same order, deadlock is impossible.<br/>
@@ -502,18 +407,18 @@ What's the problem with this approach?    </summary>
 <span class='codenum'>15</span>}
 </pre>
   </div>
-  <span class='pagenumber'>13</span>
+  <span class='pagenumber'>10</span>
 </article>
 
 <!-- slides/mutexes-advanced/30-checklocks.go -->
 
-<!-- slide 14 -->
+<!-- slide 11 -->
 <article class='title-slide'>
   <div class='title-text'>checklocks</div>
-  <span class='pagenumber'>14</span>
+  <span class='pagenumber'>11</span>
 </article>
 
-<!-- slide 15 -->
+<!-- slide 12 -->
 <article>
   <h1>Overview</h1>
   <div class='text'>
@@ -525,10 +430,10 @@ What's the problem with this approach?    </summary>
 <pre><code>checklocks ./...
 </code></pre>
   </div>
-  <span class='pagenumber'>15</span>
+  <span class='pagenumber'>12</span>
 </article>
 
-<!-- slide 16 -->
+<!-- slide 13 -->
 <article>
   <h1>Example</h1>
   <div class='code'><pre>
@@ -549,10 +454,10 @@ What's the problem with this approach?    </summary>
 <span class='codenum'>13</span>}
 </pre>
   </div>
-  <span class='pagenumber'>16</span>
+  <span class='pagenumber'>13</span>
 </article>
 
-<!-- slide 17 -->
+<!-- slide 14 -->
 <article>
   <h1>Example</h1>
   <div class='code'><pre>
@@ -579,10 +484,10 @@ What's the problem with this approach?    </summary>
 file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
 </pre>
   </div>
-  <span class='pagenumber'>17</span>
+  <span class='pagenumber'>14</span>
 </article>
 
-<!-- slide 18 -->
+<!-- slide 15 -->
 <article>
   <h1>Example, v2</h1>
   <div class='code'><pre>
@@ -606,10 +511,58 @@ file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when acce
   </div>
 <div></div>
   <div class='output'><pre>
-TODO
+file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanceLocked, but not held
 </pre>
   </div>
-  <span class='pagenumber'>18 and last</span>
+  <span class='pagenumber'>15</span>
+</article>
+
+<!-- slide 16 -->
+<article>
+  <h1>The race detector vs. checklocks</h1>
+  <div class='text'>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>-race</th>
+<th>checklocks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dynamic</td>
+<td>static</td>
+</tr>
+<tr>
+<td>program runs 4x slower</td>
+<td>no effect on runtime speed</td>
+</tr>
+<tr>
+<td>finds all races that happen</td>
+<td>can miss some races (see logger exercise)</td>
+</tr>
+<tr>
+<td>no code changes</td>
+<td>needs annotations</td>
+</tr>
+<tr>
+<td>run on any code</td>
+<td>only code you can annotate</td>
+</tr>
+<tr>
+<td>mutexes can be anywhere</td>
+<td>only works for globals and struct fields</td>
+</tr>
+<tr>
+<td>only data races, not transaction races</td>
+<td>only data races, not transaction races</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  <span class='pagenumber'>16 and last</span>
 </article>
 
     <div id="help">
