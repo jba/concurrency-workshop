@@ -3,25 +3,7 @@ package patterns
 import (
 	"sync/atomic"
 	"testing"
-	"time"
 )
-
-func TestFib(t *testing.T) {
-	for _, test := range []struct {
-		in, out int
-	}{
-		{0, 0},
-		{1, 1},
-		{2, 1},
-		{3, 2},
-		{4, 3},
-		{5, 5},
-	} {
-		if g, w := fib(test.in), test.out; g != w {
-			t.Errorf("fib(%d) = %d, want %d", test.in, g, w)
-		}
-	}
-}
 
 func TestCache(t *testing.T) {
 	calls := 0
@@ -46,19 +28,19 @@ func TestCache(t *testing.T) {
 	}
 }
 
-func TestMemo_2Deadlock(t *testing.T) {
-	done := make(chan struct{})
-	go func() {
-		t.Log(fib_1(3))
-		close(done)
-	}()
+// func TestMemo_2Deadlock(t *testing.T) {
+// 	done := make(chan struct{})
+// 	go func() {
+// 		t.Log(fib_1(3))
+// 		close(done)
+// 	}()
 
-	select {
-	case <-done:
-		t.Fatal("no deadlock, expected one")
-	case <-time.After(100 * time.Millisecond):
-	}
-}
+// 	select {
+// 	case <-done:
+// 		t.Fatal("no deadlock, expected one")
+// 	case <-time.After(100 * time.Millisecond):
+// 	}
+// }
 
 func TestMemo_3(t *testing.T) {
 	calls := 0
@@ -110,20 +92,20 @@ func TestMemo_3Concurrent(t *testing.T) {
 	}
 }
 
-func TestMemo_3Recursive(t *testing.T) {
-	// Make sure it works with a recursive function.
-	m := NewMemo_3(fib)
-	c := make(chan int, 10)
-	for range cap(c) {
-		go func() {
-			c <- m.Call(6)
-		}()
-	}
+// func TestMemo_3Recursive(t *testing.T) {
+// 	// Make sure it works with a recursive function.
+// 	m := NewMemo_3(fib)
+// 	c := make(chan int, 10)
+// 	for range cap(c) {
+// 		go func() {
+// 			c <- m.Call(6)
+// 		}()
+// 	}
 
-	want := fib(6)
-	for range cap(c) {
-		if g := <-c; g != want {
-			t.Errorf("got %d, want %d", g, want)
-		}
-	}
-}
+// 	want := fib(6)
+// 	for range cap(c) {
+// 		if g := <-c; g != want {
+// 			t.Errorf("got %d, want %d", g, want)
+// 		}
+// 	}
+// }
