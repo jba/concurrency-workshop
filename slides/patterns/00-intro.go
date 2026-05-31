@@ -12,7 +12,7 @@ package patterns
 // text
 // - WaitGroup
 // - ErrGroup
-// - Actor
-// - Pipeline
 // - Cache
+// - Pipeline
+// - Actor
 // !text

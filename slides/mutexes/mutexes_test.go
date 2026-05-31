@@ -53,12 +53,12 @@ func newIDGenerator1(prefix string) *IDGenerator_1 {
 
 func Test1(t *testing.T) {
 	g := newIDGenerator1("moo")
-	got := g.NewID_2()
+	got := g.NewID_1()
 	want := "moo1"
 	if got != want {
 		t.Fatal("bad")
 	}
-	got = g.NewID_2()
+	got = g.NewID_1()
 	want = "moo2"
 	if got != want {
 		t.Fatal("bad")

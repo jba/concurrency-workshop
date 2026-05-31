@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"reflect"
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // title Introduction to Synchronization
@@ -20,6 +20,12 @@ import (
 // GopherCon Europe 2026
 // !subtitle
 
+// heading Preparation
+// text
+// Clone https://github.com/jba/concurrency-workshop
+// !text
+
+///////////////////////////////////
 // heading Sharing memory
 
 // text Goroutines share the program's memory.
@@ -902,31 +908,20 @@ type Logger struct {
 	// ...
 }
 
-// Printf calls l.Output to print to the logger.
+// Printf prints a lone to the logger.
 func (l *Logger) Printf(format string, v ...any) {
-	l.output(0, 2, func(b []byte) []byte {
-		return fmt.Appendf(b, format, v...)
-	})
-}
-
-// Output can take either a calldepth or a pc to get source line information.
-// It uses the pc if it is non-zero.
-func (l *Logger) output(pc uintptr, calldepth int, appendOutput func([]byte) []byte) error {
-	var buf []byte
-	// ...
-	buf = appendOutput(buf)
-	// ...
-	// em
+	buf := fmt.Appendf(nil, format, v...)
+	// ... add newline if needed
+	// In general, io.Writer.Write is not guaranteed to write its argument atomically.
+	// Put it in a critical section to make sure that log output is not interlevaed.
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	_, err := l.out.Write(buf)
-	// !em
-	return err
+	_, _ = l.out.Write(buf)
 }
 
 // !code
 
-// text From The [log package](https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go)
+// text Adapted from the [log package](https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go)
 
 ////////////////////////////////
 // heading Exercise: Find the bug
@@ -934,4 +929,500 @@ func (l *Logger) output(pc uintptr, calldepth int, appendOutput func([]byte) []b
 // link ../../../exercises/logger/logger.go Code
 // html <br/><br/><br/>
 // link ../../../exercises/logger/solution/logger.go Solution
+
+////////////////////////////////////
+// heading  And now ...
+
+// html <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
+
+////////////////////////////////////
+// heading Deadlock
+
+// text Goroutines can't make progress because they block each other.
+
+// text Or a single goroutine blocks itself.
+
+////////////////////////////////////
+// heading Self-deadlock: example
+
+// cols
+
+type Account_d struct {
+	mu      sync.Mutex
+	balance int
+}
+
+// code
+func (a *Account_d) Deposit(amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.balance += amount
+}
+
+func (a *Account_d) Withdraw(amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.balance -= amount
+}
+
+func (a *Account_d) TransferTo(b *Account_d, amount int) {
+	// Must happen atomically.
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.Withdraw(amount)
+	b.Deposit(amount)
+}
+
+// !code
+
+// nextcol
+
+// text
+// <div class="interleave" style="font-size: 70%">
 //
+// | G |
+// | -- |
+// | astrid.TransferTo(baxter, 100) |
+// | astrid.mu.Lock() |
+// | astrid.Withdraw(100) |
+// | astrid.mu.Lock() |
+// | DEADLOCK |
+// </div>
+// !text
+
+// !cols
+
+// //////////////////////////////////
+// heading Solution: refactor
+
+type Account_d2 struct {
+	mu      sync.Mutex
+	balance int
+}
+
+// cols
+// code
+func (a *Account_d2) Deposit(amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(amount)
+}
+
+func (a *Account_d2) Withdraw(amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+}
+
+// The caller must hold a.mu.
+func (a *Account_d2) changeBalanceLocked(amount int) {
+	a.balance += amount
+}
+
+// !code
+// nextcol
+// code
+func (a *Account_d2) TransferTo(
+	b *Account_d2, amount int) {
+	// Must happen atomically.
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+// !cols
+
+////////////////////////////////////
+// heading A real-world example
+
+// line Modified from net/http/transport.go
+
+type connLRU struct {
+	m map[any]any
+}
+
+func (connLRU) remove(any) {}
+
+type pConn struct {
+	t            *Transport
+	isClientConn bool
+	idleTimer    *time.Timer
+}
+type pConn_1 struct {
+	t            *Transport_1
+	isClientConn bool
+	idleTimer    *time.Timer
+}
+
+func (pc *pConn) close(err error)   {}
+func (pc *pConn_1) close(err error) {}
+
+var errIdleConnTimeout error
+
+// cols
+// code small
+type Transport struct {
+	idleMu  sync.Mutex
+	idleLRU connLRU
+	// ...
+}
+
+func (t *Transport) removeIdleConn1(pconn *pConn) bool {
+	t.idleMu.Lock() // em
+	defer t.idleMu.Unlock()
+	if pconn.idleTimer != nil {
+		pconn.idleTimer.Stop()
+	}
+	t.idleLRU.remove(pconn) // em t.idleLRU
+	// elide
+	return false
+	// !elide
+}
+
+// !code
+
+// nextcol
+// code small
+func (t *Transport) removeIdleConn(pconn *pConn) bool {
+	if pconn.isClientConn {
+		return true
+	}
+	return t.removeIdleConn1(pconn) // em removeIdleConn1
+}
+
+// !code
+
+// code small
+func (pc *pConn) closeConnIfStillIdle() {
+	t := pc.t
+	t.idleMu.Lock() // em
+	defer t.idleMu.Unlock()
+	if _, ok := t.idleLRU.m[pc]; !ok { // em t.idleLRU
+		return
+	}
+	t.removeIdleConn1(pc) // em removeIdleConn1
+	pc.close(errIdleConnTimeout)
+}
+
+// !code
+// !cols
+
+////////////////////////////////////
+// heading Solution: refactor
+
+// line Actually from net/http/transport.go
+
+// cols
+// code small
+type Transport_1 struct {
+	idleMu  sync.Mutex
+	idleLRU connLRU
+	// ...
+}
+
+// t.idleMu must be held.
+func (t *Transport_1) removeIdleConnLocked(pconn *pConn_1) bool {
+	if pconn.idleTimer != nil {
+		pconn.idleTimer.Stop()
+	}
+	t.idleLRU.remove(pconn)
+	// elide
+	return false
+	// !elide
+}
+
+// !code
+// nextcol
+// code small
+func (t *Transport_1) removeIdleConn_1(pconn *pConn_1) bool {
+	if pconn.isClientConn {
+		return true
+	}
+	// em
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	return t.removeIdleConnLocked(pconn)
+	// !em
+}
+
+// !code
+// code small
+func (pc *pConn_1) closeConnIfStillIdle() {
+	t := pc.t
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	if _, ok := t.idleLRU.m[pc]; !ok {
+		return
+	}
+	t.removeIdleConnLocked(pc) // em
+	pc.close(errIdleConnTimeout)
+}
+
+// !code
+// !cols
+
+// //////////////////////////////////
+// heading Multi-goroutine deadlocks
+type Account_d3 struct {
+	mu      sync.Mutex
+	balance int
+}
+
+func (*Account_d3) changeBalanceLocked(any) {}
+func (*Account_d3) Deposit(any)             {}
+
+// cols
+// line Reminder:
+// code
+func (a *Account_d3) TransferTo(b *Account_d3, amount int) {
+	// Must happen atomically.
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+var xena, yuri *Account_d3
+
+// html <br/>
+// line Concurrently:
+func g() {
+	// code nonum
+	xena.TransferTo(yuri, 100)
+	// !code
+	// code nonum
+	yuri.TransferTo(xena, 100)
+	// !code
+
+}
+
+// nextcol
+
+// text
+// <div class="interleave" style="font-size: 70%">
+//
+// | X&rarr;Y | Y&rarr;X |
+// | -- | -- |
+// | x.TransferTo(y) | y.TransferTo(x) |
+// | **x**.mu.Lock() | **y**.mu.Lock() |
+// | x.changeBalanceLocked() | y.changeBalanceLocked() |
+// | **y**.mu.Lock() | **x**.mu.Lock() |
+// | DEADLOCK | DEADLOCK |
+// !text
+
+// html <br/>
+// text That is only one interleaving!
+
+// !col
+
+// //////////////////////////////////
+// heading Solution 1: coarser granularity
+
+// line Locks protect larger critical sections.
+
+// cols
+// code small
+type Accounts struct {
+	mu       sync.Mutex
+	balances map[string]int // account name to balance
+}
+
+func (a *Accounts) Balance(name string) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.balances[name]
+}
+
+func (a *Accounts) Deposit(name string, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(name, amount)
+}
+
+func (a *Accounts) Withdraw(name string, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(name, -amount)
+}
+
+// !code
+// nextcol
+// code small
+
+func (a *Accounts) changeBalanceLocked(name string, amount int) {
+	a.balances[name] += amount
+}
+
+func (a *Accounts) TransferTo(fromName, toName string, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(fromName, -amount)
+	a.changeBalanceLocked(toName, amount)
+}
+
+// !code
+
+// text Either Xena grabs the lock first, or Yuri does.
+
+// question What's the problem with this approach?
+// answer
+// No concurrency: only one goroutine can work with _any_ account at a time.
+// !question
+// !cols
+
+////////////////////////////////////
+// heading Solution 2: lock ordering
+
+// line If all goroutines obtain locks in the same order, deadlock is impossible.
+
+func (*Account_d4) changeBalanceLocked(any) {}
+
+// cols
+// code
+type Account_d4 struct {
+	mu      sync.Mutex
+	balance int
+	id      int // unique for each account // em
+}
+
+// !code
+// nextcol
+// code
+
+func (a *Account_d4) TransferTo(b *Account_d4, amount int) {
+	// Acquire locks in ID order.
+	// em
+	if a.id < b.id {
+		a.mu.Lock()
+		b.mu.Lock()
+	} else {
+		b.mu.Lock()
+		a.mu.Lock()
+	}
+	// !em
+	// Unlock order doesn't matter.
+	defer a.mu.Unlock()
+	defer b.mu.Unlock()
+
+	a.changeBalanceLocked(-amount)
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+
+// heading Checklocks
+
+// text
+// A tool developed by Google's gvisor team.
+
+// Installation:
+// ```
+// go install gvisor.dev/gvisor/tools/checklocks/cmd/checklocks@go
+// ```
+//
+// Use:
+// ```
+// checklocks ./...
+// ```
+// !text
+
+// ///////////////////////
+// heading Example
+
+// code
+type Account_cl1 struct {
+	mu      sync.Mutex
+	balance int
+}
+
+func (a *Account_cl1) changeBalanceLocked(amount int) {
+	a.balance += amount
+}
+
+func (a *Account_cl1) TransferTo(b *Account_cl1, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+
+// /////////////////////
+// heading Example
+
+// code
+type Account_cl2 struct {
+	mu sync.Mutex
+	// +checklocks:mu
+	balance int
+}
+
+func (a *Account_cl2) changeBalanceLocked(amount int) {
+	a.balance += amount
+}
+
+func (a *Account_cl2) TransferTo(b *Account_cl2, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+
+// output
+// file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
+// !output
+
+// /////////////////////
+// heading Example, v2
+
+// code
+type Account_cl3 struct {
+	mu      sync.Mutex
+	balance int
+}
+
+// +checklocks:a.mu
+func (a *Account_cl3) changeBalanceLocked(amount int) {
+	a.balance += amount
+}
+
+func (a *Account_cl3) TransferTo(b *Account_cl3, amount int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.changeBalanceLocked(-amount)
+	b.changeBalanceLocked(amount)
+}
+
+// !code
+
+// output
+// file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanceLocked, but not held
+// !output
+
+// heading The race detector vs. checklocks
+//
+// text
+// <div class="interleave" style="font-size: 70%">
+//
+// | -race | checklocks |
+// | -- | -- |
+// | dynamic | static |
+// | program runs 4x slower | no effect on runtime speed |
+// | finds all races that happen | can miss some races (see logger exercise) |
+// | no code changes | needs annotations |
+// | run on any code | only code you can annotate |
+// | mutexes can be anywhere | only works for globals and struct fields |
+// | only data races, not transaction races | only data races, not transaction races |
+// </div>
+
+// !text

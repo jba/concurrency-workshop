@@ -179,11 +179,13 @@ func (g *WaitGroup_3) Wait() {
 //
 // question
 // What synchronization feature will make a goroutine
-// wait until something happens?<br/>
-// And how should we use it?
+// wait until something happens?
 // answer
 // A channel.
+// !question
 //
+// question How should we use it?
+// answer
 // We should close it when `count` is zero, to broadcast to
 // all waiting goroutines.
 // code
@@ -244,6 +246,8 @@ func (g *WaitGroup_5) Wait() {
 
 // heading Exercise: Improvements
 
+// text See exercises/waitgroup in github.com/jba/concurrency-workshop.
+
 // text
 // 1. Get rid of the the constructor, so a zero `WaitGroup` is ready to use.
 // 2. Allow multiple "rounds": after `Wait` returns, the `WaitGroup` can
@@ -251,7 +255,7 @@ func (g *WaitGroup_5) Wait() {
 //
 // Hint: modify `g.done`.
 //
-// Not that channel _operations_ are concurrency-safe,
+// Note that channel _operations_ are concurrency-safe,
 // but reading and writing a channel _variable_ is not.
 // !text
 

@@ -111,16 +111,16 @@ func (a *Accounts) run() {
 // !code
 
 // //////////////////////////////////
-// heading Actor pros and cons
+// heading Actor cons and pros
 
 // html <div style="line-height:6rem">
 // text
+// &ndash; a lot of code to set up<br/>
+// &ndash; lots of runtime overhead
+
 // \+ a single goroutine: no deadlocks or race conditions<br/>
 // \+ responses can be asynchronous<br/>
 // \+ live code controls access
-
-// &ndash; a lot of code to set up<br/>
-// &ndash; lots of runtime overhead
 // !text
 // html </div>
 
@@ -193,7 +193,13 @@ func f() {
 // //////////////////////////////////
 // heading Live code controls access
 
-// line The actor goroutine determines how to access the state.
+// cols
+// text The actor goroutine determines how to access the state.
+//
+// text For example, we can implement priorities.
+//
+// nextcol
+//
 // code small
 func (a *Accounts) run_1() { // get has priority
 	for {
@@ -222,3 +228,4 @@ func (a *Accounts) run_1() { // get has priority
 }
 
 // !code
+// !cols

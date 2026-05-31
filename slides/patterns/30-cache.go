@@ -102,7 +102,7 @@ func NewMemo_2[In comparable, Out any](
 
 // !code
 // nextcol
-// code
+// code weak
 func (m *Memo_2[In, Out]) Call(in In) Out {
 	// em
 	m.mu.Lock()
@@ -119,7 +119,18 @@ func (m *Memo_2[In, Out]) Call(in In) Out {
 // !code
 
 ////////////////////////////////////
-// heading Safe and concurrent Memo, 1
+// heading A concurrent Memo
+//
+// text
+// Make `Memo.Call` concurrency-safe.
+//
+// But also, calls with the same input should wait for the first one to finish.
+//
+// (Otherwise they'll repeat work.)
+// !text
+
+////////////////////////////////////
+// heading Safe and concurrent Memo, part 1
 
 // code
 // Memo memoizes function calls.
@@ -131,9 +142,7 @@ type Memo_3[In comparable, Out any] struct {
 	m  map[In]*entry[Out] // em
 }
 
-func NewMemo_3[In comparable, Out any](
-	f func(In) Out,
-) *Memo_3[In, Out] {
+func NewMemo_3[In comparable, Out any](f func(In) Out) *Memo_3[In, Out] {
 	return &Memo_3[In, Out]{f: f, m: map[In]*entry[Out]{}}
 }
 
@@ -144,7 +153,7 @@ type entry[Out any] struct {
 
 // !code
 ////////////////////////////////////
-// heading Safe and concurrent Memo, 2
+// heading Safe and concurrent Memo, part 2
 
 // code
 func (m *Memo_3[In, Out]) Call(in In) Out {
@@ -179,16 +188,14 @@ func (m *Memo_3[In, Out]) Call_1(in In) Out {
 	e := m.m[in]
 	if e == nil {
 		// This is the first request for this key.
-		// This goroutine is responsible for computing the value.
 		e = &entry[Out]{waitc: make(chan struct{})}
 		m.m[in] = e
 		m.mu.Unlock()
 		// em
 		e.out = m.f(in)
-		close(e.waitc) // broadcast readiness to all waiters
+		close(e.waitc) // broadcast readiness
 		// !em
 	} else {
-		// This key is already being computed or is ready.
 		m.mu.Unlock()
 		<-e.waitc // em
 	}
@@ -211,6 +218,17 @@ func (m *Memo_3[In, Out]) Call_1(in In) Out {
 // - The first goroutine writes `e.out`, then closes the channel.
 // - Other goroutines wait for the close, then read `e.out`.
 // - The close _happens before_ the wait returns.
+//
+// <div class="interleave" style="font-size: 70%">
+//
+// | first | others |
+// | -- | -- |
+// | write `e.out` | blocked on mutex |
+// |  `close(e.waitc)`| |
+// | | `<-e.waitc`  |
+// | read `e.out`| read `e.out`   |
+// </div>
 // !question
 
 // !cols
+//

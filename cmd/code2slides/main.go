@@ -30,7 +30,6 @@
 //	"small" and "smaller" cannot be used together, but they can coexist with
 //	other options.
 
-
 // note / !note
 //
 //	Begin and end a presenter note block. Lines between these directives are
@@ -72,7 +71,6 @@
 //	processed as markdown (just like the "text" directive), but the outer
 //	<p>...</p> tags are stripped so it can appear as a single line.
 
-//
 // image FILENAME (or img FILENAME)
 //
 //	Emit an <img> tag with FILENAME as the source. FILENAME is interpreted
@@ -176,7 +174,6 @@ func (k sectionKind) String() string {
 		return "unknown"
 	}
 }
-
 
 var simpleOpens = map[string]sectionKind{
 	"note":     sectionNote,
@@ -457,7 +454,6 @@ func scanFile(filename string) (_ []*Slide, err error) {
 				return nil, fmt.Errorf("line inside %s", kind)
 			}
 			add(sectionLine, nil, rest+"\n", false)
-
 
 		case "image", "img":
 			if rest == "" {
@@ -1030,7 +1026,6 @@ func stripPara(s string) string {
 	s = strings.TrimPrefix(s, "<p>")
 	return strings.TrimSuffix(s, "</p>")
 }
-
 
 const top = `<!DOCTYPE html>
 <html>

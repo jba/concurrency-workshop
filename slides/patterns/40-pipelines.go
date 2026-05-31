@@ -40,7 +40,7 @@ package patterns
 
 // text
 // - Better use of resources<br/>
-//   Some goroutines do I/O, some compute
+//   While some goroutines do I/O, others compute
 // - Plug-and-play architecture<br/>
 //   Wire up separate components
 // !text
