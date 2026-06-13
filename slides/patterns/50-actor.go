@@ -73,14 +73,11 @@ func (a *Accounts) Withdraw(name string, amount int) error {
 // heading Balances actor, 3
 
 // code
-func NewAccounts(names []string) *Accounts {
+func NewAccounts() *Accounts {
 	a := &Accounts{
 		balances: map[string]int{},
 		getc:     make(chan getBalance),
 		changec:  make(chan changeBalance),
-	}
-	for _, name := range names {
-		a.balances[name] = 0
 	}
 	go a.run()
 	return a

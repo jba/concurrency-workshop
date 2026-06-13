@@ -51,17 +51,16 @@ func checkURLs(urls []string) error {
 // text "errgroup.Group is related to sync.WaitGroup but adds handling of tasks returning errors."
 
 // text
-// ```
-// package errgroup
+// <pre><code>package errgroup
 //
 // type Group
-// func (g *Group) Go(f func() error)
-// func (g *Group) Wait() error  // wait for all, return first error
+// func (g *Group) Go(func() <b>error</b>)
+// func (g *Group) Wait() <b>error</b>  <i>// wait for all, return first error</i>
 
 // func WithContext(ctx context.Context) (*Group, context.Context)
 // func (g *Group) SetLimit(n int)
 // func (g *Group) TryGo(f func() error) bool
-// ```
+// </code></pre>
 // !text
 
 ////////////////////////////////////
@@ -120,7 +119,7 @@ func checkURLs_2(ctx context.Context, urls []string) error {
 	eg, gctx := errgroup.WithContext(ctx) // em
 	for _, url := range urls {
 		eg.Go(func() error {
-			return getURLErr_1(gctx, url)
+			return getURLErr_1(gctx, url) // em gctx
 		})
 	}
 	return eg.Wait()

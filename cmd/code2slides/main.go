@@ -24,12 +24,10 @@
 //	  weak      - Render the code block with a yellow border.
 //	  small     - Use a font size 20% smaller than default.
 //	  smaller   - Use a font size 30% smaller than default.
+//    large     - Use a font size larger than default.
 //	  nonumbers - Omit line numbers in the output.
 //	  nonum     - Synonym for "nonumbers".
 //
-//	"small" and "smaller" cannot be used together, but they can coexist with
-//	other options.
-
 // note / !note
 //
 //	Begin and end a presenter note block. Lines between these directives are
@@ -746,14 +744,11 @@ func splitFirstWord(s string) (string, string, bool) {
 }
 
 func validateCodeOptions(options []string) error {
-	hasSmall := false
-	hasSmaller := false
+	nsizes := 0
 	for _, opt := range options {
 		switch opt {
-		case "small":
-			hasSmall = true
-		case "smaller":
-			hasSmaller = true
+		case "small", "smaller", "large":
+			nsizes++
 		case "weak", "bad", "nonumbers", "nonum":
 			// allowed
 		default:
@@ -761,8 +756,8 @@ func validateCodeOptions(options []string) error {
 		}
 
 	}
-	if hasSmall && hasSmaller {
-		return errors.New("cannot use both 'small' and 'smaller'")
+	if nsizes > 1 {
+		return errors.New("cannot use multiple sizes")
 	}
 	return nil
 }

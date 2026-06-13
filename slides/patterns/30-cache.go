@@ -142,13 +142,13 @@ type Memo_3[In comparable, Out any] struct {
 	m  map[In]*entry[Out] // em
 }
 
-func NewMemo_3[In comparable, Out any](f func(In) Out) *Memo_3[In, Out] {
-	return &Memo_3[In, Out]{f: f, m: map[In]*entry[Out]{}}
-}
-
 type entry[Out any] struct {
 	out   Out
 	waitc chan struct{}
+}
+
+func NewMemo_3[In comparable, Out any](f func(In) Out) *Memo_3[In, Out] {
+	return &Memo_3[In, Out]{f: f, m: map[In]*entry[Out]{}}
 }
 
 // !code
@@ -223,9 +223,9 @@ func (m *Memo_3[In, Out]) Call_1(in In) Out {
 //
 // | first | others |
 // | -- | -- |
-// | write `e.out` | blocked on mutex |
+// | write `e.out` | blocked on `<-.waitc`|
 // |  `close(e.waitc)`| |
-// | | `<-e.waitc`  |
+// | | `<-e.waitc` returns |
 // | read `e.out`| read `e.out`   |
 // </div>
 // !question

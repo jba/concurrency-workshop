@@ -31,7 +31,7 @@ import (
 // text Goroutines share the program's memory.
 
 // cols
-// code
+// code large
 var c int
 
 func run() {
@@ -69,15 +69,20 @@ func count() {
 // heading Interleavings
 
 // text The scheduler interleaves goroutine executions.
+// text - any machine instruction
 // text - many possibilities
 // text - non-deterministic
 
-// html <div style="height: 4vw"></div>
+////////////////////////////////////
+// heading Interleaved increment
 
 // cols
 
+// code
+var c_4 int // global variable in memory
+// !code
+
 func f1() {
-	var c int
 	// code
 	c++
 	// !code
@@ -85,10 +90,8 @@ func f1() {
 
 // text is actually
 func f2() {
-	var R0 int // register 0
-	var c int  // variable in main memory
 	// code
-	R0 = c
+	var R0 int // register 0 (goroutine-local)
 	R0++
 	c = R0
 	// !code
@@ -169,15 +172,51 @@ func count_1() {
 // !code
 
 // nextcol
-// text Use a mutex to prevent a race condition.
+// html <div style="height: 4vw"></div>
+// text A mutex provides <i>mut</i>ual <i>ex</i>clusion.
 // text The zero mutex is unlocked and ready to use.
-// text Only one goroutine between `Lock` and `Unlock`
-// (a _critical section_).
-//
 // text
+// Only one goroutine allowed between
+// `Lock` and `Unlock`
+// (a _critical section_).
+
 // The code in the critical section happens _atomically_:
 // indivisibly.
+// !text
+// !cols
 //
+////////////////////////////////////////////////
+// heading How to think about a mutex
+
+// cols
+
+// code
+var mu_1 sync.Mutex // em
+
+var c_3 int
+
+func run_2() {
+	var wg sync.WaitGroup
+	wg.Go(count_1)
+	wg.Go(count_1)
+	wg.Wait()
+	fmt.Println(c_3)
+}
+
+func count_3() {
+	for range 20_000 {
+		mu_1.Lock() // em
+		c_3++
+		mu_1.Unlock() // em
+	}
+}
+
+// !code
+
+// nextcol
+// html <div style="height: 4vw"></div>
+//
+// text
 // A mutex limits interleavings.
 //
 // This is no longer possible:
@@ -192,21 +231,23 @@ func count_1() {
 // !text
 // !cols
 
-////////////////////////////////////////////////
-// heading Transactions
-
+// //////////////////////////////////////////////
+// heading Goroutines and memory
+//
 // text
-// A _transaction_ (in this course): an atomic sequence of operations
-// that makes sense for the application.
-//
-// (Atomic, Consistent and Isolated, but not Durable)
-//
-// Examples:
-// - Money transfer
-// - Fulfill an order, mark it as done
-// - Add/remove an element and update the size
-// - Check a precondition, then take an action
+// - Global variables shared among all goroutines
+// - Struct fields shared among all goroutines accessing
+// the struct.
+// - Local variables, arguments and named return values
+// visible only to the goroutine running that function.
 // !text
+// code
+func F(x int) int {
+	x++ // no race condition
+	return x
+}
+
+// !code
 
 ////////////////////////////////////////////////
 // heading Exercise: Bank Account
@@ -260,8 +301,7 @@ func (a *Account) Balance() int {
 
 // text Synchronize all reads and writes to a piece of memory
 
-// code
-
+// code large
 func (a *Account) Balance_1() int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -509,6 +549,22 @@ func count_cc() {
 // !cols
 
 ////////////////////////////////////////////////
+// heading Transactions
+
+// text
+// A _transaction_ (in this course): an atomic sequence of operations
+// that makes sense for the application.
+//
+// (Atomic, Consistent and Isolated, but not Durable)
+//
+// Examples:
+// - Money transfer
+// - Fulfill an order, mark it as done
+// - Add/remove an element and update the size
+// - Check a precondition, then take an action
+// !text
+
+////////////////////////////////////////////////
 // heading Our story so far
 
 // text
@@ -527,7 +583,7 @@ func count_cc() {
 // !question
 
 // //////////////////////////////////////////////
-// heading Another example: WithdrawTOCTOU
+// heading Another example
 // cols
 // code
 func (a *Account) WithdrawTOCTOU(amount int) error {
@@ -561,6 +617,13 @@ func (a *Account) WithdrawTOCTOU(amount int) error {
 // Yes: the balance can go negative.
 // !question
 
+// question
+// Is a TOCTOU an exotic bird?
+// answer
+// Sadly, no. That would have been cool.<br/>
+// It stands for Time of Check, Time of Use.
+// !question
+//
 // !cols
 
 ////////////////////////////////////////////////
@@ -641,9 +704,12 @@ func (g *IDGenerator_1) NewID_1() string {
 //
 // "These functions require great care to be used correctly."
 //
-// - Faster than mutexes, but much more dangerous.
+// Faster than mutexes, but much more dangerous.
+
 // - Limited operations
 // - Sequences of atomics are _not_ atomic
+//
+// <br/>
 //
 // Recommendation: use only for counters
 // !text

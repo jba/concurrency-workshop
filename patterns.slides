@@ -439,8 +439,8 @@ How do we implement the comment?        </summary>
 <pre><code>package errgroup
 
 type Group
-func (g *Group) Go(f func() error)
-func (g *Group) Wait() error  // wait for all, return first error
+func (g *Group) Go(func() <b>error</b>)
+func (g *Group) Wait() <b>error</b>  <i>// wait for all, return first error</i>
 
 func WithContext(ctx context.Context) (*Group, context.Context)
 func (g *Group) SetLimit(n int)
@@ -514,7 +514,7 @@ func (g *Group) TryGo(f func() error) bool
 <span class='codenum'>2</span><span class="em">   eg, gctx := errgroup.WithContext(ctx)</span>
 <span class='codenum'>3</span>   for _, url := range urls {
 <span class='codenum'>4</span>      eg.Go(func() error {
-<span class='codenum'>5</span>         return getURLErr(gctx, url)
+<span class='codenum'>5</span>         return getURLErr(<span class="em">gctx</span>, url)
 <span class='codenum'>6</span>      })
 <span class='codenum'>7</span>   }
 <span class='codenum'>8</span>   return eg.Wait()
@@ -812,13 +812,13 @@ func (m *Memo[In, Out]) Call(in In) Out
 <span class='codenum'>4</span><span class="em">   m  map[In]*entry[Out]</span>
 <span class='codenum'>5</span>}
 
-<span class='codenum'>6</span>func <defn>NewMemo[In comparable, Out any]</defn>(f func(In) Out) *Memo[In, Out] {
-<span class='codenum'>7</span>   return &amp;Memo[In, Out]{f: f, m: map[In]*entry[Out]{}}
-<span class='codenum'>8</span>}
+<span class='codenum'>6</span>type <defn>entry[Out</defn> any] struct {
+<span class='codenum'>7</span>   out   Out
+<span class='codenum'>8</span>   waitc chan struct{}
+<span class='codenum'>9</span>}
 
-<span class='codenum'>9</span>type <defn>entry[Out</defn> any] struct {
-<span class='codenum'>10</span>   out   Out
-<span class='codenum'>11</span>   waitc chan struct{}
+<span class='codenum'>10</span>func <defn>NewMemo[In comparable, Out any]</defn>(f func(In) Out) *Memo[In, Out] {
+<span class='codenum'>11</span>   return &amp;Memo[In, Out]{f: f, m: map[In]*entry[Out]{}}
 <span class='codenum'>12</span>}
 </pre>
       </div>
@@ -907,7 +907,7 @@ Why is it safe to access <code>e.out</code> unlocked?        </summary>
 <tbody>
 <tr>
 <td>write <code>e.out</code></td>
-<td>blocked on mutex</td>
+<td>blocked on <code>&lt;-.waitc</code></td>
 </tr>
 <tr>
 <td><code>close(e.waitc)</code></td>
@@ -915,7 +915,7 @@ Why is it safe to access <code>e.out</code> unlocked?        </summary>
 </tr>
 <tr>
 <td></td>
-<td><code>&lt;-e.waitc</code></td>
+<td><code>&lt;-e.waitc</code> returns</td>
 </tr>
 <tr>
 <td>read <code>e.out</code></td>
@@ -1096,18 +1096,15 @@ Each stage should involve a lot of work</p>
     <article>
       <h1>Balances actor, 3</h1>
       <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>NewAccounts</defn>(names []string) *Accounts {
+<span class='codenum'>1</span>func <defn>NewAccounts</defn>() *Accounts {
 <span class='codenum'>2</span>   a := &amp;Accounts{
 <span class='codenum'>3</span>      balances: map[string]int{},
 <span class='codenum'>4</span>      getc:     make(chan getBalance),
 <span class='codenum'>5</span>      changec:  make(chan changeBalance),
 <span class='codenum'>6</span>   }
-<span class='codenum'>7</span>   for _, name := range names {
-<span class='codenum'>8</span>      a.balances[name] = 0
-<span class='codenum'>9</span>   }
-<span class='codenum'>10</span>   go a.run()
-<span class='codenum'>11</span>   return a
-<span class='codenum'>12</span>}
+<span class='codenum'>7</span>   go a.run()
+<span class='codenum'>8</span>   return a
+<span class='codenum'>9</span>}
 </pre>
       </div>
       <span class='pagenumber'>42</span>
