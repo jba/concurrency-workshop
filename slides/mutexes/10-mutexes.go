@@ -732,70 +732,9 @@ func (g *IDGenerator_2) NewID_3() string {
 // !code
 // !cols
 
-//////////////////////////////////////////
-// heading Mutexes and slices
-
-// text Each slice element is a separate memory location.
-// text No mutex needed here.
-
-func fslice1() []int {
-	// code
-	var wg sync.WaitGroup
-	s := make([]int, 2)
-	wg.Go(func() { s[0] = 1 })
-	wg.Go(func() { s[1] = 2 })
-	wg.Wait()
-	// !code
-	return s
-}
-
-//////////////////////////////////////////
-// heading Mutexes and slices, 2
-
-func fslice2() []int {
-	// code bad
-	var wg sync.WaitGroup
-	var s []int
-	wg.Go(func() { s = append(s, 1) }) // em
-	wg.Go(func() { s = append(s, 2) }) // em
-	wg.Wait()
-	// !code
-	return s
-}
-
-// question Why is a mutex needed here?
-// answer
-// There is a data race:
-// both goroutines write to the same location, `s`.
-// !question
-
 // ////////////////////////////////////////
-// heading IDGenerator with a slice
+// heading IDGenerator with a map
 
-// text No mutex needed: slice elements are independent
-// code
-// IDGenerator generates unique IDs with different numerical prefixes.
-type IDGenerator_s1 struct {
-	nums []int
-}
-
-func NewIDGenerator_s1(max int) *IDGenerator_s1 {
-	return &IDGenerator_s1{nums: make([]int, max)}
-}
-
-func (g *IDGenerator_s1) NewID_s1(prefix int) string { // em prefix string
-	n := g.nums[prefix]
-	n++
-	g.nums[prefix] = n
-	return fmt.Sprintf("%d_%d", prefix, n)
-}
-
-// !code
-
-// ////////////////////////////////////////
-// heading Mutexes and maps
-
-// cols
 // code bad
 // IDGenerator generates unique IDs with different prefixes.
 type IDGenerator_m1 struct {
@@ -814,17 +753,6 @@ func (g *IDGenerator_m1) NewID_m1(prefix string) string { // em prefix string
 }
 
 // !code
-
-// nextcol
-
-// text Maps need synchronization.
-
-// question Why aren't maps like slices?
-// answer
-// The underlying memory locations can change as the map grows and shrinks.
-// !question
-
-// !cols
 
 //////////////////////////////////////////
 // heading Mutexes and maps, safely
@@ -861,6 +789,7 @@ func (g *IDGenerator_m2) NewID_m2(prefix string) string {
 // !question
 
 // !cols
+
 ////////////////////////////////
 // heading Optimizations
 
@@ -910,13 +839,29 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 // !question
 // !cols
 
+////////////////////////////////////
+// heading Some miscellaneous points
+//
+// text
+// <br/>
+// !text
+
 //////////////////////////////////////////
 // heading Copy defensively
 //
-// text Copy private mutable data
+// html <p style="margin-bottom:0">Copy private mutable data</p>
+
+// code
+type Server_1 struct {
+	mu       sync.Mutex
+	sessions []*ServerSession
+}
+
+// !code
 
 // text `Server.sessions` is managed by `Server`
-// text It doesn't want anyone else to change it.
+
+// html <p style="margin-bottom:0">It doesn't want anyone else to change it.</p>
 //
 // code
 // Sessions returns a copy of the server's sessions.
@@ -941,10 +886,10 @@ func (s *Server) Sessions() []*ServerSession {
 func (s *Server) notifySessions(n string) {
 	s.mu.Lock() // required to access s.sessions
 	sessions := slices.Clone(s.sessions)
-	s.pendingNotifications[n] = nil
+	// ...
 	s.mu.Unlock()
 	// Do I/O with no locks held.
-	notifySessions(sessions, n, changeNotificationParams[n], s.opts.Logger)
+	notifySessions(sessions /* ... */)
 }
 
 // !code
@@ -990,7 +935,9 @@ func (l *Logger) Printf(format string, v ...any) {
 // text Adapted from the [log package](https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go)
 
 ////////////////////////////////
-// heading Exercise: Find the bug
+// heading Beware sharing memory!
+//
+// text Find the bug.
 
 // link ../../../exercises/logger/logger.go Code
 // html <br/><br/><br/>
@@ -1478,13 +1425,13 @@ func (a *Account_cl3) TransferTo(b *Account_cl3, amount int) {
 // heading The race detector vs. checklocks
 //
 // text
-// <div class="interleave" style="font-size: 70%">
+// <div class="interleave" style="font-size: 100%">
 //
 // | -race | checklocks |
 // | -- | -- |
 // | dynamic | static |
 // | program runs 4x slower | no effect on runtime speed |
-// | finds all races that happen | can miss some races (see logger exercise) |
+// | finds all races that happen | can miss some races (memory sharing) |
 // | no code changes | needs annotations |
 // | run on any code | only code you can annotate |
 // | mutexes can be anywhere | only works for globals and struct fields |
