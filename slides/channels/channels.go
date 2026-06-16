@@ -190,7 +190,7 @@ func f5a() {
 
 func f6() {
 	// code
-	c := make(chan int, 1) // cap(c) == 1 // em 1
+	c := make(chan int, 1) // cap(c) == 1 // em , 1
 	go func() { c <- collatz(7) }()
 	select {
 	case v := <-c:
@@ -231,7 +231,14 @@ func f6() {
 ////////////////////////////////////
 // heading Exercise: replacing time.After
 
-// text See exercises/timeout
+// text
+// What if `time.After` didn't exist?
+//
+// You can achieve the same result with a goroutine
+// and a channel.
+//
+// See exercises/timeout
+// !text
 
 ////////////////////////////////////
 // heading Non-blocking select
@@ -240,7 +247,7 @@ func f6() {
 // Let's implement an in-process notification service:
 // !text
 
-// code
+// code large
 // sendNotification optionally sends a notification without
 // blocking the current goroutine.
 // To avoid blocking, the notification might be dropped.
@@ -312,15 +319,18 @@ func receiveNotification_2() string {
 
 // text
 // close a channel with the `close` builtin
+//
 // receiving always returns the zero value
+//
 // sending panics
 // !text
 
 func cc() {
-	// code
+	// code large
 	c := make(chan int, 1)
 	c <- 1
 	close(c)
+	fmt.Println(<-c) // prints 1
 	fmt.Println(<-c) // prints 0
 	c <- 2           // panics
 	// !code
@@ -630,7 +640,7 @@ func collatz_2(ctx context.Context, n int) (int, error) { // em ctx context.Cont
 ////////////////////////////////////
 // heading Contexts for timeouts
 
-// code
+// code large
 func collatzWithTimeout(ctx context.Context, n int, tm time.Duration) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, tm)
 	defer cancel()

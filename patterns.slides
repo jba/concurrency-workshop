@@ -30,8 +30,8 @@
   <h1>The Patterns</h1>
   <div class='text'>
 <ul>
-<li>WaitGroup</li>
 <li>ErrGroup</li>
+<li>WaitGroup</li>
 <li>Cache</li>
 <li>Pipeline</li>
 <li>Actor</li>
@@ -40,15 +40,303 @@
   <span class='pagenumber'>2</span>
 </article>
 
-<!-- slides/patterns/10-waitgroup.go -->
+<!-- slides/patterns/10-errgroup.go -->
 
 <!-- slide 3 -->
 <article class='title-slide'>
-  <div class='title-text'>Implementing WaitGroup</div>
+  <div class='title-text'>ErrGroup: WaitGroup with Errors</div>
   <span class='pagenumber'>3</span>
 </article>
 
 <!-- slide 4 -->
+<article>
+  <h1>Using WaitGroup with errors</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<comment>// checkURLs returns the first error found when getting the URLs.</comment>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
+<span class='codenum'>2</span>   var wg sync.WaitGroup
+<span class='codenum'>3</span>   for _, url := range urls {
+<span class='codenum'>4</span>      wg.Go(func() {
+<span class='codenum'>5</span>         resp, err := http.Get(url)
+<span class='codenum'>6</span>         if err != nil {
+<span class='codenum'>7</span>            <comment>// TODO: stop the other goroutines</comment>
+<span class='codenum'>8</span>            <comment>// and record the error.</comment>
+<span class='codenum'>9</span>         }
+<span class='codenum'>10</span>         resp.Body.Close() <comment>// always close the body!</comment>
+<span class='codenum'>11</span>      })
+<span class='codenum'>12</span>   }
+<span class='codenum'>13</span>   wg.Wait()
+<span class='codenum'>14</span>   return nil <comment>// TODO: return the first error</comment>
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <br/>
+  <details>
+    <summary>
+How do we implement the comment?    </summary>
+    <div class='answer'>
+<ul>
+<li>A channel of errors</li>
+<li>A context for cancellation</li>
+</ul>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>4</span>
+</article>
+
+<!-- slide 5 -->
+<article>
+  <h1>errgroup.Group</h1>
+  <div class='text'>
+<p>golang.org/x/sync/errgroup.Group</p>
+  </div>
+  <div class='text'>
+<p>&quot;errgroup.Group is related to sync.WaitGroup but adds handling of tasks returning errors.&quot;</p>
+  </div>
+  <div class='text'>
+<pre><code>package errgroup
+
+type Group
+func (g *Group) Go(func() <b>error</b>)
+func (g *Group) Wait() <b>error</b>  <i>// wait for all, return first error</i>
+
+func WithContext(ctx context.Context) (*Group, context.Context)
+func (g *Group) SetLimit(n int)
+func (g *Group) TryGo(f func() error) bool
+</code></pre>
+  </div>
+  <span class='pagenumber'>5</span>
+</article>
+
+<!-- slide 6 -->
+<article>
+  <h1>Just collecting errors</h1>
+  <div class='text'>
+<p><code>Wait</code> returns the first non-nil error.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
+<span class='codenum'>2</span><span class="em">   var eg errgroup.Group</span>
+<span class='codenum'>3</span>   for _, url := range urls {
+<span class='codenum'>4</span>      eg.Go(func() <span class="em">error</span> {
+<span class='codenum'>5</span>         <comment>// TODO: stop the other goroutines.</comment>
+<span class='codenum'>6</span>         resp, err := http.Get(url)
+<span class='codenum'>7</span>         if err != nil {
+<span class='codenum'>8</span>            return err
+<span class='codenum'>9</span>         }
+<span class='codenum'>10</span>         resp.Body.Close()
+<span class='codenum'>11</span>         return nil
+<span class='codenum'>12</span>      })
+<span class='codenum'>13</span>   }
+<span class='codenum'>14</span>   return <span class="em">eg.Wait</span>()
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>6</span>
+</article>
+
+<!-- slide 7 -->
+<article>
+  <h1>A useful helper</h1>
+  <div class='text'>
+<p>Making a GET request with cancellation.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>getURLErr</defn>(ctx context.Context, url string) error {
+<span class='codenum'>2</span>   req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+<span class='codenum'>3</span>   if err != nil {
+<span class='codenum'>4</span>      return err
+<span class='codenum'>5</span>   }
+<span class='codenum'>6</span>   <comment>// Do returns immediately when req.Context is cancelled</comment>
+<span class='codenum'>7</span>   <comment>// or times out.</comment>
+<span class='codenum'>8</span>   resp, err := http.DefaultClient.Do(req)
+<span class='codenum'>9</span>   if err != nil {
+<span class='codenum'>10</span>      return err
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>   resp.Body.Close()
+<span class='codenum'>13</span>   return nil
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>7</span>
+</article>
+
+<!-- slide 8 -->
+<article>
+  <h1>Errors and cancellation</h1>
+  <div class='text'>
+<p>The context is canceled on the first non-nil error.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(ctx context.Context, urls []string) error {
+<span class='codenum'>2</span><span class="em">   eg, gctx := errgroup.WithContext(ctx)</span>
+<span class='codenum'>3</span>   for _, url := range urls {
+<span class='codenum'>4</span>      eg.Go(func() error {
+<span class='codenum'>5</span>         return getURLErr(<span class="em">gctx</span>, url)
+<span class='codenum'>6</span>      })
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>   return eg.Wait()
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>8</span>
+</article>
+
+<!-- slide 9 -->
+<article>
+  <h1>Setting limits</h1>
+  <div class='text'>
+<p><code>SetLimit</code> puts a cap on the number of active goroutines.</p>
+  </div>
+  <div class='text'>
+<p>Useful even if you don't care about errors.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(ctx context.Context, urls []string) error {
+<span class='codenum'>2</span>   eg, ctx := errgroup.WithContext(ctx)
+<span class='codenum'>3</span><span class="em">   eg.SetLimit(4)</span>
+<span class='codenum'>4</span>   for _, url := range urls {
+<span class='codenum'>5</span>      <comment>// Go blocks if there are more than 4 active goroutines.</comment>
+<span class='codenum'>6</span>      eg.Go(func() error {
+<span class='codenum'>7</span>         return getURLErr(ctx, url)
+<span class='codenum'>8</span>      })
+<span class='codenum'>9</span>   }
+<span class='codenum'>10</span>   return eg.Wait()
+<span class='codenum'>11</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>9</span>
+</article>
+
+<!-- slide 10 -->
+<article>
+  <h1>A real-world example</h1>
+  <div class='text'>
+<p>Making multiple, independent RPCs to a service concurrently.</p>
+  </div>
+  <div class='text'>
+<p>From https://github.com/golang/pkgsite/blob/master/cmd/internal/pkgsite-cli/module.go</p>
+  </div>
+  <div class='text'>
+<p><code>&gt; pkgsite-cli module -packages -versions github.com/modelcontextprotocol/go-sdk</code></p>
+  </div>
+<div></div>
+  <div class='output'><pre>
+Version:          v1.6.1 (latest)
+Repository:       https://github.com/modelcontextprotocol/go-sdk
+Has go.mod:       yes
+Redistributable:  yes
+
+Versions:
+v1.6.1
+v1.6.0
+...
+
+Packages:
+github.com/modelcontextprotocol/go-sdk/auth
+github.com/modelcontextprotocol/go-sdk/auth/extauth
+...
+</pre>
+  </div>
+  <span class='pagenumber'>10</span>
+</article>
+
+<!-- slide 11 -->
+<article>
+  <h1>Sequential</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c, err := client.New(server)
+<comment>// ...</comment>
+<span class='codenum'>2</span>mod, err := c.GetModule(ctx, path, version)
+<comment>// ...</comment>
+<span class='codenum'>3</span>result := moduleResult{Module: mod}</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>if m.versions {
+<span class='codenum'>2</span>   result.Versions, err = c.GetVersions(ctx, path)
+<span class='codenum'>3</span>   if err != nil {
+<span class='codenum'>4</span>      return err
+<span class='codenum'>5</span>   }
+<span class='codenum'>6</span>}
+<span class='codenum'>7</span>if m.vulns {
+<span class='codenum'>8</span>   result.Vulns, err = c.GetVulns(ctx, path, mod.Version)
+<span class='codenum'>9</span>   if err != nil {
+<span class='codenum'>10</span>      return err
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>}
+<span class='codenum'>13</span>if m.packages {
+<span class='codenum'>14</span>   result.Packages, err = c.GetPackages(ctx, path, mod.Version)
+<span class='codenum'>15</span>   if err != nil {
+<span class='codenum'>16</span>      return err
+<span class='codenum'>17</span>   }
+<span class='codenum'>18</span>}
+<span class='codenum'>19</span>return write(result)</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>11</span>
+</article>
+
+<!-- slide 12 -->
+<article>
+  <h1>Concurrent</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c, err := client.New(server)
+<comment>// ...</comment>
+<span class='codenum'>2</span>mod, err := c.GetModule(ctx, path, version)
+<comment>// ...</comment>
+<span class='codenum'>3</span>result := moduleResult{Module: mod}
+
+<span class='codenum'>4</span><span class="em">g, gctx := errgroup.WithContext(ctx)</span></pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>if m.versions {
+<span class='codenum'>2</span>   <span class="em">g.Go</span>(func() (err error) {
+<span class='codenum'>3</span>      result.Versions, err = c.GetVersions(<span class="em">gctx</span>, path)
+<span class='codenum'>4</span>      return err
+<span class='codenum'>5</span>   })
+<span class='codenum'>6</span>}
+<span class='codenum'>7</span>if m.vulns {
+<span class='codenum'>8</span>   <span class="em">g.Go</span>(func() (err error) {
+<span class='codenum'>9</span>      result.Vulns, err = c.GetVulns(<span class="em">gctx</span>, path, mod.Version)
+<span class='codenum'>10</span>      return err
+<span class='codenum'>11</span>   })
+<span class='codenum'>12</span>}
+<span class='codenum'>13</span>if m.packages {
+<span class='codenum'>14</span>   <span class="em">g.Go</span>(func() (err error) {
+<span class='codenum'>15</span>      result.Packages, err = c.GetPackages(<span class="em">gctx</span>, path, mod.Version)
+<span class='codenum'>16</span>      return err
+<span class='codenum'>17</span>   })
+<span class='codenum'>18</span>}
+
+<span class='codenum'>19</span><span class="em">if err := g.Wait(); err != nil {</span>
+<span class='codenum'>20</span>   return err
+<span class='codenum'>21</span>}
+
+<span class='codenum'>22</span>return write(result)</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>12</span>
+</article>
+
+<!-- slides/patterns/20-waitgroup.go -->
+
+<!-- slide 13 -->
+<article class='title-slide'>
+  <div class='title-text'>Implementing WaitGroup</div>
+  <span class='pagenumber'>13</span>
+</article>
+
+<!-- slide 14 -->
 <article>
   <h1>WaitGroup unsynchronized</h1>
   <div class="flex"><div>
@@ -83,10 +371,10 @@ for a recent, subtle change to <code>WaitGroup.Go</code>.</p>
   </div>
   <div style="height: 5em"></div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>4</span>
+  <span class='pagenumber'>14</span>
 </article>
 
-<!-- slide 5 -->
+<!-- slide 15 -->
 <article>
   <h1>WaitGroup with a mutex</h1>
   <div class='code'><pre>
@@ -107,10 +395,10 @@ for a recent, subtle change to <code>WaitGroup.Go</code>.</p>
 <span class='codenum'>13</span>}
 </pre>
   </div>
-  <span class='pagenumber'>5</span>
+  <span class='pagenumber'>15</span>
 </article>
 
-<!-- slide 6 -->
+<!-- slide 16 -->
 <article>
   <h1>Busy-waiting</h1>
   <div class='text'>
@@ -153,10 +441,10 @@ so <code>Done</code> is blocked.</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>6</span>
+  <span class='pagenumber'>16</span>
 </article>
 
-<!-- slide 7 -->
+<!-- slide 17 -->
 <article>
   <h1>Busy-waiting, 2</h1>
   <div class="flex"><div>
@@ -239,10 +527,10 @@ Find the issue.    </summary>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>7</span>
+  <span class='pagenumber'>17</span>
 </article>
 
-<!-- slide 8 -->
+<!-- slide 18 -->
 <article>
   <h1>Fixing busy-waiting Wait</h1>
   <div class='text'>
@@ -270,10 +558,10 @@ all waiting goroutines.</p>
 <span class='codenum'>4</span>   count int <comment>// number of active goroutines</comment>
 <span class='codenum'>5</span>}
     </pre></div>
-    <span class='pagenumber'>8</span>
+    <span class='pagenumber'>18</span>
   </article>
   
-<!-- slide 9 -->
+<!-- slide 19 -->
   <article>
     <h1>Wait without busy-waiting</h1>
     <div class="flex"><div>
@@ -316,10 +604,10 @@ What happens if there is another &quot;round&quot; with the same <code>WaitGroup
         </div>
       </details>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>9</span>
+      <span class='pagenumber'>19</span>
     </article>
     
-<!-- slide 10 -->
+<!-- slide 20 -->
     <article>
       <h1>Exercise: Improvements</h1>
       <div class='text'>
@@ -335,10 +623,10 @@ be used again by calling <code>Add</code> multiple times, then <code>Wait</code>
 <p>Note that channel <em>operations</em> are concurrency-safe,
 but reading and writing a channel <em>variable</em> is not.</p>
       </div>
-      <span class='pagenumber'>10</span>
+      <span class='pagenumber'>20</span>
     </article>
     
-<!-- slide 11 -->
+<!-- slide 21 -->
     <article>
       <h1>Exercise solution</h1>
       <div class="flex"><div>
@@ -373,294 +661,6 @@ but reading and writing a channel <em>variable</em> is not.</p>
 <span class='codenum'>6</span>      &lt;-d
 <span class='codenum'>7</span>   }
 <span class='codenum'>8</span>}</pre>
-      </div>
-      </div></div> <!-- flex -->
-      <span class='pagenumber'>11</span>
-    </article>
-    
-<!-- slides/patterns/20-errgroup.go -->
-    
-<!-- slide 12 -->
-    <article class='title-slide'>
-      <div class='title-text'>ErrGroup: WaitGroup with Errors</div>
-      <span class='pagenumber'>12</span>
-    </article>
-    
-<!-- slide 13 -->
-    <article>
-      <h1>Using WaitGroup with errors</h1>
-      <div class="flex"><div>
-      <div class='code'><pre>
-<comment>// checkURLs returns the first error found when getting the URLs.</comment>
-<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
-<span class='codenum'>2</span>   var wg sync.WaitGroup
-<span class='codenum'>3</span>   for _, url := range urls {
-<span class='codenum'>4</span>      wg.Go(func() {
-<span class='codenum'>5</span>         resp, err := http.Get(url)
-<span class='codenum'>6</span>         if err != nil {
-<span class='codenum'>7</span>            <comment>// TODO: stop the other goroutines</comment>
-<span class='codenum'>8</span>            <comment>// and record the error.</comment>
-<span class='codenum'>9</span>         }
-<span class='codenum'>10</span>         resp.Body.Close() <comment>// always close the body!</comment>
-<span class='codenum'>11</span>      })
-<span class='codenum'>12</span>   }
-<span class='codenum'>13</span>   wg.Wait()
-<span class='codenum'>14</span>   return nil <comment>// TODO: return the first error</comment>
-<span class='codenum'>15</span>}
-</pre>
-      </div>
-      </div>
-      <div> <!-- next col -->
-      <br/>
-      <details>
-        <summary>
-How do we implement the comment?        </summary>
-        <div class='answer'>
-<ul>
-<li>A channel of errors</li>
-<li>A context for cancellation</li>
-</ul>
-        </div>
-      </details>
-      </div></div> <!-- flex -->
-      <span class='pagenumber'>13</span>
-    </article>
-    
-<!-- slide 14 -->
-    <article>
-      <h1>errgroup.Group</h1>
-      <div class='text'>
-<p>golang.org/x/sync/errgroup.Group</p>
-      </div>
-      <div class='text'>
-<p>&quot;errgroup.Group is related to sync.WaitGroup but adds handling of tasks returning errors.&quot;</p>
-      </div>
-      <div class='text'>
-<pre><code>package errgroup
-
-type Group
-func (g *Group) Go(func() <b>error</b>)
-func (g *Group) Wait() <b>error</b>  <i>// wait for all, return first error</i>
-
-func WithContext(ctx context.Context) (*Group, context.Context)
-func (g *Group) SetLimit(n int)
-func (g *Group) TryGo(f func() error) bool
-</code></pre>
-      </div>
-      <span class='pagenumber'>14</span>
-    </article>
-    
-<!-- slide 15 -->
-    <article>
-      <h1>Just collecting errors</h1>
-      <div class='text'>
-<p><code>Wait</code> returns the first non-nil error.</p>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
-<span class='codenum'>2</span><span class="em">   var eg errgroup.Group</span>
-<span class='codenum'>3</span>   for _, url := range urls {
-<span class='codenum'>4</span>      eg.Go(func() <span class="em">error</span> {
-<span class='codenum'>5</span>         <comment>// TODO: stop the other goroutines.</comment>
-<span class='codenum'>6</span>         resp, err := http.Get(url)
-<span class='codenum'>7</span>         if err != nil {
-<span class='codenum'>8</span>            return err
-<span class='codenum'>9</span>         }
-<span class='codenum'>10</span>         resp.Body.Close()
-<span class='codenum'>11</span>         return nil
-<span class='codenum'>12</span>      })
-<span class='codenum'>13</span>   }
-<span class='codenum'>14</span>   return <span class="em">eg.Wait</span>()
-<span class='codenum'>15</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>15</span>
-    </article>
-    
-<!-- slide 16 -->
-    <article>
-      <h1>A useful helper</h1>
-      <div class='text'>
-<p>Making a GET request with cancellation.</p>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>getURLErr</defn>(ctx context.Context, url string) error {
-<span class='codenum'>2</span>   req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-<span class='codenum'>3</span>   if err != nil {
-<span class='codenum'>4</span>      return err
-<span class='codenum'>5</span>   }
-<span class='codenum'>6</span>   <comment>// Do returns immediately when req.Context is cancelled</comment>
-<span class='codenum'>7</span>   <comment>// or times out.</comment>
-<span class='codenum'>8</span>   resp, err := http.DefaultClient.Do(req)
-<span class='codenum'>9</span>   if err != nil {
-<span class='codenum'>10</span>      return err
-<span class='codenum'>11</span>   }
-<span class='codenum'>12</span>   resp.Body.Close()
-<span class='codenum'>13</span>   return nil
-<span class='codenum'>14</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>16</span>
-    </article>
-    
-<!-- slide 17 -->
-    <article>
-      <h1>Errors and cancellation</h1>
-      <div class='text'>
-<p>The context is canceled on the first non-nil error.</p>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>checkURLs</defn>(ctx context.Context, urls []string) error {
-<span class='codenum'>2</span><span class="em">   eg, gctx := errgroup.WithContext(ctx)</span>
-<span class='codenum'>3</span>   for _, url := range urls {
-<span class='codenum'>4</span>      eg.Go(func() error {
-<span class='codenum'>5</span>         return getURLErr(<span class="em">gctx</span>, url)
-<span class='codenum'>6</span>      })
-<span class='codenum'>7</span>   }
-<span class='codenum'>8</span>   return eg.Wait()
-<span class='codenum'>9</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>17</span>
-    </article>
-    
-<!-- slide 18 -->
-    <article>
-      <h1>Setting limits</h1>
-      <div class='text'>
-<p><code>SetLimit</code> puts a cap on the number of active goroutines.</p>
-      </div>
-      <div class='text'>
-<p>Useful even if you don't care about errors.</p>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>checkURLs</defn>(ctx context.Context, urls []string) error {
-<span class='codenum'>2</span>   eg, ctx := errgroup.WithContext(ctx)
-<span class='codenum'>3</span><span class="em">   eg.SetLimit(4)</span>
-<span class='codenum'>4</span>   for _, url := range urls {
-<span class='codenum'>5</span>      <comment>// Go blocks if there are more than 4 active goroutines.</comment>
-<span class='codenum'>6</span>      eg.Go(func() error {
-<span class='codenum'>7</span>         return getURLErr(ctx, url)
-<span class='codenum'>8</span>      })
-<span class='codenum'>9</span>   }
-<span class='codenum'>10</span>   return eg.Wait()
-<span class='codenum'>11</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>18</span>
-    </article>
-    
-<!-- slide 19 -->
-    <article>
-      <h1>A real-world example</h1>
-      <div class='text'>
-<p>Making multiple, independent RPCs to a service concurrently.</p>
-      </div>
-      <div class='text'>
-<p>From https://github.com/golang/pkgsite/blob/master/cmd/internal/pkgsite-cli/module.go</p>
-      </div>
-      <div class='text'>
-<p><code>&gt; pkgsite-cli module -packages -versions github.com/modelcontextprotocol/go-sdk</code></p>
-      </div>
-<div></div>
-      <div class='output'><pre>
-Version:          v1.6.1 (latest)
-Repository:       https://github.com/modelcontextprotocol/go-sdk
-Has go.mod:       yes
-Redistributable:  yes
-
-Versions:
-v1.6.1
-v1.6.0
-...
-
-Packages:
-github.com/modelcontextprotocol/go-sdk/auth
-github.com/modelcontextprotocol/go-sdk/auth/extauth
-...
-</pre>
-      </div>
-      <span class='pagenumber'>19</span>
-    </article>
-    
-<!-- slide 20 -->
-    <article>
-      <h1>Sequential</h1>
-      <div class="flex"><div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>c, err := client.New(server)
-<comment>// ...</comment>
-<span class='codenum'>2</span>mod, err := c.GetModule(ctx, path, version)
-<comment>// ...</comment>
-<span class='codenum'>3</span>result := moduleResult{Module: mod}</pre>
-      </div>
-      </div>
-      <div> <!-- next col -->
-      <div class='code small'><pre>
-<span class='codenum'>1</span>if m.versions {
-<span class='codenum'>2</span>   result.Versions, err = c.GetVersions(ctx, path)
-<span class='codenum'>3</span>   if err != nil {
-<span class='codenum'>4</span>      return err
-<span class='codenum'>5</span>   }
-<span class='codenum'>6</span>}
-<span class='codenum'>7</span>if m.vulns {
-<span class='codenum'>8</span>   result.Vulns, err = c.GetVulns(ctx, path, mod.Version)
-<span class='codenum'>9</span>   if err != nil {
-<span class='codenum'>10</span>      return err
-<span class='codenum'>11</span>   }
-<span class='codenum'>12</span>}
-<span class='codenum'>13</span>if m.packages {
-<span class='codenum'>14</span>   result.Packages, err = c.GetPackages(ctx, path, mod.Version)
-<span class='codenum'>15</span>   if err != nil {
-<span class='codenum'>16</span>      return err
-<span class='codenum'>17</span>   }
-<span class='codenum'>18</span>}
-<span class='codenum'>19</span>return write(result)</pre>
-      </div>
-      </div></div> <!-- flex -->
-      <span class='pagenumber'>20</span>
-    </article>
-    
-<!-- slide 21 -->
-    <article>
-      <h1>Concurrent</h1>
-      <div class="flex"><div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>c, err := client.New(server)
-<comment>// ...</comment>
-<span class='codenum'>2</span>mod, err := c.GetModule(ctx, path, version)
-<comment>// ...</comment>
-<span class='codenum'>3</span>result := moduleResult{Module: mod}
-
-<span class='codenum'>4</span><span class="em">g, gctx := errgroup.WithContext(ctx)</span></pre>
-      </div>
-      </div>
-      <div> <!-- next col -->
-      <div class='code small'><pre>
-<span class='codenum'>1</span>if m.versions {
-<span class='codenum'>2</span>   <span class="em">g.Go</span>(func() (err error) {
-<span class='codenum'>3</span>      result.Versions, err = c.GetVersions(<span class="em">gctx</span>, path)
-<span class='codenum'>4</span>      return err
-<span class='codenum'>5</span>   })
-<span class='codenum'>6</span>}
-<span class='codenum'>7</span>if m.vulns {
-<span class='codenum'>8</span>   <span class="em">g.Go</span>(func() (err error) {
-<span class='codenum'>9</span>      result.Vulns, err = c.GetVulns(<span class="em">gctx</span>, path, mod.Version)
-<span class='codenum'>10</span>      return err
-<span class='codenum'>11</span>   })
-<span class='codenum'>12</span>}
-<span class='codenum'>13</span>if m.packages {
-<span class='codenum'>14</span>   <span class="em">g.Go</span>(func() (err error) {
-<span class='codenum'>15</span>      result.Packages, err = c.GetPackages(<span class="em">gctx</span>, path, mod.Version)
-<span class='codenum'>16</span>      return err
-<span class='codenum'>17</span>   })
-<span class='codenum'>18</span>}
-
-<span class='codenum'>19</span><span class="em">if err := g.Wait(); err != nil {</span>
-<span class='codenum'>20</span>   return err
-<span class='codenum'>21</span>}
-
-<span class='codenum'>22</span>return write(result)</pre>
       </div>
       </div></div> <!-- flex -->
       <span class='pagenumber'>21</span>

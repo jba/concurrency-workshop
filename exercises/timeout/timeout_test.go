@@ -4,7 +4,6 @@ package timeout
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -26,9 +25,7 @@ func computeWithTimeout(n int) (int, error) {
 // compute simulates a computation that lasts n milliseconds,
 // then returns n.
 func compute(n int) int {
-	fmt.Println(1)
 	time.Sleep(time.Duration(n) * time.Millisecond)
-	fmt.Println(2)
 	return n
 }
 

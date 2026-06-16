@@ -10,8 +10,8 @@ package patterns
 ////////////////////////////////////
 // heading The Patterns
 // text
-// - WaitGroup
 // - ErrGroup
+// - WaitGroup
 // - Cache
 // - Pipeline
 // - Actor

@@ -261,6 +261,9 @@ Now what happens to the first goroutine if there is a timeout?    </summary>
 <article>
   <h1>Exercise: replacing time.After</h1>
   <div class='text'>
+<p>What if <code>time.After</code> didn't exist?</p>
+<p>You can achieve the same result with a goroutine
+and a channel.</p>
 <p>See exercises/timeout</p>
   </div>
   <span class='pagenumber'>10</span>
@@ -272,7 +275,7 @@ Now what happens to the first goroutine if there is a timeout?    </summary>
   <div class='text'>
 <p>Let's implement an in-process notification service:</p>
   </div>
-  <div class='code'><pre>
+  <div class='code large'><pre>
 <comment>// sendNotification optionally sends a notification without</comment>
 <comment>// blocking the current goroutine.</comment>
 <comment>// To avoid blocking, the notification might be dropped.</comment>
@@ -350,16 +353,17 @@ are ready.</p>
 <article>
   <h1>Closing channels</h1>
   <div class='text'>
-<p>close a channel with the <code>close</code> builtin
-receiving always returns the zero value
-sending panics</p>
+<p>close a channel with the <code>close</code> builtin</p>
+<p>receiving always returns the zero value</p>
+<p>sending panics</p>
   </div>
-  <div class='code'><pre>
+  <div class='code large'><pre>
 <span class='codenum'>1</span>c := make(chan int, 1)
 <span class='codenum'>2</span>c &lt;- 1
 <span class='codenum'>3</span>close(c)
-<span class='codenum'>4</span>fmt.Println(&lt;-c) <comment>// prints 0</comment>
-<span class='codenum'>5</span>c &lt;- 2           <comment>// panics</comment></pre>
+<span class='codenum'>4</span>fmt.Println(&lt;-c) <comment>// prints 1</comment>
+<span class='codenum'>5</span>fmt.Println(&lt;-c) <comment>// prints 0</comment>
+<span class='codenum'>6</span>c &lt;- 2           <comment>// panics</comment></pre>
   </div>
   <span class='pagenumber'>14</span>
 </article>
@@ -598,7 +602,7 @@ finished, like this one.</p>
 <!-- slide 21 -->
 <article>
   <h1>Contexts for timeouts</h1>
-  <div class='code'><pre>
+  <div class='code large'><pre>
 <span class='codenum'>1</span>func <defn>collatzWithTimeout</defn>(ctx context.Context, n int, tm time.Duration) (int, error) {
 <span class='codenum'>2</span>   ctx, cancel := context.WithTimeout(ctx, tm)
 <span class='codenum'>3</span>   defer cancel()
