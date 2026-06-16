@@ -49,8 +49,8 @@
 <article>
   <h1>The collatz function</h1>
   <div class='code'><pre>
-<comment>// collatz returns the number of steps to get to 1 from n using the Collatz</comment>
-<comment>// sequence.</comment>
+<comment>// collatz returns the number of steps to get to 1 from n</comment>
+<comment>// using the Collatz sequence.</comment>
 <span class='codenum'>1</span>func <defn>collatz</defn>(n int) int {
 <span class='codenum'>2</span>   count := 0
 <span class='codenum'>3</span>   for n &gt; 1 {
@@ -78,6 +78,7 @@
 <span class='codenum'>1</span>var wg sync.WaitGroup
 <span class='codenum'>2</span>var v int
 <span class='codenum'>3</span>wg.Go(func() { v = collatz(7) })
+<comment>// Do other stuff.</comment>
 <span class='codenum'>4</span>wg.Wait()
 <span class='codenum'>5</span>fmt.Println(v)</pre>
   </div>
@@ -138,15 +139,25 @@
 <!-- slide 7 -->
 <article>
   <h1>The select statement</h1>
+  <div class="flex"><div>
+  <div class='text'>
+<p>The <code>select</code> statement can wait for multiple
+channels simultaneously.</p>
+<p>The first one to be ready is selected.</p>
+  </div>
   <div class='text'>
 <p>Task: run a goroutine, timing out after a fixed duration.</p>
   </div>
   <div class='text'>
 <p>Use <code>time.After</code> for timeouts.</p>
   </div>
-  <div class='code bad'><pre>
+  </div>
+  <div> <!-- next col -->
+  <div class='code'><pre>
 <span class='codenum'>1</span>c := make(chan int)
 <span class='codenum'>2</span>go func() { c &lt;- collatz(7) }()
+<comment>// Wait for the result or the timer,</comment>
+<comment>// whichever happens first.</comment>
 <span class='codenum'>3</span>select {
 <span class='codenum'>4</span>case v := &lt;-c:
 <span class='codenum'>5</span>   fmt.Println(v)
@@ -154,15 +165,16 @@
 <span class='codenum'>7</span>   fmt.Println(&#34;timed out&#34;)
 <span class='codenum'>8</span>}</pre>
   </div>
-  <div class='text'>
-<p>The timeout logic is right, but something else is wrong...</p>
-  </div>
+  </div></div> <!-- flex -->
   <span class='pagenumber'>7</span>
 </article>
 
 <!-- slide 8 -->
 <article>
   <h1>Goroutine leaks</h1>
+  <div class='text'>
+<p>The timeout logic is right, but something else is wrong.</p>
+  </div>
   <div class="flex"><div>
   <div class='code bad'><pre>
 <span class='codenum'>1</span>c := make(chan int)
@@ -177,6 +189,7 @@
   </div>
   </div>
   <div> <!-- next col -->
+  <div style="height: 4vw"></div>
   <details>
     <summary>
 What happens to the first goroutine if there is a timeout?    </summary>
@@ -216,6 +229,7 @@ What happens to the first goroutine if there is a timeout?    </summary>
   </div>
   </div>
   <div> <!-- next col -->
+  <div style="height: 2vw"></div>
   <div class='text'>
 <ul>
 <li>The size of the queue is the <em>capacity</em> of the channel.</li>

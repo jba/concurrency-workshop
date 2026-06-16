@@ -33,8 +33,8 @@ import (
 
 // heading The collatz function
 // code
-// collatz returns the number of steps to get to 1 from n using the Collatz
-// sequence.
+// collatz returns the number of steps to get to 1 from n
+// using the Collatz sequence.
 func collatz(n int) int {
 	count := 0
 	for n > 1 {
@@ -61,6 +61,7 @@ func f1() {
 	var wg sync.WaitGroup
 	var v int
 	wg.Go(func() { v = collatz(7) })
+	// Do other stuff.
 	wg.Wait()
 	fmt.Println(v)
 	// !code
@@ -114,14 +115,27 @@ func f3() {
 ////////////////////////////////////
 // heading The select statement
 
+// cols
+
+// text
+// The `select` statement can wait for multiple
+// channels simultaneously.
+//
+// The first one to be ready is selected.
+// !text
+//
+//
 // text Task: run a goroutine, timing out after a fixed duration.
 
 // text Use `time.After` for timeouts.
+// nextcol
 
 func f5() {
-	// code bad
+	// code
 	c := make(chan int)
 	go func() { c <- collatz(7) }()
+	// Wait for the result or the timer,
+	// whichever happens first.
 	select {
 	case v := <-c:
 		fmt.Println(v)
@@ -131,10 +145,12 @@ func f5() {
 	// !code
 }
 
-// text The timeout logic is right, but something else is wrong...
+// !cols
 
 ////////////////////////////////////
 // heading Goroutine leaks
+
+// text The timeout logic is right, but something else is wrong.
 
 // cols
 func f5a() {
@@ -152,6 +168,7 @@ func f5a() {
 }
 
 // nextcol
+// html <div style="height: 4vw"></div>
 // question
 // What happens to the first goroutine if there is a timeout?
 // answer
@@ -186,6 +203,7 @@ func f6() {
 }
 
 // nextcol
+// html <div style="height: 2vw"></div>
 
 // text
 // - The size of the queue is the _capacity_ of the channel.

@@ -2,6 +2,7 @@ package timeout
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -35,8 +36,9 @@ func Test(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			const n = 10
 			got, err := computeWithTimeout(n)
-			time.Sleep(20 * time.Millisecond) // wait for the timeout goroutine to finish
-			synctest.Wait()
+			fmt.Printf("computeWithTimeout(%d) = (%v, %v)\n",
+				n, got, err)
+			time.Sleep(10 * time.Millisecond) // wait for the timeout goroutine to finish (we've already slept 10ms)
 			if got != n || err != nil {
 				t.Errorf("got (%d, %v), want (%d, nil)", got, err, n)
 			}
@@ -46,8 +48,7 @@ func Test(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			const n = 21
 			got, err := computeWithTimeout(n)
-			time.Sleep(1 * time.Millisecond) // wait for compute(21) to finish
-			synctest.Wait()
+			time.Sleep(1 * time.Millisecond) // wait for compute(21) to finish (we've already slept 20 ms)
 			if got != 0 || err != errTimeout {
 				t.Errorf("got (%d, %v), want (0, errTimeout)", got, err)
 			}

@@ -327,7 +327,7 @@ pre {
   background: rgb(255, 252, 230);
   border: 1px solid rgb(224, 224, 224);
 
-  font-family: 'Consolas', 'Droid Sans Mono', 'Courier New', monospace;
+  font-family: monospace;
   font-size: 30px;
   line-height: 40px;
   letter-spacing: -1px;
@@ -347,7 +347,7 @@ pre.numbers span:before {
 }
 
 code {
-  font-family: 'Droid Sans Mono', 'Courier New', monospace;
+  font-family: monospace;
 
   color: black;
 }
