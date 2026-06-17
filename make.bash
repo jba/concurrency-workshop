@@ -7,7 +7,7 @@ function build_slides {
 }
 
 function build_mutexes {
-	(set -x ; go run ./cmd/code2slides -o mutexes.slides slides/mutexes/10-mutexes.go)
+	(set -x ; go run ./cmd/code2slides -o mutexes.slides slides/mutexes/mutexes.go)
 }
 
 function build_channels {
