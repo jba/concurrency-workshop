@@ -930,244 +930,15 @@ Why is it safe to access <code>e.out</code> unlocked?        </summary>
       <span class='pagenumber'>30</span>
     </article>
     
-<!-- slides/patterns/40-actor.go -->
+<!-- slides/patterns/40-pipelines.go -->
     
 <!-- slide 31 -->
     <article class='title-slide'>
-      <div class='title-text'>The actor pattern</div>
+      <div class='title-text'>Pipelines</div>
       <span class='pagenumber'>31</span>
     </article>
     
 <!-- slide 32 -->
-    <article>
-      <h1>Concept</h1>
-      <div class="flex"><div>
-      <div class='text'>
-<p>Actor: something with behavior and state.</p>
-<p>Only the actor can access its own state.</p>
-<p>Communication is by message passing.</p>
-      </div>
-      </div>
-      <div> <!-- next col -->
-      <img src="slides/patterns/gopher-actor.png" alt="gopher-actor.png" />
-      </div></div> <!-- flex -->
-      <span class='pagenumber'>32</span>
-    </article>
-    
-<!-- slide 33 -->
-    <article>
-      <h1>Balances actor, 1</h1>
-      <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
-<span class='codenum'>2</span>   balances map[string]int <comment>// account name to balance</comment>
-<span class='codenum'>3</span>   getc     chan getBalance
-<span class='codenum'>4</span>   changec  chan changeBalance
-<span class='codenum'>5</span>}
-
-<span class='codenum'>6</span>type <defn>getBalance</defn> struct {
-<span class='codenum'>7</span>   name     string   <comment>// account name</comment>
-<span class='codenum'>8</span>   response chan int <comment>// where to send the result</comment>
-<span class='codenum'>9</span>}
-
-<span class='codenum'>10</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
-<span class='codenum'>11</span>   response := make(chan int)
-<span class='codenum'>12</span>   a.getc &lt;- getBalance{name: name, response: response}
-<span class='codenum'>13</span>   return &lt;-response
-<span class='codenum'>14</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>33</span>
-    </article>
-    
-<!-- slide 34 -->
-    <article>
-      <h1>Balances actor, 2</h1>
-      <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>changeBalance</defn> struct {
-<span class='codenum'>2</span>   name     string
-<span class='codenum'>3</span>   amount   int
-<span class='codenum'>4</span>   response chan error
-<span class='codenum'>5</span>}
-
-<span class='codenum'>6</span>func (a *Accounts) <defn>Deposit</defn>(name string, amount int) error {
-<span class='codenum'>7</span>   response := make(chan error)
-<span class='codenum'>8</span>   a.changec &lt;- changeBalance{name: name, amount: amount, response: response}
-<span class='codenum'>9</span>   return &lt;-response
-<span class='codenum'>10</span>}
-
-<span class='codenum'>11</span>func (a *Accounts) <defn>Withdraw</defn>(name string, amount int) error {
-<span class='codenum'>12</span>   return a.Deposit(name, -amount)
-<span class='codenum'>13</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>34</span>
-    </article>
-    
-<!-- slide 35 -->
-    <article>
-      <h1>Balances actor, 3</h1>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func <defn>NewAccounts</defn>(names []string) *Accounts {
-<span class='codenum'>2</span>   a := &amp;Accounts{
-<span class='codenum'>3</span>      balances: map[string]int{},
-<span class='codenum'>4</span>      getc:     make(chan getBalance),
-<span class='codenum'>5</span>      changec:  make(chan changeBalance),
-<span class='codenum'>6</span>   }
-<span class='codenum'>7</span>   for _, name := range names {
-<span class='codenum'>8</span>      a.balances[name] = 0
-<span class='codenum'>9</span>   }
-<span class='codenum'>10</span>   go a.run()
-<span class='codenum'>11</span>   return a
-<span class='codenum'>12</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>35</span>
-    </article>
-    
-<!-- slide 36 -->
-    <article>
-      <h1>Balances actor, 4</h1>
-      <div class='code'><pre>
-<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() {
-<span class='codenum'>2</span>   for {
-<span class='codenum'>3</span>      select {
-<span class='codenum'>4</span>      case m := &lt;-a.getc:
-<span class='codenum'>5</span>         m.response &lt;- a.balances[m.name]
-<span class='codenum'>6</span>      case m := &lt;-a.changec:
-<span class='codenum'>7</span>         if a.balances[m.name]+m.amount &lt; 0 {
-<span class='codenum'>8</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
-<span class='codenum'>9</span>         } else {
-<span class='codenum'>10</span>            a.balances[m.name] += m.amount
-<span class='codenum'>11</span>            m.response &lt;- nil
-<span class='codenum'>12</span>         }
-<span class='codenum'>13</span>      }
-<span class='codenum'>14</span>   }
-<span class='codenum'>15</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>36</span>
-    </article>
-    
-<!-- slide 37 -->
-    <article>
-      <h1>Actor pros and cons</h1>
-      <div style="line-height:6rem">
-      <div class='text'>
-<p>+ a single goroutine: no deadlocks or race conditions<br/>
-+ responses can be asynchronous<br/>
-+ live code controls access</p>
-<p>– a lot of code to set up<br/>
-– lots of runtime overhead</p>
-      </div>
-      </div>
-      <span class='pagenumber'>37</span>
-    </article>
-    
-<!-- slide 38 -->
-    <article>
-      <h1>Actor vs. Mutex</h1>
-      <div class='text'>
-<p>A single mutex also eliminates deadlocks and races.</p>
-      </div>
-      <div class="flex"><div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
-<span class='codenum'>2</span>   mu       sync.Mutex
-<span class='codenum'>3</span>   balances map[string]int
-<span class='codenum'>4</span>}
-
-<span class='codenum'>5</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
-<span class='codenum'>6</span>   a.mu.Lock()
-<span class='codenum'>7</span>   defer a.mu.Unlock()
-<span class='codenum'>8</span>   return a.balances[name]
-<span class='codenum'>9</span>}
-</pre>
-      </div>
-      </div>
-      <div> <!-- next col -->
-      <div class='code'><pre>
-<span class='codenum'>1</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
-<span class='codenum'>2</span>   response := make(chan int)
-<span class='codenum'>3</span>   a.getc &lt;- getBalance{
-<span class='codenum'>4</span>      name:     name,
-<span class='codenum'>5</span>      response: response,
-<span class='codenum'>6</span>   }
-<span class='codenum'>7</span>   return &lt;-response
-<span class='codenum'>8</span>}
-</pre>
-      </div>
-      </div></div> <!-- flex -->
-      <span class='pagenumber'>38</span>
-    </article>
-    
-<!-- slide 39 -->
-    <article>
-      <h1>Actor responses can be asynchronous</h1>
-      <div class='text'>
-<p>By separating sending from receiving, callers can wait for responses.</p>
-      </div>
-      <div class='code'><pre>
-
-<span class='codenum'>1</span>func (a *Accounts) <defn>SendBalance</defn>(name string) chan int {
-<span class='codenum'>2</span>   r := make(chan int)
-<span class='codenum'>3</span>   a.getc &lt;- getBalance{name: name, response: r}
-<span class='codenum'>4</span><span class="em">   return r</span>
-<span class='codenum'>5</span>}
-</pre>
-      </div>
-      <div class='code'><pre>
-<span class='codenum'>1</span>accounts := NewAccounts([]string{&#34;Alice&#34;, &#34;Bob&#34;})
-<span class='codenum'>2</span>ac := accounts.SendBalance(&#34;Alice&#34;)
-<span class='codenum'>3</span>bc := accounts.SendBalance(&#34;Bob&#34;)
-<span class='codenum'>4</span>doOtherStuff()
-<span class='codenum'>5</span>abal := &lt;-ac
-<span class='codenum'>6</span>bbal := &lt;-bc</pre>
-      </div>
-      <span class='pagenumber'>39</span>
-    </article>
-    
-<!-- slide 40 -->
-    <article>
-      <h1>Live code controls access</h1>
-      The actor goroutine determines how to access the state.<br/>
-      <div class='code small'><pre>
-<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() { <comment>// get has priority</comment>
-<span class='codenum'>2</span>   for {
-<span class='codenum'>3</span><span class="em">      <comment>// If a get and change are both waiting, take the get first.</comment>
-<span class='codenum'>4</span>      select {
-<span class='codenum'>5</span>      case m := &lt;-a.getc:
-<span class='codenum'>6</span>         m.response &lt;- a.balances[m.name]
-<span class='codenum'>7</span>         continue
-<span class='codenum'>8</span>      default:
-<span class='codenum'>9</span>      }</span>
-<span class='codenum'>10</span>      <comment>// Take whichever is ready.</comment>
-<span class='codenum'>11</span>      select {
-<span class='codenum'>12</span>      case m := &lt;-a.getc:
-<span class='codenum'>13</span>         m.response &lt;- a.balances[m.name]
-<span class='codenum'>14</span>      case m := &lt;-a.changec:
-<span class='codenum'>15</span>         if a.balances[m.name]+m.amount &lt; 0 {
-<span class='codenum'>16</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
-<span class='codenum'>17</span>         } else {
-<span class='codenum'>18</span>            a.balances[m.name] += m.amount
-<span class='codenum'>19</span>            m.response &lt;- nil
-<span class='codenum'>20</span>         }
-<span class='codenum'>21</span>      }
-<span class='codenum'>22</span>   }
-<span class='codenum'>23</span>}
-</pre>
-      </div>
-      <span class='pagenumber'>40</span>
-    </article>
-    
-<!-- slides/patterns/40-pipelines.go -->
-    
-<!-- slide 41 -->
-    <article class='title-slide'>
-      <div class='title-text'>Pipelines</div>
-      <span class='pagenumber'>41</span>
-    </article>
-    
-<!-- slide 42 -->
     <article>
       <h1>Concept</h1>
       <div class='text'>
@@ -1180,20 +951,20 @@ Why is it safe to access <code>e.out</code> unlocked?        </summary>
 <li>Usually with channels.</li>
 </ul>
       </div>
-      <span class='pagenumber'>42</span>
+      <span class='pagenumber'>32</span>
     </article>
     
-<!-- slide 43 -->
+<!-- slide 33 -->
     <article>
       <h1>Not a pipeline</h1>
       <div class='text'>
 <p>Each goroutine does the entire task.</p>
       </div>
       <img src="slides/patterns/pipelines-1.png" alt="pipelines-1.png" />
-      <span class='pagenumber'>43</span>
+      <span class='pagenumber'>33</span>
     </article>
     
-<!-- slide 44 -->
+<!-- slide 34 -->
     <article>
       <h1>Using a pipeline</h1>
       <div class='text'>
@@ -1207,10 +978,10 @@ Why is it safe to access <code>e.out</code> unlocked?        </summary>
       <div class='text'>
 <p>Use buffered channels to avoid stalls.</p>
       </div>
-      <span class='pagenumber'>44</span>
+      <span class='pagenumber'>34</span>
     </article>
     
-<!-- slide 45 -->
+<!-- slide 35 -->
     <article>
       <h1>Advantages of pipelines</h1>
       <div class='text'>
@@ -1221,17 +992,17 @@ While some goroutines do I/O, others compute</li>
 Wire up separate components</li>
 </ul>
       </div>
-      <span class='pagenumber'>45</span>
+      <span class='pagenumber'>35</span>
     </article>
     
-<!-- slide 46 -->
+<!-- slide 36 -->
     <article>
       <h1>Example: OpenTelemetry Collector</h1>
       <img src="slides/patterns/pipelines-3.png" alt="pipelines-3.png" />
-      <span class='pagenumber'>46</span>
+      <span class='pagenumber'>36</span>
     </article>
     
-<!-- slide 47 -->
+<!-- slide 37 -->
     <article>
       <h1>Disadvantages of pipelines</h1>
       <div class='text'>
@@ -1245,18 +1016,18 @@ Each stage should involve a lot of work</p>
 </li>
 </ul>
       </div>
-      <span class='pagenumber'>47</span>
+      <span class='pagenumber'>37</span>
     </article>
     
 <!-- slides/patterns/50-actor.go -->
     
-<!-- slide 48 -->
+<!-- slide 38 -->
     <article class='title-slide'>
       <div class='title-text'>The actor pattern</div>
-      <span class='pagenumber'>48</span>
+      <span class='pagenumber'>38</span>
     </article>
     
-<!-- slide 49 -->
+<!-- slide 39 -->
     <article>
       <h1>Concept</h1>
       <div class="flex"><div>
@@ -1269,10 +1040,10 @@ Each stage should involve a lot of work</p>
       <div> <!-- next col -->
       <img src="slides/patterns/gopher-actor.png" alt="gopher-actor.png" />
       </div></div> <!-- flex -->
-      <span class='pagenumber'>49</span>
+      <span class='pagenumber'>39</span>
     </article>
     
-<!-- slide 50 -->
+<!-- slide 40 -->
     <article>
       <h1>Balances actor, 1</h1>
       <div class='code'><pre>
@@ -1294,10 +1065,10 @@ Each stage should involve a lot of work</p>
 <span class='codenum'>14</span>}
 </pre>
       </div>
-      <span class='pagenumber'>50</span>
+      <span class='pagenumber'>40</span>
     </article>
     
-<!-- slide 51 -->
+<!-- slide 41 -->
     <article>
       <h1>Balances actor, 2</h1>
       <div class='code'><pre>
@@ -1318,10 +1089,10 @@ Each stage should involve a lot of work</p>
 <span class='codenum'>13</span>}
 </pre>
       </div>
-      <span class='pagenumber'>51</span>
+      <span class='pagenumber'>41</span>
     </article>
     
-<!-- slide 52 -->
+<!-- slide 42 -->
     <article>
       <h1>Balances actor, 3</h1>
       <div class='code'><pre>
@@ -1336,10 +1107,10 @@ Each stage should involve a lot of work</p>
 <span class='codenum'>9</span>}
 </pre>
       </div>
-      <span class='pagenumber'>52</span>
+      <span class='pagenumber'>42</span>
     </article>
     
-<!-- slide 53 -->
+<!-- slide 43 -->
     <article>
       <h1>Balances actor, 4</h1>
       <div class='code'><pre>
@@ -1360,10 +1131,10 @@ Each stage should involve a lot of work</p>
 <span class='codenum'>15</span>}
 </pre>
       </div>
-      <span class='pagenumber'>53</span>
+      <span class='pagenumber'>43</span>
     </article>
     
-<!-- slide 54 -->
+<!-- slide 44 -->
     <article>
       <h1>Actor cons and pros</h1>
       <div style="line-height:6rem">
@@ -1375,10 +1146,10 @@ Each stage should involve a lot of work</p>
 + live code controls access</p>
       </div>
       </div>
-      <span class='pagenumber'>54</span>
+      <span class='pagenumber'>44</span>
     </article>
     
-<!-- slide 55 -->
+<!-- slide 45 -->
     <article>
       <h1>Actor vs. Mutex</h1>
       <div class='text'>
@@ -1412,10 +1183,10 @@ Each stage should involve a lot of work</p>
 </pre>
       </div>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>55</span>
+      <span class='pagenumber'>45</span>
     </article>
     
-<!-- slide 56 -->
+<!-- slide 46 -->
     <article>
       <h1>Actor responses can be asynchronous</h1>
       <div class='text'>
@@ -1438,10 +1209,10 @@ Each stage should involve a lot of work</p>
 <span class='codenum'>5</span>abal := &lt;-ac
 <span class='codenum'>6</span>bbal := &lt;-bc</pre>
       </div>
-      <span class='pagenumber'>56</span>
+      <span class='pagenumber'>46</span>
     </article>
     
-<!-- slide 57 -->
+<!-- slide 47 -->
     <article>
       <h1>Live code controls access</h1>
       <div class="flex"><div>
@@ -1480,7 +1251,7 @@ Each stage should involve a lot of work</p>
 </pre>
       </div>
       </div></div> <!-- flex -->
-      <span class='pagenumber'>57 and last</span>
+      <span class='pagenumber'>47 and last</span>
     </article>
 
     <div id="help">

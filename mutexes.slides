@@ -13,7 +13,7 @@
   <body style='display: none'>
     <section class='slides'>
 
-<!-- slides/mutexes/10-mutexes.go -->
+<!-- slides/mutexes/mutexes.go -->
 
 <!-- slide 1 -->
 <article class='title-slide'>
@@ -820,6 +820,12 @@ above the fields it protects</p>
 </article>
 
 <!-- slide 26 -->
+<article class='title-slide'>
+  <div class='title-text'>Using atomics is like riding a bicycle in Manhattan.</div>
+  <span class='pagenumber'>26</span>
+</article>
+
+<!-- slide 27 -->
 <article>
   <h1>IDGenerator with a map</h1>
   <div class='code bad'><pre>
@@ -840,10 +846,10 @@ above the fields it protects</p>
 <span class='codenum'>12</span>}
 </pre>
   </div>
-  <span class='pagenumber'>26</span>
+  <span class='pagenumber'>27</span>
 </article>
 
-<!-- slide 27 -->
+<!-- slide 28 -->
 <article>
   <h1>Mutexes and maps, safely</h1>
   <div class="flex"><div>
@@ -877,10 +883,10 @@ Why not?    </summary>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>27</span>
+  <span class='pagenumber'>28</span>
 </article>
 
-<!-- slide 28 -->
+<!-- slide 29 -->
 <article>
   <h1>Optimizations</h1>
   <div class='text'>
@@ -888,10 +894,10 @@ Why not?    </summary>
 <p><code>sync.RWMutex</code> if there are many more reads than writes.</p>
 <p><code>sync.Map</code> if there are very few writes (often just one).</p>
   </div>
-  <span class='pagenumber'>28</span>
+  <span class='pagenumber'>29</span>
 </article>
 
-<!-- slide 29 -->
+<!-- slide 30 -->
 <article>
   <h1>sync.Map example</h1>
   <div class="flex"><div>
@@ -932,19 +938,19 @@ but return the existing value anyway.&quot;</p>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>29</span>
+  <span class='pagenumber'>30</span>
 </article>
 
-<!-- slide 30 -->
+<!-- slide 31 -->
 <article>
   <h1>Some miscellaneous points</h1>
   <div class='text'>
 <br/>
   </div>
-  <span class='pagenumber'>30</span>
+  <span class='pagenumber'>31</span>
 </article>
 
-<!-- slide 31 -->
+<!-- slide 32 -->
 <article>
   <h1>Copy defensively</h1>
   <p style="margin-bottom:0">Copy private mutable data</p>
@@ -971,10 +977,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
   </div>
-  <span class='pagenumber'>31</span>
+  <span class='pagenumber'>32</span>
 </article>
 
-<!-- slide 32 -->
+<!-- slide 33 -->
 <article>
   <h1>Avoid locking during I/O</h1>
   <div class='text'>
@@ -1000,10 +1006,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
   </div>
-  <span class='pagenumber'>32</span>
+  <span class='pagenumber'>33</span>
 </article>
 
-<!-- slide 33 -->
+<!-- slide 34 -->
 <article>
   <h1>Avoid locking during I/O...unless you need it</h1>
   <div class='code'><pre>
@@ -1028,10 +1034,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>Adapted from the <a href="https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go">log package</a></p>
   </div>
-  <span class='pagenumber'>33</span>
+  <span class='pagenumber'>34</span>
 </article>
 
-<!-- slide 34 -->
+<!-- slide 35 -->
 <article>
   <h1>Beware sharing memory!</h1>
   <div class='text'>
@@ -1040,17 +1046,17 @@ but return the existing value anyway.&quot;</p>
   <a href="../exercises/logger/logger.go">Code</a>
   <br/><br/><br/>
   <a href="../exercises/logger/solution/logger.go">Solution</a>
-  <span class='pagenumber'>34</span>
-</article>
-
-<!-- slide 35 -->
-<article>
-  <h1>And now ...</h1>
-  <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
   <span class='pagenumber'>35</span>
 </article>
 
 <!-- slide 36 -->
+<article>
+  <h1>And now ...</h1>
+  <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
+  <span class='pagenumber'>36</span>
+</article>
+
+<!-- slide 37 -->
 <article>
   <h1>Deadlock</h1>
   <div class='text'>
@@ -1059,10 +1065,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>Or a single goroutine blocks itself.</p>
   </div>
-  <span class='pagenumber'>36</span>
+  <span class='pagenumber'>37</span>
 </article>
 
-<!-- slide 37 -->
+<!-- slide 38 -->
 <article>
   <h1>Self-deadlock: example</h1>
   <div class="flex"><div>
@@ -1119,10 +1125,10 @@ but return the existing value anyway.&quot;</p>
 </div>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>37</span>
+  <span class='pagenumber'>38</span>
 </article>
 
-<!-- slide 38 -->
+<!-- slide 39 -->
 <article>
   <h1>Solution: refactor</h1>
   <div class="flex"><div>
@@ -1161,10 +1167,10 @@ but return the existing value anyway.&quot;</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>38</span>
+  <span class='pagenumber'>39</span>
 </article>
 
-<!-- slide 39 -->
+<!-- slide 40 -->
 <article>
   <h1>A real-world example</h1>
   Modified from net/http/transport.go<br/>
@@ -1212,10 +1218,10 @@ but return the existing value anyway.&quot;</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>39</span>
+  <span class='pagenumber'>40</span>
 </article>
 
-<!-- slide 40 -->
+<!-- slide 41 -->
 <article>
   <h1>Solution: refactor</h1>
   Actually from net/http/transport.go<br/>
@@ -1264,10 +1270,10 @@ but return the existing value anyway.&quot;</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>40</span>
+  <span class='pagenumber'>41</span>
 </article>
 
-<!-- slide 41 -->
+<!-- slide 42 -->
 <article>
   <h1>Multi-goroutine deadlocks</h1>
   <div class="flex"><div>
@@ -1331,10 +1337,10 @@ yuri.TransferTo(xena, 100)</pre>
   <div class='text'>
 <p>That is only one interleaving!</p>
   </div>
-  <span class='pagenumber'>41</span>
+  <span class='pagenumber'>42</span>
 </article>
 
-<!-- slide 42 -->
+<!-- slide 43 -->
 <article>
   <h1>Solution 1: coarser granularity</h1>
   Locks protect larger critical sections.<br/>
@@ -1391,10 +1397,10 @@ What's the problem with this approach?    </summary>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>42</span>
+  <span class='pagenumber'>43</span>
 </article>
 
-<!-- slide 43 -->
+<!-- slide 44 -->
 <article>
   <h1>Solution 2: lock ordering</h1>
   If all goroutines obtain locks in the same order, deadlock is impossible.<br/>
@@ -1429,10 +1435,10 @@ What's the problem with this approach?    </summary>
 <span class='codenum'>15</span>}
 </pre>
   </div>
-  <span class='pagenumber'>43</span>
+  <span class='pagenumber'>44</span>
 </article>
 
-<!-- slide 44 -->
+<!-- slide 45 -->
 <article>
   <h1>Checklocks</h1>
   <div class='text'>
@@ -1444,10 +1450,10 @@ What's the problem with this approach?    </summary>
 <pre><code>checklocks ./...
 </code></pre>
   </div>
-  <span class='pagenumber'>44</span>
+  <span class='pagenumber'>45</span>
 </article>
 
-<!-- slide 45 -->
+<!-- slide 46 -->
 <article>
   <h1>Example</h1>
   <div class='code'><pre>
@@ -1468,10 +1474,10 @@ What's the problem with this approach?    </summary>
 <span class='codenum'>13</span>}
 </pre>
   </div>
-  <span class='pagenumber'>45</span>
+  <span class='pagenumber'>46</span>
 </article>
 
-<!-- slide 46 -->
+<!-- slide 47 -->
 <article>
   <h1>Example</h1>
   <div class='code'><pre>
@@ -1498,10 +1504,10 @@ What's the problem with this approach?    </summary>
 file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
 </pre>
   </div>
-  <span class='pagenumber'>46</span>
+  <span class='pagenumber'>47</span>
 </article>
 
-<!-- slide 47 -->
+<!-- slide 48 -->
 <article>
   <h1>Example, v2</h1>
   <div class='code'><pre>
@@ -1528,10 +1534,10 @@ file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when acce
 file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanceLocked, but not held
 </pre>
   </div>
-  <span class='pagenumber'>47</span>
+  <span class='pagenumber'>48</span>
 </article>
 
-<!-- slide 48 -->
+<!-- slide 49 -->
 <article>
   <h1>The race detector vs. checklocks</h1>
   <div class='text'>
@@ -1576,7 +1582,7 @@ file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanc
 </table>
 </div>
   </div>
-  <span class='pagenumber'>48 and last</span>
+  <span class='pagenumber'>49 and last</span>
 </article>
 
     <div id="help">

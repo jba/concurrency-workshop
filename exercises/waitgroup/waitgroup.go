@@ -3,18 +3,17 @@ package waitgroup
 import "sync"
 
 type WaitGroup struct {
-	done  chan struct{} // closed when count == 0
 	mu    sync.Mutex
+	done  chan struct{} // closed when count == 0
 	count int // number of active goroutines
-}
-
-func NewWaitGroup() *WaitGroup {
-	return &WaitGroup{done: make(chan struct{})}
 }
 
 func (g *WaitGroup) Add(n int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if g.done == nil {
+		g.done = make(chan struct{})
+	}
 	g.count += n
 	if g.count == 0 {
 		close(g.done)
@@ -25,4 +24,4 @@ func (g *WaitGroup) Done() {
 	g.Add(-1)
 }
 
-func (g *WaitGroup) Wait() {}
+func (g *WaitGroup) Wait() { <-g.done }
