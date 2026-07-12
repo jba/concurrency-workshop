@@ -16,6 +16,7 @@ import (
 // title Introduction to Synchronization
 // subtitle
 // Understanding Concurrency
+
 // GopherCon LATAM 2026
 // !subtitle
 
