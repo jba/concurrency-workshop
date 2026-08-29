@@ -6,7 +6,7 @@ function build_slides {
 	build_channels
 	build_patterns
 }
-function build_mutexes {
+function build_intro {
 	(set -x ; go run ./cmd/code2slides -o intro.slides slides/intro/intro.go)
 }
 
