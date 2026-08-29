@@ -74,6 +74,7 @@ import (
 // goroutines >> CPUs
 //
 // The _scheduler_ assigns goroutines to CPUs.
+// !text
 
 ///////////////////////////////////
 // heading Go and Concurrency
@@ -86,7 +87,8 @@ import (
 // The goroutine runs until the function exits.
 //
 // All goroutines run concurrently until the main
-// GR exits.
+// goroutine exits.
+// !text
 
 func main_1() {
 	go fmt.Println(1)
@@ -97,13 +99,13 @@ func main_1() {
 // answer
 // Three: the two that are started with `go`, and the
 // main goroutine.
-// !answer
+// !question
 
 // question What does this program print?
 // answer
-// Nothing: the main GR exits before the others have
+// Nothing: the main goroutine exits before the others have
 // a chance to run.
-// !answer
+// !question
 
 // heading Fix 1
 
@@ -126,13 +128,14 @@ func main_2() {
 // output
 // !output
 
-// text GR execution is _non-deterministic_.
+// text goroutine execution is _non-deterministic_.
 
 // heading WaitGroup
 
 // text
 // Use a `sync.WaitGroup` to wait for
-// GRs to finish.
+// goroutines to finish.
+// !text
 
 func main_3() {
 	var wg sync.WaitGroup
@@ -228,11 +231,12 @@ func collatzSequential(w io.Writer, n int) {
 // have more than one CPU. The Go scheduler will assign goroutines
 // to CPUs until there are no more available CPUs.
 // (This answer assumes that `collatz(n)` runs slowly enough for small `n`)
+// !question
 
 // question Which is faster, the sequential version or the concurrent one?
 // answer
 // The sequential, by a lot.
-// !answer
+// !question
 
 ////////////////////////////////////
 // heading Concurrency and performance
@@ -248,3 +252,4 @@ func collatzSequential(w io.Writer, n int) {
 
 // See the benchmark in exercises/collatz/collatz_test.go.
 // 128 collatz calls per goroutine does much better.
+// !text
