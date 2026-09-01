@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta charset='utf-8'>
+    <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+
+<!-- slides/intro/intro.go -->
+
+<!-- slide 1 -->
+<article class='title-slide'>
+  <div class='title-text'>Understanding Concurrency</div>
+  <div class='subtitle-text'>
+    <p>Jonathan Amsterdam
+    GopherCon LATAM 2026</p>
+  </div>
+  <span class='pagenumber'>1</span>
+</article>
+
+<!-- slide 2 -->
+<article>
+  <h1>Who&#39;s Jonathan Amsterdam?</h1>
+  <div class='text'>
+<p>Go team member since 2018</p>
+<ul>
+<li>pkg.go.dev</li>
+<li><code>log/slog</code></li>
+<li><code>http.ServeMux</code> patterns</li>
+<li>Go Model Context Protocol SDK</li>
+</ul>
+<p>First time in...</p>
+<ul>
+<li>this conference</li>
+<li>Florianópolis</li>
+<li>Brazil</li>
+<li>South America!</li>
+</ul>
+  </div>
+  <span class='pagenumber'>2</span>
+</article>
+
+<!-- slide 3 -->
+<article>
+  <h1>Preparation</h1>
+  <div class='text'>
+<p>Clone https://github.com/jba/concurrency-workshop</p>
+<p>We will be working in <code>GCLATAM26</code>.</p>
+  </div>
+  <span class='pagenumber'>3</span>
+</article>
+
+<!-- slide 4 -->
+<article>
+  <h1>The LLElephant in the Room</h1>
+  <img src="slides/intro/llelephant.png" alt="llelephant.png" />
+  <span class='pagenumber'>4</span>
+</article>
+
+<!-- slide 5 -->
+<article>
+  <h1>Concurrency vs. Parallelism</h1>
+  <div class='text'>
+<p>Parallelism: doing several things at the same time.</p>
+<p>Concurrency: <em>seeming</em> to do several things at the
+same time.</p>
+  </div>
+  <span class='pagenumber'>5</span>
+</article>
+
+<!-- slide 6 -->
+<article>
+  <h1>Concurrency without Parallelism</h1>
+  <div class='text'>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Pa0wXSh4I34?si=k2GjH3OSzerAA4hS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+</iframe>
+  </div>
+  <span class='pagenumber'>6</span>
+</article>
+
+<!-- slide 7 -->
+<article>
+  <h1>Go and Concurrency</h1>
+  <div class='text'>
+<p>A <em>goroutine</em> is a unit of concurrency.</p>
+<ul>
+<li>A separate thread of execution</li>
+<li>A separate program counter + stack</li>
+<li>A separate &quot;finger&quot; walking through code
+and executing it</li>
+</ul>
+<p>goroutines &gt;&gt; CPUs</p>
+<p>The <em>scheduler</em> assigns goroutines to CPUs.</p>
+  </div>
+  <span class='pagenumber'>7</span>
+</article>
+
+<!-- slide 8 -->
+<article>
+  <h1>Go and Concurrency</h1>
+  <div class='text'>
+<p>Use the <code>go</code> keyword to start a goroutine.</p>
+<p><code>go</code> is followed by a function call.</p>
+<p>The goroutine runs until the function exits.</p>
+<p>All goroutines run concurrently until the main
+goroutine exits.</p>
+  </div>
+  <details>
+    <summary>
+How many goroutines does this program have?    </summary>
+    <div class='answer'>
+<p>Three: the two that are started with <code>go</code>, and the
+main goroutine.</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+What does this program print?    </summary>
+    <div class='answer'>
+<p>Nothing: the main goroutine exits before the others have
+a chance to run.</p>
+    </div>
+  </details>
+  <span class='pagenumber'>8</span>
+</article>
+
+<!-- slide 9 -->
+<article>
+  <h1>Fix 1</h1>
+<div></div>
+  <div class='output'><pre>
+1
+2
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+2
+1
+</pre>
+  </div>
+  <div class='text'>
+<p>goroutine execution is <em>non-deterministic</em>.</p>
+  </div>
+  <span class='pagenumber'>9</span>
+</article>
+
+<!-- slide 10 -->
+<article>
+  <h1>WaitGroup</h1>
+  <div class='text'>
+<p>Use a <code>sync.WaitGroup</code> to wait for
+goroutines to finish.</p>
+  </div>
+<div></div>
+  <div class='output'><pre>
+1
+2
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+2
+1
+</pre>
+  </div>
+  <div class='text'>
+<p>How can we get results in order?</p>
+  </div>
+  <span class='pagenumber'>10</span>
+</article>
+
+<!-- slide 11 -->
+<article>
+  <h1>The Collatz Conjecture</h1>
+  <div class='text'>
+<p>Starting with an integer <em>n</em>, repeat the following:</p>
+<ul>
+<li>If <em>n</em> is even, divide it by 2.</li>
+<li>If <em>n</em> is odd, multiply it by 3 and add 1.</li>
+</ul>
+<p>Examples:</p>
+<ul>
+<li>4 -&gt; 2 -&gt; 1</li>
+<li>6 -&gt; 3 -&gt; 10 -&gt; 5 -&gt; 16 -&gt; 8 -&gt; 4 -&gt; 2 -&gt; 1</li>
+<li>7 -&gt; 22 -&gt; 11 -&gt; 34 -&gt; 17 -&gt; 52 -&gt; 26 -&gt; 13 -&gt; 40 -&gt; 20 -&gt; 10 -&gt; 5 -&gt; 16 -&gt; 8 -&gt; 4 -&gt; 2 -&gt; 1</li>
+</ul>
+<p>Conjecture: All values end up at 1.</p>
+  </div>
+  <span class='pagenumber'>11</span>
+</article>
+
+<!-- slide 12 -->
+<article>
+  <h1>The collatz function</h1>
+  <div class='code'><pre>
+<comment>// collatz returns the number of steps to get to 1 from n</comment>
+<comment>// using the Collatz sequence.</comment>
+<span class='codenum'>1</span>func <defn>collatz</defn>(n int) int {
+<span class='codenum'>2</span>   count := 0
+<span class='codenum'>3</span>   for n &gt; 1 {
+<span class='codenum'>4</span>      if n%2 == 0 {
+<span class='codenum'>5</span>         n /= 2
+<span class='codenum'>6</span>      } else {
+<span class='codenum'>7</span>         n = 3*n + 1
+<span class='codenum'>8</span>      }
+<span class='codenum'>9</span>      count++
+<span class='codenum'>10</span>   }
+<span class='codenum'>11</span>   return count
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>12</span>
+</article>
+
+<!-- slide 13 -->
+<article>
+  <h1>Exercise: Collatz concurrently</h1>
+  <div class='text'>
+<p>Start with GCLATAM26/exercises/collatz/collatz.go.</p>
+<p>Write collatzConcurrent, which computes
+the values of collatz concurrently, <em>but
+prints the results in order</em>.</p>
+<p>Hint: use a slice.</p>
+<p>(You won't need synchronization.)</p>
+  </div>
+  <span class='pagenumber'>13</span>
+</article>
+
+<!-- slide 14 -->
+<article>
+  <h1>Questions about the exercise</h1>
+  <details>
+    <summary>
+Does <code>collatzConcurrent(10)</code> run concurrently, or in parallel?    </summary>
+    <div class='answer'>
+<p>Both, on modern hardware. All modern (non-embedded) computers
+have more than one CPU. The Go scheduler will assign goroutines
+to CPUs until there are no more available CPUs.
+(This answer assumes that <code>collatz(n)</code> runs slowly enough for small <code>n</code>)</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+Which is faster, the sequential version or the concurrent one?    </summary>
+    <div class='answer'>
+<p>The sequential, by a lot.</p>
+    </div>
+  </details>
+  <span class='pagenumber'>14</span>
+</article>
+
+<!-- slide 15 -->
+<article>
+  <h1>Concurrency and performance</h1>
+  <div class='text'>
+<p>The concurrent version will run <em>slower</em> than
+the sequential one.</p>
+<p>Concurrency has overhead.</p>
+<p>To make it worthwhile, you must do a lot of work
+in each goroutine.</p>
+<p>See the benchmark in exercises/collatz/collatz_test.go.
+128 collatz calls per goroutine does much better.</p>
+  </div>
+  <span class='pagenumber'>15 and last</span>
+</article>
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+	<script type="module">
+	   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	   mermaid.initialize({ startOnLoad: true });
+	</script>
+  </body>
+</html>

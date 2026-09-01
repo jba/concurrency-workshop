@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta charset='utf-8'>
+    <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+
+<!-- slides/patterns/00-intro.go -->
+
+<!-- slide 1 -->
+<article class='title-slide'>
+  <div class='title-text'>Concurrency Patterns</div>
+  <div class='subtitle-text'>
+    <p>Understanding Concurrency</p>
+    <p>GopherCon LATAM 2026</p>
+  </div>
+  <span class='pagenumber'>1</span>
+</article>
+
+<!-- slide 2 -->
+<article>
+  <h1>The Patterns</h1>
+  <div class='text'>
+<ul>
+<li>ErrGroup</li>
+<li>Cache</li>
+<li>Pipeline?</li>
+<li>Actor?</li>
+</ul>
+  </div>
+  <span class='pagenumber'>2</span>
+</article>
+
+<!-- slides/patterns/10-errgroup.go -->
+
+<!-- slide 3 -->
+<article class='title-slide'>
+  <div class='title-text'>ErrGroup: WaitGroup with Errors</div>
+  <span class='pagenumber'>3</span>
+</article>
+
+<!-- slide 4 -->
+<article>
+  <h1>Using WaitGroup with errors</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<comment>// checkURLs returns the first error found when getting the URLs.</comment>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
+<span class='codenum'>2</span>   var wg sync.WaitGroup
+<span class='codenum'>3</span>   for _, url := range urls {
+<span class='codenum'>4</span>      wg.Go(func() {
+<span class='codenum'>5</span>         resp, err := http.Get(url)
+<span class='codenum'>6</span>         if err != nil {
+<span class='codenum'>7</span>            <comment>// TODO: stop the other goroutines</comment>
+<span class='codenum'>8</span>            <comment>// and record the error.</comment>
+<span class='codenum'>9</span>         }
+<span class='codenum'>10</span>         resp.Body.Close() <comment>// always close the body!</comment>
+<span class='codenum'>11</span>      })
+<span class='codenum'>12</span>   }
+<span class='codenum'>13</span>   wg.Wait()
+<span class='codenum'>14</span>   return nil <comment>// TODO: return the first error</comment>
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <br/>
+  <details>
+    <summary>
+How do we implement the comment?    </summary>
+    <div class='answer'>
+<ul>
+<li>A channel of errors</li>
+<li>A context for cancellation</li>
+</ul>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>4</span>
+</article>
+
+<!-- slide 5 -->
+<article>
+  <h1>errgroup.Group</h1>
+  <div class='text'>
+<p>golang.org/x/sync/errgroup.Group</p>
+  </div>
+  <div class='text'>
+<p>&quot;errgroup.Group is related to sync.WaitGroup but adds handling of tasks returning errors.&quot;</p>
+  </div>
+  <div class='text'>
+<pre><code>package errgroup
+
+type Group
+func (g *Group) Go(func() <b>error</b>)
+func (g *Group) Wait() <b>error</b>  <i>// wait for all, return first error</i>
+
+func WithContext(ctx context.Context) (*Group, context.Context)
+func (g *Group) SetLimit(n int)
+func (g *Group) TryGo(f func() error) bool
+</code></pre>
+  </div>
+  <span class='pagenumber'>5</span>
+</article>
+
+<!-- slide 6 -->
+<article>
+  <h1>Just collecting errors</h1>
+  <div class='text'>
+<p><code>Wait</code> returns the first non-nil error.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(urls []string) error {
+<span class='codenum'>2</span><span class="em">   var eg errgroup.Group</span>
+<span class='codenum'>3</span>   for _, url := range urls {
+<span class='codenum'>4</span>      eg.Go(func() <span class="em">error</span> {
+<span class='codenum'>5</span>         <comment>// TODO: stop the other goroutines.</comment>
+<span class='codenum'>6</span>         resp, err := http.Get(url)
+<span class='codenum'>7</span>         if err != nil {
+<span class='codenum'>8</span>            return err
+<span class='codenum'>9</span>         }
+<span class='codenum'>10</span>         resp.Body.Close()
+<span class='codenum'>11</span>         return nil
+<span class='codenum'>12</span>      })
+<span class='codenum'>13</span>   }
+<span class='codenum'>14</span>   return <span class="em">eg.Wait</span>()
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>6</span>
+</article>
+
+<!-- slide 7 -->
+<article>
+  <h1>A useful helper</h1>
+  <div class='text'>
+<p>Making a GET request with cancellation.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>getURLErr</defn>(ctx context.Context, url string) error {
+<span class='codenum'>2</span>   req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+<span class='codenum'>3</span>   if err != nil {
+<span class='codenum'>4</span>      return err
+<span class='codenum'>5</span>   }
+<span class='codenum'>6</span>   <comment>// Do returns immediately when req.Context is cancelled</comment>
+<span class='codenum'>7</span>   <comment>// or times out.</comment>
+<span class='codenum'>8</span>   resp, err := http.DefaultClient.Do(req)
+<span class='codenum'>9</span>   if err != nil {
+<span class='codenum'>10</span>      return err
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>   resp.Body.Close()
+<span class='codenum'>13</span>   return nil
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>7</span>
+</article>
+
+<!-- slide 8 -->
+<article>
+  <h1>Errors and cancellation</h1>
+  <div class='text'>
+<p>The context is canceled on the first non-nil error.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(ctx context.Context, urls []string) error {
+<span class='codenum'>2</span><span class="em">   eg, gctx := errgroup.WithContext(ctx)</span>
+<span class='codenum'>3</span>   for _, url := range urls {
+<span class='codenum'>4</span>      eg.Go(func() error {
+<span class='codenum'>5</span>         return getURLErr(<span class="em">gctx</span>, url)
+<span class='codenum'>6</span>      })
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>   return eg.Wait()
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>8</span>
+</article>
+
+<!-- slide 9 -->
+<article>
+  <h1>Setting limits</h1>
+  <div class='text'>
+<p><code>SetLimit</code> puts a cap on the number of active goroutines.</p>
+  </div>
+  <div class='text'>
+<p>Useful even if you don't care about errors.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>checkURLs</defn>(ctx context.Context, urls []string) error {
+<span class='codenum'>2</span>   eg, ctx := errgroup.WithContext(ctx)
+<span class='codenum'>3</span><span class="em">   eg.SetLimit(4)</span>
+<span class='codenum'>4</span>   for _, url := range urls {
+<span class='codenum'>5</span>      <comment>// Go blocks if there are more than 4 active goroutines.</comment>
+<span class='codenum'>6</span>      eg.Go(func() error {
+<span class='codenum'>7</span>         return getURLErr(ctx, url)
+<span class='codenum'>8</span>      })
+<span class='codenum'>9</span>   }
+<span class='codenum'>10</span>   return eg.Wait()
+<span class='codenum'>11</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>9</span>
+</article>
+
+<!-- slide 10 -->
+<article>
+  <h1>A real-world example</h1>
+  <div class='text'>
+<p>Making multiple, independent RPCs to a service concurrently.</p>
+  </div>
+  <div class='text'>
+<p>From https://github.com/golang/pkgsite/blob/master/cmd/internal/pkgsite-cli/module.go</p>
+  </div>
+  <div class='text'>
+<p><code>&gt; pkgsite-cli module -packages -versions github.com/modelcontextprotocol/go-sdk</code></p>
+  </div>
+<div></div>
+  <div class='output'><pre>
+Version:          v1.6.1 (latest)
+Repository:       https://github.com/modelcontextprotocol/go-sdk
+Has go.mod:       yes
+Redistributable:  yes
+
+Versions:
+v1.6.1
+v1.6.0
+...
+
+Packages:
+github.com/modelcontextprotocol/go-sdk/auth
+github.com/modelcontextprotocol/go-sdk/auth/extauth
+...
+</pre>
+  </div>
+  <span class='pagenumber'>10</span>
+</article>
+
+<!-- slide 11 -->
+<article>
+  <h1>Sequential</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c, err := client.New(server)
+<comment>// ...</comment>
+<span class='codenum'>2</span>mod, err := c.GetModule(ctx, path, version)
+<comment>// ...</comment>
+<span class='codenum'>3</span>result := moduleResult{Module: mod}</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>if m.versions {
+<span class='codenum'>2</span>   result.Versions, err = c.GetVersions(ctx, path)
+<span class='codenum'>3</span>   if err != nil {
+<span class='codenum'>4</span>      return err
+<span class='codenum'>5</span>   }
+<span class='codenum'>6</span>}
+<span class='codenum'>7</span>if m.vulns {
+<span class='codenum'>8</span>   result.Vulns, err = c.GetVulns(ctx, path, mod.Version)
+<span class='codenum'>9</span>   if err != nil {
+<span class='codenum'>10</span>      return err
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>}
+<span class='codenum'>13</span>if m.packages {
+<span class='codenum'>14</span>   result.Packages, err = c.GetPackages(ctx, path, mod.Version)
+<span class='codenum'>15</span>   if err != nil {
+<span class='codenum'>16</span>      return err
+<span class='codenum'>17</span>   }
+<span class='codenum'>18</span>}
+<span class='codenum'>19</span>return write(result)</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>11</span>
+</article>
+
+<!-- slide 12 -->
+<article>
+  <h1>Concurrent</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c, err := client.New(server)
+<comment>// ...</comment>
+<span class='codenum'>2</span>mod, err := c.GetModule(ctx, path, version)
+<comment>// ...</comment>
+<span class='codenum'>3</span>result := moduleResult{Module: mod}
+
+<span class='codenum'>4</span><span class="em">g, gctx := errgroup.WithContext(ctx)</span></pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>if m.versions {
+<span class='codenum'>2</span>   <span class="em">g.Go</span>(func() (err error) {
+<span class='codenum'>3</span>      result.Versions, err = c.GetVersions(<span class="em">gctx</span>, path)
+<span class='codenum'>4</span>      return err
+<span class='codenum'>5</span>   })
+<span class='codenum'>6</span>}
+<span class='codenum'>7</span>if m.vulns {
+<span class='codenum'>8</span>   <span class="em">g.Go</span>(func() (err error) {
+<span class='codenum'>9</span>      result.Vulns, err = c.GetVulns(<span class="em">gctx</span>, path, mod.Version)
+<span class='codenum'>10</span>      return err
+<span class='codenum'>11</span>   })
+<span class='codenum'>12</span>}
+<span class='codenum'>13</span>if m.packages {
+<span class='codenum'>14</span>   <span class="em">g.Go</span>(func() (err error) {
+<span class='codenum'>15</span>      result.Packages, err = c.GetPackages(<span class="em">gctx</span>, path, mod.Version)
+<span class='codenum'>16</span>      return err
+<span class='codenum'>17</span>   })
+<span class='codenum'>18</span>}
+
+<span class='codenum'>19</span><span class="em">if err := g.Wait(); err != nil {</span>
+<span class='codenum'>20</span>   return err
+<span class='codenum'>21</span>}
+
+<span class='codenum'>22</span>return write(result)</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>12</span>
+</article>
+
+<!-- slides/patterns/30-cache.go -->
+
+<!-- slide 13 -->
+<article class='title-slide'>
+  <div class='title-text'>A concurrent function cache</div>
+  <div class='subtitle-text'>
+    <p>Adapted from Donovan and Kernighan, <em>The Go Programming Language</em></p>
+  </div>
+  <span class='pagenumber'>13</span>
+</article>
+
+<!-- slide 14 -->
+<article>
+  <h1>API</h1>
+  <div class='text'>
+<p>To <em>memoize</em> a function is to cache results of previous calls.</p>
+  </div>
+  <div class='text'>
+<pre><code>type Memo[In comparable, Out any]
+
+func NewMemo[In comparable, Out any](func(In) Out) *Memo[In, Out]
+
+func (m *Memo[In, Out]) Call(in In) Out
+</code></pre>
+  </div>
+  <span class='pagenumber'>14</span>
+</article>
+
+<!-- slide 15 -->
+<article>
+  <h1>Using the cache</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>var compute = NewMemo(func(in int) (out string) {
+<span class='codenum'>2</span>   <comment>// a long computation</comment>
+<span class='codenum'>3</span>   <comment>// ...</comment>
+<span class='codenum'>4</span>   return out
+<span class='codenum'>5</span>})
+</pre>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>s1 := compute.Call(5) <comment>// slow</comment>
+<span class='codenum'>2</span>s2 := compute.Call(5) <comment>// fast</comment></pre>
+  </div>
+  <span class='pagenumber'>15</span>
+</article>
+
+<!-- slide 16 -->
+<article>
+  <h1>First version: not concurrency-safe</h1>
+  <div class="flex"><div>
+  <div class='code weak'><pre>
+<comment>// Memo memoizes function calls.</comment>
+<comment>// It is NOT safe for use by multiple goroutines.</comment>
+<span class='codenum'>1</span>type <defn>Memo[In</defn> comparable, Out any] struct {
+<span class='codenum'>2</span>   f func(In) Out
+<span class='codenum'>3</span>   m map[In]Out
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>func <defn>NewMemo[In comparable, Out any]</defn>(
+<span class='codenum'>6</span>   f func(In) Out,
+<span class='codenum'>7</span>) *Memo[In, Out] {
+<span class='codenum'>8</span>   return &amp;Memo[In, Out]{f: f, m: map[In]Out{}}
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code weak'><pre>
+
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span>   out, ok := m.m[in]
+<span class='codenum'>3</span>   if !ok {
+<span class='codenum'>4</span>      out = m.f(in)
+<span class='codenum'>5</span>      m.m[in] = out
+<span class='codenum'>6</span>   }
+<span class='codenum'>7</span>   return out
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>16</span>
+</article>
+
+<!-- slide 17 -->
+<article>
+  <h1>Safe but not concurrent</h1>
+  <div class="flex"><div>
+  <div class='code weak'><pre>
+<comment>// Memo memoizes function calls.</comment>
+<comment>// It is safe for use by multiple goroutines</comment>
+<comment>// if the function is.</comment>
+<span class='codenum'>1</span>type <defn>Memo[In</defn> comparable, Out any] struct {
+<span class='codenum'>2</span>   f  func(In) Out
+<span class='codenum'>3</span><span class="em">   mu sync.Mutex</span>
+<span class='codenum'>4</span>   m  map[In]Out
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func <defn>NewMemo[In comparable, Out any]</defn>(
+<span class='codenum'>7</span>   f func(In) Out,
+<span class='codenum'>8</span>) *Memo[In, Out] {
+<span class='codenum'>9</span>   return &amp;Memo[In, Out]{f: f, m: map[In]Out{}}
+<span class='codenum'>10</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code weak'><pre>
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span><span class="em">   m.mu.Lock()
+<span class='codenum'>3</span>   defer m.mu.Unlock()</span>
+<span class='codenum'>4</span>   out, ok := m.m[in]
+<span class='codenum'>5</span>   if !ok {
+<span class='codenum'>6</span>      out = m.f(in)
+<span class='codenum'>7</span>      m.m[in] = out
+<span class='codenum'>8</span>   }
+<span class='codenum'>9</span>   return out
+<span class='codenum'>10</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>17</span>
+</article>
+
+<!-- slide 18 -->
+<article>
+  <h1>A concurrent Memo</h1>
+  <div class='text'>
+<p>Make <code>Memo.Call</code> concurrency-safe.</p>
+<p>But also, calls with the same input should wait for the first one to finish.</p>
+<p>(Otherwise they'll repeat work.)</p>
+  </div>
+  <span class='pagenumber'>18</span>
+</article>
+
+<!-- slide 19 -->
+<article>
+  <h1>Safe and concurrent Memo, part 1</h1>
+  <div class='code'><pre>
+<comment>// Memo memoizes function calls.</comment>
+<comment>// It is safe for use by multiple goroutines,</comment>
+<comment>// if the function is.</comment>
+<span class='codenum'>1</span>type <defn>Memo[In</defn> comparable, Out any] struct {
+<span class='codenum'>2</span>   f  func(In) Out
+<span class='codenum'>3</span>   mu sync.Mutex
+<span class='codenum'>4</span><span class="em">   m  map[In]*entry[Out]</span>
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>type <defn>entry[Out</defn> any] struct {
+<span class='codenum'>7</span>   out   Out
+<span class='codenum'>8</span>   waitc chan struct{}
+<span class='codenum'>9</span>}
+
+<span class='codenum'>10</span>func <defn>NewMemo[In comparable, Out any]</defn>(f func(In) Out) *Memo[In, Out] {
+<span class='codenum'>11</span>   return &amp;Memo[In, Out]{f: f, m: map[In]*entry[Out]{}}
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>19</span>
+</article>
+
+<!-- slide 20 -->
+<article>
+  <h1>Safe and concurrent Memo, part 2</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span>   m.mu.Lock()
+<span class='codenum'>3</span>   e := m.m[in]
+<span class='codenum'>4</span>   if e == nil {
+<span class='codenum'>5</span>      <comment>// This is the first request for this key.</comment>
+<span class='codenum'>6</span>      <comment>// This goroutine is responsible for computing the value.</comment>
+<span class='codenum'>7</span>      e = &amp;entry[Out]{waitc: make(chan struct{})}
+<span class='codenum'>8</span>      m.m[in] = e
+<span class='codenum'>9</span>      m.mu.Unlock()
+<span class='codenum'>10</span>      e.out = m.f(in)
+<span class='codenum'>11</span>      close(e.waitc) <comment>// broadcast readiness to all waiters</comment>
+<span class='codenum'>12</span>   } else {
+<span class='codenum'>13</span>      <comment>// This key is already being computed or is ready.</comment>
+<span class='codenum'>14</span>      m.mu.Unlock()
+<span class='codenum'>15</span>      &lt;-e.waitc
+<span class='codenum'>16</span>   }
+<span class='codenum'>17</span>   return e.out
+<span class='codenum'>18</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>20</span>
+</article>
+
+<!-- slide 21 -->
+<article>
+  <h1>Safe and concurrent Memo: locking</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (m *Memo[In, Out]) <defn>Call</defn>(in In) Out {
+<span class='codenum'>2</span>   m.mu.Lock()
+<span class='codenum'>3</span>   e := m.m[in]
+<span class='codenum'>4</span>   if e == nil {
+<span class='codenum'>5</span>      <comment>// This is the first request for this key.</comment>
+<span class='codenum'>6</span>      e = &amp;entry[Out]{waitc: make(chan struct{})}
+<span class='codenum'>7</span>      m.m[in] = e
+<span class='codenum'>8</span>      m.mu.Unlock()
+<span class='codenum'>9</span><span class="em">      e.out = m.f(in)
+<span class='codenum'>10</span>      close(e.waitc) <comment>// broadcast readiness</span></comment>
+<span class='codenum'>11</span>   } else {
+<span class='codenum'>12</span>      m.mu.Unlock()
+<span class='codenum'>13</span><span class="em">      &lt;-e.waitc</span>
+<span class='codenum'>14</span>   }
+<span class='codenum'>15</span><span class="em">   return e.out</span>
+<span class='codenum'>16</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>Unlocked lines are emphasized.</p>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <details>
+    <summary>
+Why is it safe to access to <code>e.waitc</code> unlocked?    </summary>
+    <div class='answer'>
+<p>It's immutable (unchanged after initialization)</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+Why is it safe to access <code>e.out</code> unlocked?    </summary>
+    <div class='answer'>
+<ul>
+<li>The first goroutine writes <code>e.out</code>, then closes the channel.</li>
+<li>Other goroutines wait for the close, then read <code>e.out</code>.</li>
+<li>The close <em>happens before</em> the wait returns.</li>
+</ul>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>first</th>
+<th>others</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>write <code>e.out</code></td>
+<td>blocked on <code>&lt;-.waitc</code></td>
+</tr>
+<tr>
+<td><code>close(e.waitc)</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>&lt;-e.waitc</code> returns</td>
+</tr>
+<tr>
+<td>read <code>e.out</code></td>
+<td>read <code>e.out</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>21</span>
+</article>
+
+<!-- slides/patterns/40-pipelines.go -->
+
+<!-- slide 22 -->
+<article class='title-slide'>
+  <div class='title-text'>Pipelines</div>
+  <span class='pagenumber'>22</span>
+</article>
+
+<!-- slide 23 -->
+<article>
+  <h1>Concept</h1>
+  <div class='text'>
+<p>You have many items.</p>
+<p>Each requires processing which can be done in parts.</p>
+<p>So:</p>
+<ul>
+<li>Process the items concurrently.</li>
+<li><em>Process the parts concurrently.</em></li>
+<li>Usually with channels.</li>
+</ul>
+  </div>
+  <span class='pagenumber'>23</span>
+</article>
+
+<!-- slide 24 -->
+<article>
+  <h1>Not a pipeline</h1>
+  <div class='text'>
+<p>Each goroutine does the entire task.</p>
+  </div>
+  <img src="slides/patterns/pipelines-1.png" alt="pipelines-1.png" />
+  <span class='pagenumber'>24</span>
+</article>
+
+<!-- slide 25 -->
+<article>
+  <h1>Using a pipeline</h1>
+  <div class='text'>
+<p>Each stage does one part.</p>
+  </div>
+  <img src="slides/patterns/pipelines-2.png" alt="pipelines-2.png" />
+  <br/>
+  <div class='text'>
+<p> </p>
+  </div>
+  <div class='text'>
+<p>Use buffered channels to avoid stalls.</p>
+  </div>
+  <span class='pagenumber'>25</span>
+</article>
+
+<!-- slide 26 -->
+<article>
+  <h1>Advantages of pipelines</h1>
+  <div class='text'>
+<ul>
+<li>Better use of resources<br/>
+While some goroutines do I/O, others compute</li>
+<li>Plug-and-play architecture<br/>
+Wire up separate components</li>
+</ul>
+  </div>
+  <span class='pagenumber'>26</span>
+</article>
+
+<!-- slide 27 -->
+<article>
+  <h1>Example: OpenTelemetry Collector</h1>
+  <img src="slides/patterns/pipelines-3.png" alt="pipelines-3.png" />
+  <span class='pagenumber'>27</span>
+</article>
+
+<!-- slide 28 -->
+<article>
+  <h1>Disadvantages of pipelines</h1>
+  <div class='text'>
+<ul>
+<li>
+<p>Lots of overhead<br/>
+Each stage should involve a lot of work</p>
+</li>
+<li>
+<p>More complex code<br/></p>
+</li>
+</ul>
+  </div>
+  <span class='pagenumber'>28</span>
+</article>
+
+<!-- slides/patterns/50-actor.go -->
+
+<!-- slide 29 -->
+<article class='title-slide'>
+  <div class='title-text'>The actor pattern</div>
+  <span class='pagenumber'>29</span>
+</article>
+
+<!-- slide 30 -->
+<article>
+  <h1>Concept</h1>
+  <div class="flex"><div>
+  <div class='text'>
+<p>Actor: something with behavior and state.</p>
+<p>Only the actor can access its own state.</p>
+<p>Communication is by message passing.</p>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <img src="slides/patterns/gopher-actor.png" alt="gopher-actor.png" />
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>30</span>
+</article>
+
+<!-- slide 31 -->
+<article>
+  <h1>Balances actor, 1</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
+<span class='codenum'>2</span>   balances map[string]int <comment>// account name to balance</comment>
+<span class='codenum'>3</span>   getc     chan getBalance
+<span class='codenum'>4</span>   changec  chan changeBalance
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>type <defn>getBalance</defn> struct {
+<span class='codenum'>7</span>   name     string   <comment>// account name</comment>
+<span class='codenum'>8</span>   response chan int <comment>// where to send the result</comment>
+<span class='codenum'>9</span>}
+
+<span class='codenum'>10</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>11</span>   response := make(chan int)
+<span class='codenum'>12</span>   a.getc &lt;- getBalance{name: name, response: response}
+<span class='codenum'>13</span>   return &lt;-response
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>31</span>
+</article>
+
+<!-- slide 32 -->
+<article>
+  <h1>Balances actor, 2</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>changeBalance</defn> struct {
+<span class='codenum'>2</span>   name     string
+<span class='codenum'>3</span>   amount   int
+<span class='codenum'>4</span>   response chan error
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Accounts) <defn>Deposit</defn>(name string, amount int) error {
+<span class='codenum'>7</span>   response := make(chan error)
+<span class='codenum'>8</span>   a.changec &lt;- changeBalance{name: name, amount: amount, response: response}
+<span class='codenum'>9</span>   return &lt;-response
+<span class='codenum'>10</span>}
+
+<span class='codenum'>11</span>func (a *Accounts) <defn>Withdraw</defn>(name string, amount int) error {
+<span class='codenum'>12</span>   return a.Deposit(name, -amount)
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>32</span>
+</article>
+
+<!-- slide 33 -->
+<article>
+  <h1>Balances actor, 3</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>NewAccounts</defn>() *Accounts {
+<span class='codenum'>2</span>   a := &amp;Accounts{
+<span class='codenum'>3</span>      balances: map[string]int{},
+<span class='codenum'>4</span>      getc:     make(chan getBalance),
+<span class='codenum'>5</span>      changec:  make(chan changeBalance),
+<span class='codenum'>6</span>   }
+<span class='codenum'>7</span>   go a.run()
+<span class='codenum'>8</span>   return a
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>33</span>
+</article>
+
+<!-- slide 34 -->
+<article>
+  <h1>Balances actor, 4</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() {
+<span class='codenum'>2</span>   for {
+<span class='codenum'>3</span>      select {
+<span class='codenum'>4</span>      case m := &lt;-a.getc:
+<span class='codenum'>5</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>6</span>      case m := &lt;-a.changec:
+<span class='codenum'>7</span>         if a.balances[m.name]+m.amount &lt; 0 {
+<span class='codenum'>8</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
+<span class='codenum'>9</span>         } else {
+<span class='codenum'>10</span>            a.balances[m.name] += m.amount
+<span class='codenum'>11</span>            m.response &lt;- nil
+<span class='codenum'>12</span>         }
+<span class='codenum'>13</span>      }
+<span class='codenum'>14</span>   }
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>34</span>
+</article>
+
+<!-- slide 35 -->
+<article>
+  <h1>Actor cons and pros</h1>
+  <div style="line-height:6rem">
+  <div class='text'>
+<p>– a lot of code to set up<br/>
+– lots of runtime overhead</p>
+<p>+ a single goroutine: no deadlocks or race conditions<br/>
++ responses can be asynchronous<br/>
++ live code controls access</p>
+  </div>
+  </div>
+  <span class='pagenumber'>35</span>
+</article>
+
+<!-- slide 36 -->
+<article>
+  <h1>Actor vs. Mutex</h1>
+  <div class='text'>
+<p>A single mutex also eliminates deadlocks and races.</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
+<span class='codenum'>2</span>   mu       sync.Mutex
+<span class='codenum'>3</span>   balances map[string]int
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>6</span>   a.mu.Lock()
+<span class='codenum'>7</span>   defer a.mu.Unlock()
+<span class='codenum'>8</span>   return a.balances[name]
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>2</span>   response := make(chan int)
+<span class='codenum'>3</span>   a.getc &lt;- getBalance{
+<span class='codenum'>4</span>      name:     name,
+<span class='codenum'>5</span>      response: response,
+<span class='codenum'>6</span>   }
+<span class='codenum'>7</span>   return &lt;-response
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>36</span>
+</article>
+
+<!-- slide 37 -->
+<article>
+  <h1>Actor responses can be asynchronous</h1>
+  <div class='text'>
+<p>By separating sending from receiving, callers can wait for responses.</p>
+  </div>
+  <div class='code'><pre>
+
+<span class='codenum'>1</span>func (a *Accounts) <defn>SendBalance</defn>(name string) chan int {
+<span class='codenum'>2</span>   r := make(chan int)
+<span class='codenum'>3</span>   a.getc &lt;- getBalance{name: name, response: r}
+<span class='codenum'>4</span><span class="em">   return r</span>
+<span class='codenum'>5</span>}
+</pre>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>accounts := NewAccounts([]string{&#34;Alice&#34;, &#34;Bob&#34;})
+<span class='codenum'>2</span>ac := accounts.SendBalance(&#34;Alice&#34;)
+<span class='codenum'>3</span>bc := accounts.SendBalance(&#34;Bob&#34;)
+<span class='codenum'>4</span>doOtherStuff()
+<span class='codenum'>5</span>abal := &lt;-ac
+<span class='codenum'>6</span>bbal := &lt;-bc</pre>
+  </div>
+  <span class='pagenumber'>37</span>
+</article>
+
+<!-- slide 38 -->
+<article>
+  <h1>Live code controls access</h1>
+  <div class="flex"><div>
+  <div class='text'>
+<p>The actor goroutine determines how to access the state.</p>
+  </div>
+  <div class='text'>
+<p>For example, we can implement priorities.</p>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (a *Accounts) <defn>run</defn>() { <comment>// get has priority</comment>
+<span class='codenum'>2</span>   for {
+<span class='codenum'>3</span><span class="em">      <comment>// If a get and change are both waiting, take the get first.</comment>
+<span class='codenum'>4</span>      select {
+<span class='codenum'>5</span>      case m := &lt;-a.getc:
+<span class='codenum'>6</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>7</span>         continue
+<span class='codenum'>8</span>      default:
+<span class='codenum'>9</span>      }</span>
+<span class='codenum'>10</span>      <comment>// Take whichever is ready.</comment>
+<span class='codenum'>11</span>      select {
+<span class='codenum'>12</span>      case m := &lt;-a.getc:
+<span class='codenum'>13</span>         m.response &lt;- a.balances[m.name]
+<span class='codenum'>14</span>      case m := &lt;-a.changec:
+<span class='codenum'>15</span>         if a.balances[m.name]+m.amount &lt; 0 {
+<span class='codenum'>16</span>            m.response &lt;- fmt.Errorf(&#34;%s: insufficient funds&#34;, m.name)
+<span class='codenum'>17</span>         } else {
+<span class='codenum'>18</span>            a.balances[m.name] += m.amount
+<span class='codenum'>19</span>            m.response &lt;- nil
+<span class='codenum'>20</span>         }
+<span class='codenum'>21</span>      }
+<span class='codenum'>22</span>   }
+<span class='codenum'>23</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>38 and last</span>
+</article>
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+	<script type="module">
+	   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	   mermaid.initialize({ startOnLoad: true });
+	</script>
+  </body>
+</html>
