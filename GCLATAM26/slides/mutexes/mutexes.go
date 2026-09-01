@@ -20,11 +20,6 @@ import (
 // GopherCon LATAM 2026
 // !subtitle
 
-// heading Preparation
-// text
-// Clone https://github.com/jba/concurrency-workshop
-// !text
-
 ///////////////////////////////////
 // heading Sharing memory
 
