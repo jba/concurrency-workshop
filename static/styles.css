@@ -554,3 +554,13 @@ figcaption {
   text-align: center;
   margin-bottom: 200px;
 }
+
+/* Constrain images so they fit within a slide. */
+article img {
+  display: block;
+  margin: 0 auto;
+  max-width: 90%;
+  max-height: 50vh;
+  height: auto;
+  width: auto;
+}
