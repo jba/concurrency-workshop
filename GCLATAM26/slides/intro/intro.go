@@ -57,7 +57,7 @@ import (
 // heading Concurrency without Parallelism
 
 // text
-// <iframe width="560" height="315" src="https://www.youtube.com/embed/Pa0wXSh4I34?si=k2GjH3OSzerAA4hS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+// <iframe style="width:88%; aspect-ratio:16/9; height:auto; display:block; margin:1em auto; border:0" src="https://www.youtube.com/embed/Pa0wXSh4I34?si=k2GjH3OSzerAA4hS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
 // </iframe>
 // !text
 
