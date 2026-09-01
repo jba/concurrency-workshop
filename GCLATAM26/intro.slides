@@ -19,7 +19,7 @@
 <article class='title-slide'>
   <div class='title-text'>Understanding Concurrency</div>
   <div class='subtitle-text'>
-    <p>Jonathan Amsterdam
+    <p>Jonathan Amsterdam<br/>
     GopherCon LATAM 2026</p>
   </div>
   <span class='pagenumber'>1</span>
@@ -41,7 +41,8 @@
 <li>this conference</li>
 <li>Florianópolis</li>
 <li>Brazil</li>
-<li>South America!</li>
+<li>South America</li>
+<li>the Southern hemisphere!</li>
 </ul>
   </div>
   <span class='pagenumber'>2</span>
