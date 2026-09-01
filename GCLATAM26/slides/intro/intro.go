@@ -9,7 +9,8 @@ import (
 
 // title Understanding Concurrency
 // subtitle
-// Jonathan Amsterdam<br/>
+// Jonathan Amsterdam
+//
 // GopherCon LATAM 2026
 // !subtitle
 
