@@ -9,7 +9,7 @@ import (
 
 // title Understanding Concurrency
 // subtitle
-// Jonathan Amsterdam
+// Jonathan Amsterdam<br/>
 // GopherCon LATAM 2026
 // !subtitle
 
@@ -27,7 +27,8 @@ import (
 // - this conference
 // - Florianópolis
 // - Brazil
-// - South America!
+// - South America
+// - the Southern hemisphere!
 // !text
 
 ///////////////////////////////////
