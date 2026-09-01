@@ -19,8 +19,8 @@
 <article class='title-slide'>
   <div class='title-text'>Understanding Concurrency</div>
   <div class='subtitle-text'>
-    <p>Jonathan Amsterdam<br/>
-    GopherCon LATAM 2026</p>
+    <p>Jonathan Amsterdam</p>
+    <p>GopherCon LATAM 2026</p>
   </div>
   <span class='pagenumber'>1</span>
 </article>
@@ -113,6 +113,13 @@ and executing it</li>
 <p>All goroutines run concurrently until the main
 goroutine exits.</p>
   </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>main</defn>() {
+<span class='codenum'>2</span>   go fmt.Println(1)
+<span class='codenum'>3</span>   go fmt.Println(2)
+<span class='codenum'>4</span>}
+</pre>
+  </div>
   <details>
     <summary>
 How many goroutines does this program have?    </summary>
@@ -135,6 +142,14 @@ a chance to run.</p>
 <!-- slide 9 -->
 <article>
   <h1>Fix 1</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>main</defn>() {
+<span class='codenum'>2</span>   go fmt.Println(1)
+<span class='codenum'>3</span>   go fmt.Println(2)
+<span class='codenum'>4</span>   time.Sleep(50 * time.Millisecond)
+<span class='codenum'>5</span>}
+</pre>
+  </div>
 <div></div>
   <div class='output'><pre>
 1
@@ -159,6 +174,19 @@ a chance to run.</p>
   <div class='text'>
 <p>Use a <code>sync.WaitGroup</code> to wait for
 goroutines to finish.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>main</defn>() {
+<span class='codenum'>2</span>   var wg sync.WaitGroup
+<span class='codenum'>3</span>   wg.Go(func() {
+<span class='codenum'>4</span>      fmt.Println(1)
+<span class='codenum'>5</span>   })
+<span class='codenum'>6</span>   wg.Go(func() {
+<span class='codenum'>7</span>      fmt.Println(2)
+<span class='codenum'>8</span>   })
+<span class='codenum'>9</span>   wg.Wait()
+<span class='codenum'>10</span>}
+</pre>
   </div>
 <div></div>
   <div class='output'><pre>
@@ -223,6 +251,22 @@ goroutines to finish.</p>
 
 <!-- slide 13 -->
 <article>
+  <h1>Computing Collatz(n)</h1>
+  <div class='code'><pre>
+<comment>// collatzSequential prints the first n values</comment>
+<comment>// of the collatz function to w in order.</comment>
+<span class='codenum'>1</span>func <defn>collatzSequential</defn>(w io.Writer, n int) {
+<span class='codenum'>2</span>   for i := 1; i &lt;= n; i++ {
+<span class='codenum'>3</span>      fmt.Fprintln(w, collatz(i))
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>13</span>
+</article>
+
+<!-- slide 14 -->
+<article>
   <h1>Exercise: Collatz concurrently</h1>
   <div class='text'>
 <p>Start with GCLATAM26/exercises/collatz/collatz.go.</p>
@@ -232,10 +276,10 @@ prints the results in order</em>.</p>
 <p>Hint: use a slice.</p>
 <p>(You won't need synchronization.)</p>
   </div>
-  <span class='pagenumber'>13</span>
+  <span class='pagenumber'>14</span>
 </article>
 
-<!-- slide 14 -->
+<!-- slide 15 -->
 <article>
   <h1>Questions about the exercise</h1>
   <details>
@@ -255,10 +299,10 @@ Which is faster, the sequential version or the concurrent one?    </summary>
 <p>The sequential, by a lot.</p>
     </div>
   </details>
-  <span class='pagenumber'>14</span>
+  <span class='pagenumber'>15</span>
 </article>
 
-<!-- slide 15 -->
+<!-- slide 16 -->
 <article>
   <h1>Concurrency and performance</h1>
   <div class='text'>
@@ -270,7 +314,7 @@ in each goroutine.</p>
 <p>See the benchmark in exercises/collatz/collatz_test.go.
 128 collatz calls per goroutine does much better.</p>
   </div>
-  <span class='pagenumber'>15 and last</span>
+  <span class='pagenumber'>16 and last</span>
 </article>
 
     <div id="help">

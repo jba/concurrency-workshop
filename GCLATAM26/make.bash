@@ -7,19 +7,19 @@ function build_slides {
 	build_patterns
 }
 function build_intro {
-	(set -x ; go run ./cmd/code2slides -title "Understanding Concurrency" -o intro.slides slides/intro/intro.go)
+	(set -x ; go run ../cmd/code2slides -title "Understanding Concurrency" -o intro.slides slides/intro/intro.go)
 }
 
 function build_mutexes {
-	(set -x ; go run ./cmd/code2slides -o mutexes.slides slides/mutexes/mutexes.go)
+	(set -x ; go run ../cmd/code2slides -o mutexes.slides slides/mutexes/mutexes.go)
 }
 
 function build_channels {
-	 (set -x ; go run ./cmd/code2slides -o channels.slides slides/channels/channels.go)
+	 (set -x ; go run ../cmd/code2slides -o channels.slides slides/channels/channels.go)
 }
 
 function build_patterns {
-	 (set -x ; go run ./cmd/code2slides -o patterns.slides slides/patterns/[0-9]*.go)
+	 (set -x ; go run ../cmd/code2slides -o patterns.slides slides/patterns/[0-9]*.go)
 }
 
 function test_solutions {

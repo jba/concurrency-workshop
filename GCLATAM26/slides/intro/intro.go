@@ -92,10 +92,13 @@ import (
 // goroutine exits.
 // !text
 
+// code
 func main_1() {
 	go fmt.Println(1)
 	go fmt.Println(2)
 }
+
+// !code
 
 // question How many goroutines does this program have?
 // answer
@@ -111,11 +114,14 @@ func main_1() {
 
 // heading Fix 1
 
+// code
 func main_2() {
 	go fmt.Println(1)
 	go fmt.Println(2)
 	time.Sleep(50 * time.Millisecond)
 }
+
+// !code
 
 // output
 // 1
@@ -139,6 +145,7 @@ func main_2() {
 // goroutines to finish.
 // !text
 
+// code
 func main_3() {
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -149,6 +156,8 @@ func main_3() {
 	})
 	wg.Wait()
 }
+
+// !code
 
 // output
 // 1
@@ -200,6 +209,7 @@ func collatz(n int) int {
 ////////////////////////////////////
 // heading Computing Collatz(n)
 
+// code
 // collatzSequential prints the first n values
 // of the collatz function to w in order.
 func collatzSequential(w io.Writer, n int) {
@@ -207,6 +217,8 @@ func collatzSequential(w io.Writer, n int) {
 		fmt.Fprintln(w, collatz(i))
 	}
 }
+
+// !code
 
 ////////////////////////////////////
 // heading Exercise: Collatz concurrently
