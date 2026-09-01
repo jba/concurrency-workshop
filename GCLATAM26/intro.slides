@@ -60,7 +60,7 @@
 <!-- slide 4 -->
 <article>
   <h1>The LLElephant in the Room</h1>
-  <img src="slides/intro/llelephant.png" alt="llelephant.png" />
+  <img src="static/llelephant.png" alt="../../static/llelephant.png" />
   <span class='pagenumber'>4</span>
 </article>
 

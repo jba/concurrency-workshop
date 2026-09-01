@@ -41,7 +41,7 @@ import (
 ///////////////////////////////////
 // heading The LLElephant in the Room
 
-// img llelephant.png
+// img ../../static/llelephant.png
 
 ///////////////////////////////////
 // heading Concurrency vs. Parallelism
