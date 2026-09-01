@@ -7,7 +7,7 @@ function build_slides {
 	build_patterns
 }
 function build_intro {
-	(set -x ; go run ./cmd/code2slides -o intro.slides slides/intro/intro.go)
+	(set -x ; go run ./cmd/code2slides -title "Understanding Concurrency" -o intro.slides slides/intro/intro.go)
 }
 
 function build_mutexes {
