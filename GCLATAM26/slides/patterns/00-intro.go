@@ -12,6 +12,6 @@ package patterns
 // text
 // - ErrGroup
 // - Cache
-// - Pipeline?
-// - Actor?
+// - Pipeline
+// - Actor
 // !text
