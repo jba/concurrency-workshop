@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -693,42 +691,15 @@ func (g *IDGenerator_1) NewID_1() string {
 //////////////////////////////////////////
 // heading Atomics
 
-// cols
 // text
 // Package `sync/atomic` exposes CPU atomic operations
 //
 // "These functions require great care to be used correctly."
 //
 // Faster than mutexes, but much more dangerous.
-
-// - Limited operations
-// - Sequences of atomics are _not_ atomic
-//
-// <br/>
 //
 // Recommendation: use only for counters
-//
 // !text
-
-// nextcol
-
-// code
-type IDGenerator_2 struct {
-	prefix string
-	num    atomic.Int64 // em
-}
-
-// NewIDGenerator is the same.
-
-func (g *IDGenerator_2) NewID_3() string {
-	n := g.num.Add(1) // em
-	return fmt.Sprintf("%s%d", g.prefix, n)
-}
-
-// !code
-// !cols
-
-// title Using atomics is like riding a bicycle in Manhattan.
 
 // ////////////////////////////////////////
 // heading IDGenerator with a map
@@ -792,50 +763,13 @@ func (g *IDGenerator_m2) NewID_m2(prefix string) string {
 // heading Optimizations
 
 // text
-// Atomics, as we've seen.
+// Atomics.
 //
 // `sync.RWMutex` if there are many more reads than writes.
 //
 // `sync.Map` if there are very few writes (often just one).
 
 // !text
-
-////////////////////////////////
-// heading sync.Map example
-
-// cols
-
-// code
-type userTypeInfo struct{} // fields omitted
-
-var userTypeCache sync.Map // map[reflect.Type]*userTypeInfo // em sync.Map
-
-func validUserType(rt reflect.Type) (*userTypeInfo, error) {
-	if ui, ok := userTypeCache.Load(rt); ok {
-		return ui.(*userTypeInfo), nil
-	}
-
-	// Construct a new userTypeInfo and atomically
-	// add it to the userTypeCache.
-	ut := new(userTypeInfo)
-	// ...
-
-	ui, _ := userTypeCache.LoadOrStore(rt, ut)
-	return ui.(*userTypeInfo), nil
-}
-
-// !code
-
-// nextcol
-
-// text &nbsp;
-// text From the [encoding/gob](https://github.com/golang/go/blob/master/src/encoding/gob/type.go) package.
-// question What about the race?
-// answer
-// "If we lose the race, we'll waste a little CPU and create a little garbage
-// but return the existing value anyway."
-// !question
-// !cols
 
 ////////////////////////////////////
 // heading Some miscellaneous points
