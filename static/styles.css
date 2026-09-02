@@ -42,7 +42,7 @@
     line-height: 50px;
   }
 
-  a.toc { color: white }
+  ul.toc a.toc { color: white }
 
   .slides {
     width: 100%;
