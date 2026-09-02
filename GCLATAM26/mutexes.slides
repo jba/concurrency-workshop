@@ -778,45 +778,16 @@ above the fields it protects</p>
 <!-- slide 24 -->
 <article>
   <h1>Atomics</h1>
-  <div class="flex"><div>
   <div class='text'>
 <p>Package <code>sync/atomic</code> exposes CPU atomic operations</p>
 <p>&quot;These functions require great care to be used correctly.&quot;</p>
 <p>Faster than mutexes, but much more dangerous.</p>
-<ul>
-<li>Limited operations</li>
-<li>Sequences of atomics are <em>not</em> atomic</li>
-</ul>
-<br/>
 <p>Recommendation: use only for counters</p>
   </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
-<span class='codenum'>2</span>   prefix string
-<span class='codenum'>3</span><span class="em">   num    atomic.Int64</span>
-<span class='codenum'>4</span>}
-
-<comment>// NewIDGenerator is the same.</comment>
-
-<span class='codenum'>5</span>func (g *IDGenerator) <defn>NewID</defn>() string {
-<span class='codenum'>6</span><span class="em">   n := g.num.Add(1)</span>
-<span class='codenum'>7</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, n)
-<span class='codenum'>8</span>}
-</pre>
-  </div>
-  </div></div> <!-- flex -->
   <span class='pagenumber'>24</span>
 </article>
 
 <!-- slide 25 -->
-<article class='title-slide'>
-  <div class='title-text'>Using atomics is like riding a bicycle in Manhattan.</div>
-  <span class='pagenumber'>25</span>
-</article>
-
-<!-- slide 26 -->
 <article>
   <h1>IDGenerator with a map</h1>
   <div class='code bad'><pre>
@@ -837,10 +808,10 @@ above the fields it protects</p>
 <span class='codenum'>12</span>}
 </pre>
   </div>
-  <span class='pagenumber'>26</span>
+  <span class='pagenumber'>25</span>
 </article>
 
-<!-- slide 27 -->
+<!-- slide 26 -->
 <article>
   <h1>Mutexes and maps, safely</h1>
   <div class="flex"><div>
@@ -874,74 +845,30 @@ Why not?    </summary>
     </div>
   </details>
   </div></div> <!-- flex -->
+  <span class='pagenumber'>26</span>
+</article>
+
+<!-- slide 27 -->
+<article>
+  <h1>Optimizations</h1>
+  <div class='text'>
+<p>Atomics.</p>
+<p><code>sync.RWMutex</code> if there are many more reads than writes.</p>
+<p><code>sync.Map</code> if there are very few writes (often just one).</p>
+  </div>
   <span class='pagenumber'>27</span>
 </article>
 
 <!-- slide 28 -->
 <article>
-  <h1>Optimizations</h1>
+  <h1>Some miscellaneous points</h1>
   <div class='text'>
-<p>Atomics, as we've seen.</p>
-<p><code>sync.RWMutex</code> if there are many more reads than writes.</p>
-<p><code>sync.Map</code> if there are very few writes (often just one).</p>
+<br/>
   </div>
   <span class='pagenumber'>28</span>
 </article>
 
 <!-- slide 29 -->
-<article>
-  <h1>sync.Map example</h1>
-  <div class="flex"><div>
-  <div class='code'><pre>
-<span class='codenum'>1</span>type <defn>userTypeInfo</defn> struct{} <comment>// fields omitted</comment>
-
-<span class='codenum'>2</span>var userTypeCache <span class="em">sync.Map</span> <comment>// map[reflect.Type]*userTypeInfo</comment>
-
-<span class='codenum'>3</span>func <defn>validUserType</defn>(rt reflect.Type) (*userTypeInfo, error) {
-<span class='codenum'>4</span>   if ui, ok := userTypeCache.Load(rt); ok {
-<span class='codenum'>5</span>      return ui.(*userTypeInfo), nil
-<span class='codenum'>6</span>   }
-
-<span class='codenum'>7</span>   <comment>// Construct a new userTypeInfo and atomically</comment>
-<span class='codenum'>8</span>   <comment>// add it to the userTypeCache.</comment>
-<span class='codenum'>9</span>   ut := new(userTypeInfo)
-<span class='codenum'>10</span>   <comment>// ...</comment>
-
-<span class='codenum'>11</span>   ui, _ := userTypeCache.LoadOrStore(rt, ut)
-<span class='codenum'>12</span>   return ui.(*userTypeInfo), nil
-<span class='codenum'>13</span>}
-</pre>
-  </div>
-  </div>
-  <div> <!-- next col -->
-  <div class='text'>
-<p> </p>
-  </div>
-  <div class='text'>
-<p>From the <a href="https://github.com/golang/go/blob/master/src/encoding/gob/type.go">encoding/gob</a> package.</p>
-  </div>
-  <details>
-    <summary>
-What about the race?    </summary>
-    <div class='answer'>
-<p>&quot;If we lose the race, we'll waste a little CPU and create a little garbage
-but return the existing value anyway.&quot;</p>
-    </div>
-  </details>
-  </div></div> <!-- flex -->
-  <span class='pagenumber'>29</span>
-</article>
-
-<!-- slide 30 -->
-<article>
-  <h1>Some miscellaneous points</h1>
-  <div class='text'>
-<br/>
-  </div>
-  <span class='pagenumber'>30</span>
-</article>
-
-<!-- slide 31 -->
 <article>
   <h1>Copy defensively</h1>
   <p style="margin-bottom:0">Copy private mutable data</p>
@@ -968,10 +895,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
   </div>
-  <span class='pagenumber'>31</span>
+  <span class='pagenumber'>29</span>
 </article>
 
-<!-- slide 32 -->
+<!-- slide 30 -->
 <article>
   <h1>Avoid locking during I/O</h1>
   <div class='text'>
@@ -997,10 +924,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
   </div>
-  <span class='pagenumber'>32</span>
+  <span class='pagenumber'>30</span>
 </article>
 
-<!-- slide 33 -->
+<!-- slide 31 -->
 <article>
   <h1>Avoid locking during I/O...unless you need it</h1>
   <div class='code'><pre>
@@ -1025,10 +952,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>Adapted from the <a href="https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go">log package</a></p>
   </div>
-  <span class='pagenumber'>33</span>
+  <span class='pagenumber'>31</span>
 </article>
 
-<!-- slide 34 -->
+<!-- slide 32 -->
 <article>
   <h1>Beware sharing memory!</h1>
   <div class='text'>
@@ -1037,17 +964,17 @@ but return the existing value anyway.&quot;</p>
   <a href="../exercises/logger/logger.go">Code</a>
   <br/><br/><br/>
   <a href="../exercises/logger/solution/logger.go">Solution</a>
-  <span class='pagenumber'>34</span>
+  <span class='pagenumber'>32</span>
 </article>
 
-<!-- slide 35 -->
+<!-- slide 33 -->
 <article>
   <h1>And now ...</h1>
   <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
-  <span class='pagenumber'>35</span>
+  <span class='pagenumber'>33</span>
 </article>
 
-<!-- slide 36 -->
+<!-- slide 34 -->
 <article>
   <h1>Deadlock</h1>
   <div class='text'>
@@ -1056,10 +983,10 @@ but return the existing value anyway.&quot;</p>
   <div class='text'>
 <p>Or a single goroutine blocks itself.</p>
   </div>
-  <span class='pagenumber'>36</span>
+  <span class='pagenumber'>34</span>
 </article>
 
-<!-- slide 37 -->
+<!-- slide 35 -->
 <article>
   <h1>Self-deadlock: example</h1>
   <div class="flex"><div>
@@ -1116,10 +1043,10 @@ but return the existing value anyway.&quot;</p>
 </div>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>37</span>
+  <span class='pagenumber'>35</span>
 </article>
 
-<!-- slide 38 -->
+<!-- slide 36 -->
 <article>
   <h1>Solution: refactor</h1>
   <div class="flex"><div>
@@ -1158,10 +1085,10 @@ but return the existing value anyway.&quot;</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>38</span>
+  <span class='pagenumber'>36</span>
 </article>
 
-<!-- slide 39 -->
+<!-- slide 37 -->
 <article>
   <h1>A real-world example</h1>
   Modified from net/http/transport.go<br/>
@@ -1209,10 +1136,10 @@ but return the existing value anyway.&quot;</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>39</span>
+  <span class='pagenumber'>37</span>
 </article>
 
-<!-- slide 40 -->
+<!-- slide 38 -->
 <article>
   <h1>Solution: refactor</h1>
   Actually from net/http/transport.go<br/>
@@ -1261,10 +1188,10 @@ but return the existing value anyway.&quot;</p>
 </pre>
   </div>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>40</span>
+  <span class='pagenumber'>38</span>
 </article>
 
-<!-- slide 41 -->
+<!-- slide 39 -->
 <article>
   <h1>Multi-goroutine deadlocks</h1>
   <div class="flex"><div>
@@ -1328,10 +1255,10 @@ yuri.TransferTo(xena, 100)</pre>
   <div class='text'>
 <p>That is only one interleaving!</p>
   </div>
-  <span class='pagenumber'>41</span>
+  <span class='pagenumber'>39</span>
 </article>
 
-<!-- slide 42 -->
+<!-- slide 40 -->
 <article>
   <h1>Solution 1: coarser granularity</h1>
   Locks protect larger critical sections.<br/>
@@ -1388,10 +1315,10 @@ What's the problem with this approach?    </summary>
     </div>
   </details>
   </div></div> <!-- flex -->
-  <span class='pagenumber'>42</span>
+  <span class='pagenumber'>40</span>
 </article>
 
-<!-- slide 43 -->
+<!-- slide 41 -->
 <article>
   <h1>Solution 2: lock ordering</h1>
   If all goroutines obtain locks in the same order, deadlock is impossible.<br/>
@@ -1426,10 +1353,10 @@ What's the problem with this approach?    </summary>
 <span class='codenum'>15</span>}
 </pre>
   </div>
-  <span class='pagenumber'>43</span>
+  <span class='pagenumber'>41</span>
 </article>
 
-<!-- slide 44 -->
+<!-- slide 42 -->
 <article>
   <h1>Checklocks</h1>
   <div class='text'>
@@ -1441,10 +1368,10 @@ What's the problem with this approach?    </summary>
 <pre><code>checklocks ./...
 </code></pre>
   </div>
-  <span class='pagenumber'>44</span>
+  <span class='pagenumber'>42</span>
 </article>
 
-<!-- slide 45 -->
+<!-- slide 43 -->
 <article>
   <h1>Example</h1>
   <div class='code'><pre>
@@ -1465,10 +1392,10 @@ What's the problem with this approach?    </summary>
 <span class='codenum'>13</span>}
 </pre>
   </div>
-  <span class='pagenumber'>45</span>
+  <span class='pagenumber'>43</span>
 </article>
 
-<!-- slide 46 -->
+<!-- slide 44 -->
 <article>
   <h1>Example</h1>
   <div class='code'><pre>
@@ -1495,10 +1422,10 @@ What's the problem with this approach?    </summary>
 file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
 </pre>
   </div>
-  <span class='pagenumber'>46</span>
+  <span class='pagenumber'>44</span>
 </article>
 
-<!-- slide 47 -->
+<!-- slide 45 -->
 <article>
   <h1>Example, v2</h1>
   <div class='code'><pre>
@@ -1525,10 +1452,10 @@ file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when acce
 file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanceLocked, but not held
 </pre>
   </div>
-  <span class='pagenumber'>47</span>
+  <span class='pagenumber'>45</span>
 </article>
 
-<!-- slide 48 -->
+<!-- slide 46 -->
 <article>
   <h1>The race detector vs. checklocks</h1>
   <div class='text'>
@@ -1573,7 +1500,7 @@ file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanc
 </table>
 </div>
   </div>
-  <span class='pagenumber'>48 and last</span>
+  <span class='pagenumber'>46 and last</span>
 </article>
 
     <div id="help">
