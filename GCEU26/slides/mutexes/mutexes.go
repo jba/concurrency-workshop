@@ -142,7 +142,7 @@ What we might get:
 ////////////////////////////////////////////////
 // heading  Which brings us to...
 
-// html <img height=500 src="slides/mutexes/mutexes.png"/>
+// html <img height=500 src="../../static/mutexes.png"/>
 
 ////////////////////////////////////////////////
 // heading Mutexes

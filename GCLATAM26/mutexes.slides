@@ -186,7 +186,7 @@ allows interleavings that are incorrect.</p>
 <!-- slide 6 -->
 <article>
   <h1>Which brings us to...</h1>
-  <img height=500 src="slides/mutexes/mutexes.png"/>
+  <img height=1000 src="../../static/mutexes.png"/>
   <span class='pagenumber'>6</span>
 </article>
 

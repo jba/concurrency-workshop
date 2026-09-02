@@ -15,7 +15,7 @@ import (
 // !subtitle
 
 ///////////////////////////////////
-// heading Who's Jonathan Amsterdam?
+// heading Who am I?
 
 // text
 // Go team member since 2018
@@ -23,6 +23,8 @@ import (
 // - `log/slog`
 // - `http.ServeMux` patterns
 // - Go Model Context Protocol SDK
+//
+// <br/>
 //
 // First time in...
 // - this conference
@@ -123,15 +125,17 @@ func main_2() {
 
 // !code
 
+// cols
 // output
 // 1
 // 2
 // !output
-
+// nextcol
 // output
 // 2
 // 1
 // !output
+// !cols
 
 // output
 // !output
@@ -159,15 +163,17 @@ func main_3() {
 
 // !code
 
+// cols
 // output
 // 1
 // 2
 // !output
-
+// nextcol
 // output
 // 2
 // 1
 // !output
+// !cols
 
 // text How can we get results in order?
 
@@ -180,9 +186,9 @@ func main_3() {
 // - If _n_ is odd, multiply it by 3 and add 1.
 //
 // Examples:
-// - 4 ➔ 2 ➔ 1
-// - 6 ➔ 3 ➔ 10 ➔ 5 ➔ 16 ➔ 8 ➔ 4 ➔ 2 ➔ 1
-// - 7 ➔ 22 ➔ 11 ➔ 34 ➔ 17 ➔ 52 ➔ 26 ➔ 13 ➔ 40 ➔ 20 ➔ 10 ➔ 5 ➔ 16 ➔ 8 ➔ 4 ➔ 2 ➔ 1
+// - 4 ➞ 2 ➞ 1
+// - 6 ➞ 3 ➞ 10 ➞ 5 ➞ 16 ➞ 8 ➞ 4 ➞ 2 ➞ 1
+// - 7 ➞ 22 ➞ 11 ➞ 34 ➞ 17 ➞ 52 ➞ 26 ➞ 13 ➞ 40 ➞ 20 ➞ 10 ➞ 5 ➞ 16 ➞ 8 ➞ 4 ➞ 2 ➞ 1
 
 // Conjecture: All values end up at 1.
 // !text

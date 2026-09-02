@@ -27,7 +27,7 @@
 
 <!-- slide 2 -->
 <article>
-  <h1>Who&#39;s Jonathan Amsterdam?</h1>
+  <h1>Who am I?</h1>
   <div class='text'>
 <p>Go team member since 2018</p>
 <ul>
@@ -36,6 +36,7 @@
 <li><code>http.ServeMux</code> patterns</li>
 <li>Go Model Context Protocol SDK</li>
 </ul>
+<br/>
 <p>First time in...</p>
 <ul>
 <li>this conference</li>
@@ -150,18 +151,22 @@ a chance to run.</p>
 <span class='codenum'>5</span>}
 </pre>
   </div>
+  <div class="flex"><div>
 <div></div>
   <div class='output'><pre>
 1
 2
 </pre>
   </div>
+  </div>
+  <div> <!-- next col -->
 <div></div>
   <div class='output'><pre>
 2
 1
 </pre>
   </div>
+  </div></div> <!-- flex -->
   <div class='text'>
 <p>goroutine execution is <em>non-deterministic</em>.</p>
   </div>
@@ -188,18 +193,22 @@ goroutines to finish.</p>
 <span class='codenum'>10</span>}
 </pre>
   </div>
+  <div class="flex"><div>
 <div></div>
   <div class='output'><pre>
 1
 2
 </pre>
   </div>
+  </div>
+  <div> <!-- next col -->
 <div></div>
   <div class='output'><pre>
 2
 1
 </pre>
   </div>
+  </div></div> <!-- flex -->
   <div class='text'>
 <p>How can we get results in order?</p>
   </div>
@@ -217,9 +226,9 @@ goroutines to finish.</p>
 </ul>
 <p>Examples:</p>
 <ul>
-<li>4 -&gt; 2 -&gt; 1</li>
-<li>6 -&gt; 3 -&gt; 10 -&gt; 5 -&gt; 16 -&gt; 8 -&gt; 4 -&gt; 2 -&gt; 1</li>
-<li>7 -&gt; 22 -&gt; 11 -&gt; 34 -&gt; 17 -&gt; 52 -&gt; 26 -&gt; 13 -&gt; 40 -&gt; 20 -&gt; 10 -&gt; 5 -&gt; 16 -&gt; 8 -&gt; 4 -&gt; 2 -&gt; 1</li>
+<li>4 ➞ 2 ➞ 1</li>
+<li>6 ➞ 3 ➞ 10 ➞ 5 ➞ 16 ➞ 8 ➞ 4 ➞ 2 ➞ 1</li>
+<li>7 ➞ 22 ➞ 11 ➞ 34 ➞ 17 ➞ 52 ➞ 26 ➞ 13 ➞ 40 ➞ 20 ➞ 10 ➞ 5 ➞ 16 ➞ 8 ➞ 4 ➞ 2 ➞ 1</li>
 </ul>
 <p>Conjecture: All values end up at 1.</p>
   </div>

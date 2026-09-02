@@ -12,7 +12,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html"
+	// "html"
 	"log"
 	"net/http"
 	"os"
@@ -54,24 +54,26 @@ func run(dir string) error {
 	mux := http.NewServeMux()
 
 	// Homepage: list of links to the .slides files.
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		files, err := slidesFiles(dir)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head><title>Slides</title></head>\n<body>\n<h1>Slides</h1>\n<ul>\n")
-		for _, f := range files {
-			name := html.EscapeString(f)
-			fmt.Fprintf(w, "<li><a href=%q>%s</a></li>\n", "/"+name, name)
-		}
-		fmt.Fprintf(w, "</ul>\n</body>\n</html>\n")
-	})
+	// mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/", http.StripPrefix("/",
+		http.FileServer(http.Dir(dir))))
+	// if r.URL.Path != "/" {
+	// 	http.NotFound(w, r)
+	// 	return
+	// }
+	// files, err := slidesFiles(dir)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+	// w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head><title>Slides</title></head>\n<body>\n<h1>Slides</h1>\n<ul>\n")
+	// for _, f := range files {
+	// 	name := html.EscapeString(f)
+	// 	fmt.Fprintf(w, "<li><a href=%q>%s</a></li>\n", "/"+name, name)
+	// }
+	// fmt.Fprintf(w, "</ul>\n</body>\n</html>\n")
+	// })
 
 	// Serve individual .slides files as HTML.
 	mux.HandleFunc("/{name}", func(w http.ResponseWriter, r *http.Request) {
