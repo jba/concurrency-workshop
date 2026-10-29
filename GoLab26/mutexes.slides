@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta charset='utf-8'>
+    <link rel='icon' type='image/svg+xml' href='static/favicon.svg'>
+    <script>
+      var notesEnabled =  false ;
+    </script>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+    <section class='slides'>
+
+<!-- slides/mutexes/mutexes.go -->
+
+<!-- slide 1 -->
+<article class='title-slide'>
+  <div class='title-text'>Introduction to Synchronization</div>
+  <div class='subtitle-text'>
+    <p>Demystifying Concurrency</p>
+    <p>GopherCon Europe 2026</p>
+  </div>
+  <span class='pagenumber'>1</span>
+</article>
+
+<!-- slide 2 -->
+<article>
+  <h1>Preparation</h1>
+  <div class='text'>
+<p>Clone https://github.com/jba/concurrency-workshop</p>
+  </div>
+  <span class='pagenumber'>2</span>
+</article>
+
+<!-- slide 3 -->
+<article>
+  <h1>Sharing memory</h1>
+  <div class='text'>
+<p>Goroutines share the program's memory.</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code large'><pre>
+<span class='codenum'>1</span>var c int
+
+<span class='codenum'>2</span>func <defn>run</defn>() {
+<span class='codenum'>3</span>   var wg sync.WaitGroup
+<span class='codenum'>4</span>   wg.Go(count)
+<span class='codenum'>5</span>   wg.Go(count)
+<span class='codenum'>6</span>   wg.Wait()
+<span class='codenum'>7</span>   fmt.Println(c)
+<span class='codenum'>8</span>}
+
+<span class='codenum'>9</span>func <defn>count</defn>() {
+<span class='codenum'>10</span>   for range 20_000 {
+<span class='codenum'>11</span>      c++
+<span class='codenum'>12</span>   }
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div style="height: 10vw"></div>
+  <div class='text'>
+<p>One possible output:</p>
+  </div>
+<div></div>
+  <div class='output'><pre>
+27357
+</pre>
+  </div>
+  <div class='text'>
+<p> </p>
+  </div>
+  <div class='text'>
+<p>It should be 40000.</p>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>3</span>
+</article>
+
+<!-- slide 4 -->
+<article>
+  <h1>Interleavings</h1>
+  <div class='text'>
+<p>The scheduler interleaves goroutine executions.</p>
+  </div>
+  <div class='text'>
+<ul>
+<li>any machine instruction</li>
+</ul>
+  </div>
+  <div class='text'>
+<ul>
+<li>many possibilities</li>
+</ul>
+  </div>
+  <div class='text'>
+<ul>
+<li>non-deterministic</li>
+</ul>
+  </div>
+  <span class='pagenumber'>4</span>
+</article>
+
+<!-- slide 5 -->
+<article>
+  <h1>Interleaved increment</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>var c int <comment>// global variable in memory</comment></pre>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c++</pre>
+  </div>
+  <div class='text'>
+<p>is actually</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>var R0 int <comment>// register 0 (goroutine-local)</comment>
+<span class='codenum'>2</span>R0++
+<span class='codenum'>3</span>c = R0</pre>
+  </div>
+  <div style="width: 25vw"></div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<p>What we want (G1, G2 are goroutines):</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c++</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>c++</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  <div style="width: 25vw"></div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<p>What we might get:</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R0 = c</td>
+<td>R0 = c</td>
+</tr>
+<tr>
+<td>R0++</td>
+<td>R0++</td>
+</tr>
+<tr>
+<td>c = R0</td>
+<td>c = R0</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>5</span>
+</article>
+
+<!-- slide 6 -->
+<article>
+  <h1>Race condition</h1>
+  <div class='text'>
+<p>A <em>race condition</em> is when your program
+allows interleavings that are incorrect.</p>
+  </div>
+  <span class='pagenumber'>6</span>
+</article>
+
+<!-- slide 7 -->
+<article>
+  <h1>Which brings us to...</h1>
+  <img height=500 src="slides/mutexes/mutexes.png"/>
+  <span class='pagenumber'>7</span>
+</article>
+
+<!-- slide 8 -->
+<article>
+  <h1>Mutexes</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span><span class="em">var mu sync.Mutex</span>
+
+<span class='codenum'>2</span>var c int
+
+<span class='codenum'>3</span>func <defn>run</defn>() {
+<span class='codenum'>4</span>   var wg sync.WaitGroup
+<span class='codenum'>5</span>   wg.Go(count)
+<span class='codenum'>6</span>   wg.Go(count)
+<span class='codenum'>7</span>   wg.Wait()
+<span class='codenum'>8</span>   fmt.Println(c)
+<span class='codenum'>9</span>}
+
+<span class='codenum'>10</span>func <defn>count</defn>() {
+<span class='codenum'>11</span>   for range 20_000 {
+<span class='codenum'>12</span><span class="em">      mu.Lock()</span>
+<span class='codenum'>13</span>      c++
+<span class='codenum'>14</span><span class="em">      mu.Unlock()</span>
+<span class='codenum'>15</span>   }
+<span class='codenum'>16</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div style="height: 4vw"></div>
+  <div class='text'>
+<p>A mutex provides <i>mut</i>ual <i>ex</i>clusion.</p>
+  </div>
+  <div class='text'>
+<p>The zero mutex is unlocked and ready to use.</p>
+  </div>
+  <div class='text'>
+<p>Only one goroutine allowed between
+<code>Lock</code> and <code>Unlock</code>
+(a <em>critical section</em>).</p>
+<p>The code in the critical section happens <em>atomically</em>:
+indivisibly.</p>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>8</span>
+</article>
+
+<!-- slide 9 -->
+<article>
+  <h1>How to think about a mutex</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span><span class="em">var mu sync.Mutex</span>
+
+<span class='codenum'>2</span>var c int
+
+<span class='codenum'>3</span>func <defn>run</defn>() {
+<span class='codenum'>4</span>   var wg sync.WaitGroup
+<span class='codenum'>5</span>   wg.Go(count)
+<span class='codenum'>6</span>   wg.Go(count)
+<span class='codenum'>7</span>   wg.Wait()
+<span class='codenum'>8</span>   fmt.Println(c)
+<span class='codenum'>9</span>}
+
+<span class='codenum'>10</span>func <defn>count</defn>() {
+<span class='codenum'>11</span>   for range 20_000 {
+<span class='codenum'>12</span><span class="em">      mu.Lock()</span>
+<span class='codenum'>13</span>      c++
+<span class='codenum'>14</span><span class="em">      mu.Unlock()</span>
+<span class='codenum'>15</span>   }
+<span class='codenum'>16</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div style="height: 4vw"></div>
+  <div class='text'>
+<p>A mutex limits interleavings.</p>
+<p>This is no longer possible:</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R0 = c</td>
+<td>R0 = c</td>
+</tr>
+<tr>
+<td>R0++</td>
+<td>R0++</td>
+</tr>
+<tr>
+<td>c = R0</td>
+<td>c = R0</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>9</span>
+</article>
+
+<!-- slide 10 -->
+<article>
+  <h1>Goroutines and memory</h1>
+  <div class='text'>
+<ul>
+<li>Global variables shared among all goroutines</li>
+<li>Struct fields shared among all goroutines accessing
+the struct.</li>
+<li>Local variables, arguments and named return values
+visible only to the goroutine running that function.</li>
+</ul>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>F</defn>(x int) int {
+<span class='codenum'>2</span>   x++ <comment>// no race condition</comment>
+<span class='codenum'>3</span>   return x
+<span class='codenum'>4</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>10</span>
+</article>
+
+<!-- slide 11 -->
+<article>
+  <h1>Exercise: Bank Account</h1>
+  <a href="../exercises/account/account.go">Code</a>
+  <br/><br/><br/>
+  <a href="../exercises/account/solution/account.go">Solution</a>
+  <span class='pagenumber'>11</span>
+</article>
+
+<!-- slide 12 -->
+<article>
+  <h1>Synchronization: more than interleavings</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>Balance</defn>() int {
+<span class='codenum'>2</span>   a.mu.Lock()
+<span class='codenum'>3</span>   defer a.mu.Unlock()
+<span class='codenum'>4</span>   return a.balance
+<span class='codenum'>5</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>Why does this need a mutex?</p>
+  </div>
+  <div class='text'>
+<p>CPU can read/write an <code>int</code> atomically.</p>
+  </div>
+  <span class='pagenumber'>12</span>
+</article>
+
+<!-- slide 13 -->
+<article>
+  <h1>Synchronization is a signal</h1>
+  <div class='text'>
+<p>Modern multicore CPUs cache</p>
+<p>Modern compilers optimize</p>
+<p>Synchronization points say: &quot;Don't do that.&quot;</p>
+<br/>
+<p><code>mu.Lock()</code> means:</p>
+<ul>
+<li>Other threads must wait</li>
+<li>Coordinate CPU caches</li>
+<li>Reconcile registers (CPU-local storage) with main memory</li>
+<li>Don't reorder</li>
+</ul>
+  </div>
+  <span class='pagenumber'>13</span>
+</article>
+
+<!-- slide 14 -->
+<article>
+  <h1>Synchronize all accesses</h1>
+  <div class='text'>
+<p>Synchronize all reads and writes to a piece of memory</p>
+  </div>
+  <div class='code large'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>Balance</defn>() int {
+<span class='codenum'>2</span>   a.mu.Lock()
+<span class='codenum'>3</span>   defer a.mu.Unlock()
+<span class='codenum'>4</span>   return a.balance
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Account) <defn>Deposit</defn>(amount int) error {
+<span class='codenum'>7</span>   <comment>// ...</comment>
+<span class='codenum'>8</span>   a.mu.Lock()
+<span class='codenum'>9</span>   defer a.mu.Unlock()
+<span class='codenum'>10</span>   a.balance += amount
+<span class='codenum'>11</span>   return nil
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>14</span>
+</article>
+
+<!-- slide 15 -->
+<article>
+  <h1>Data races</h1>
+  <div class='text'>
+<p>A data race happens when:</p>
+<ul>
+<li>Two goroutines access the same memory</li>
+<li>At least one writes to it</li>
+<li>The accesses aren't synchronized</li>
+</ul>
+  </div>
+  <div class='text'>
+<p> </p>
+  </div>
+  <div class="flex"><div>
+  <p style="margin-bottom:0">same goroutine</p>
+  <div class='code'><pre>
+<span class='codenum'>1</span>c++
+<span class='codenum'>2</span>fmt.Println(c)</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <p style="margin-bottom:0">different memory</p>
+  <div class='code'><pre>
+<span class='codenum'>1</span>wg.Go(func() {
+<span class='codenum'>2</span>   c1++
+<span class='codenum'>3</span>})
+<span class='codenum'>4</span>wg.Go(func() {
+<span class='codenum'>5</span>   c2++
+<span class='codenum'>6</span>})</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <p style="margin-bottom:0">no writes</p>
+  <div class='code'><pre>
+<span class='codenum'>1</span>wg.Go(func() {
+<span class='codenum'>2</span>   fmt.Println(c)
+<span class='codenum'>3</span>})
+<span class='codenum'>4</span>wg.Go(func() {
+<span class='codenum'>5</span>   fmt.Println(c)
+<span class='codenum'>6</span>})</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <p style="margin-bottom:0">data race</p>
+  <div class='code bad'><pre>
+<span class='codenum'>1</span>wg.Go(func() { c++ })
+<span class='codenum'>2</span>wg.Go(func() { c++ })</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>15</span>
+</article>
+
+<!-- slide 16 -->
+<article>
+  <h1>The race detector</h1>
+  <div class='text'>
+<p>Looks for data races while the program is running.</p>
+  </div>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>var c int
+
+<span class='codenum'>2</span>func <defn>main</defn>() {
+<span class='codenum'>3</span>   var wg sync.WaitGroup
+<span class='codenum'>4</span>   wg.Go(count)
+<span class='codenum'>5</span>   wg.Go(count)
+<span class='codenum'>6</span>   wg.Wait()
+<span class='codenum'>7</span>   fmt.Println(c)
+<span class='codenum'>8</span>}
+
+<span class='codenum'>9</span>func <defn>count</defn>() {
+<span class='codenum'>10</span>   for range 20_000 {
+<span class='codenum'>11</span>      c++
+<span class='codenum'>12</span>   }
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+27357
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<p><code>go run -race .</code></p>
+  </div>
+<div></div>
+  <div class='output'><pre>
+==================
+WARNING: DATA RACE
+Read at 0x000000612e58 by goroutine 7:
+main.count()
+jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x2c
+sync.(*WaitGroup).Go.func1()
+jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+
+Previous write at 0x000000612e58 by goroutine 8:
+main.count()
+jba/repos/github.com/jba/concurrency-workshop/slides/mutexes/10/m.go:26 +0x44
+sync.(*WaitGroup).Go.func1()
+jba/sdk/go1.25.5/src/sync/waitgroup.go:239 +0x5d
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>16</span>
+</article>
+
+<!-- slide 17 -->
+<article>
+  <h1>Exercise</h1>
+  <div class='text'>
+<p>Run <code>go test -race</code> on your bank account solution.</p>
+  </div>
+  <div class='text'>
+<p>Try it with and without locking <code>Account.Balance</code>.</p>
+  </div>
+  <span class='pagenumber'>17</span>
+</article>
+
+<!-- slide 18 -->
+<article>
+  <h1>Let&#39;s be clever</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>count</defn>() {
+<span class='codenum'>2</span>   for range 20_000 {
+<span class='codenum'>3</span><span class="em">      x := c + 1</span>
+<span class='codenum'>4</span>      mu.Lock()
+<span class='codenum'>5</span><span class="em">      c = x <comment>// write is protected</span></comment>
+<span class='codenum'>6</span>      mu.Unlock()
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <details>
+    <summary>
+What do we think about this optimization?    </summary>
+    <div class='answer'>
+<p>There is still a data race: a read can happen concurrently with a write.</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>x = c + 1</td>
+<td></td>
+</tr>
+<tr>
+<td>c = x</td>
+<td>x = c + 1</td>
+</tr>
+</tbody>
+</table>
+</div>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>18</span>
+</article>
+
+<!-- slide 19 -->
+<article>
+  <h1>Let&#39;s be even cleverer!</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func <defn>count</defn>() {
+<span class='codenum'>2</span>   for range 20_000 {
+<span class='codenum'>3</span>      mu.Lock()
+<span class='codenum'>4</span><span class="em">      x := c <comment>// read is protected</span></comment>
+<span class='codenum'>5</span>      mu.Unlock()
+<span class='codenum'>6</span>      x++
+<span class='codenum'>7</span>      mu.Lock()
+<span class='codenum'>8</span><span class="em">      c = x <comment>// write is protected</span></comment>
+<span class='codenum'>9</span>      mu.Unlock()
+<span class='codenum'>10</span>   }
+<span class='codenum'>11</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <details>
+    <summary>
+What do we think about this optimization?    </summary>
+    <div class='answer'>
+<p>There is no data race, but this code is still incorrect:</p>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G1</th>
+<th>G2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>x₁ = c</td>
+<td>x₂ = c</td>
+</tr>
+<tr>
+<td>x₁++</td>
+<td>x₂++</td>
+</tr>
+<tr>
+<td>c = x₁</td>
+<td>c = x₂</td>
+</tr>
+</tbody>
+</table>
+</div>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>19</span>
+</article>
+
+<!-- slide 20 -->
+<article>
+  <h1>Transactions</h1>
+  <div class='text'>
+<p>A <em>transaction</em> (in this course): an atomic sequence of operations
+that makes sense for the application.</p>
+<p>(Atomic, Consistent and Isolated, but not Durable)</p>
+<p>Examples:</p>
+<ul>
+<li>Money transfer</li>
+<li>Fulfill an order, mark it as done</li>
+<li>Add/remove an element and update the size</li>
+<li>Check a precondition, then take an action</li>
+</ul>
+  </div>
+  <span class='pagenumber'>20</span>
+</article>
+
+<!-- slide 21 -->
+<article>
+  <h1>Our story so far</h1>
+  <div class='text'>
+<p>Data races are about low-level memory access.<br/>
+Every data race is a race (almost).</p>
+<p>But races in general are about transactions.</p>
+<p><em>Not every race is a data race.</em></p>
+  </div>
+  <details>
+    <summary>
+Why doesn't Go make maps concurrency-safe?    </summary>
+    <div class='answer'>
+<p>It would be slower, and <em>it wouldn't help in many cases</em>.<br/>
+The runtime doesn't know what your transactions are.</p>
+    </div>
+  </details>
+  <span class='pagenumber'>21</span>
+</article>
+
+<!-- slide 22 -->
+<article>
+  <h1>Another example</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>WithdrawTOCTOU</defn>(amount int) error {
+<span class='codenum'>2</span>   if amount &lt; 0 {
+<span class='codenum'>3</span>      return errors.New(&#34;withdraw amount must be non-negative&#34;)
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span>   a.mu.Lock()
+<span class='codenum'>6</span>   bal := a.balance
+<span class='codenum'>7</span>   a.mu.Unlock()
+<span class='codenum'>8</span>   if bal-amount &lt; 0 {
+<span class='codenum'>9</span>      return errors.New(&#34;insufficient balance&#34;)
+<span class='codenum'>10</span>   }
+<span class='codenum'>11</span>   a.mu.Lock()
+<span class='codenum'>12</span>   defer a.mu.Unlock()
+<span class='codenum'>13</span>   a.balance -= amount
+<span class='codenum'>14</span>   return nil
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <details>
+    <summary>
+Does this code have a data race?    </summary>
+    <div class='answer'>
+<p>No: every memory access is protected by a mutex.</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+Does it have a race?    </summary>
+    <div class='answer'>
+<p>Yes: the balance can go negative.</p>
+    </div>
+  </details>
+  <details>
+    <summary>
+Is a TOCTOU an exotic bird?    </summary>
+    <div class='answer'>
+<p>Sadly, no. That would have been cool.<br/>
+It stands for Time of Check, Time of Use.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>22</span>
+</article>
+
+<!-- slide 23 -->
+<article>
+  <h1>Generating unique IDs, unsafe version</h1>
+  <div class="flex"><div>
+  <div class='code bad'><pre>
+<comment>// An IDGenerator generates unique identifiers.</comment>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span>   prefix string
+<span class='codenum'>3</span>   num    int
+<span class='codenum'>4</span>}
+
+<comment>// NewIDGenerator creates an IDGenerator whose</comment>
+<comment>// identifiers begin with prefix.</comment>
+<span class='codenum'>5</span>func <defn>NewIDGenerator</defn>(prefix string) *IDGenerator {
+<span class='codenum'>6</span>   return &amp;IDGenerator{prefix: prefix}
+<span class='codenum'>7</span>}
+
+<comment>// NewID generates a unique identifier each time</comment>
+<comment>// it is called.</comment>
+<span class='codenum'>8</span>func (g *IDGenerator) <defn>NewID</defn>() string {
+<span class='codenum'>9</span>   g.num++
+<span class='codenum'>10</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
+<span class='codenum'>11</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <details>
+    <summary>
+What can happen if two goroutines call <code>g.NewID()</code> at the same time?    </summary>
+    <div class='answer'>
+<p>You might get the same ID twice.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>23</span>
+</article>
+
+<!-- slide 24 -->
+<article>
+  <h1>Generating unique IDs, safe version</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span>   prefix string
+<span class='codenum'>3</span><span class="em">   mu     sync.Mutex</span>
+<span class='codenum'>4</span>   num    int
+<span class='codenum'>5</span>}
+
+<comment>// NewIDGenerator is the same.</comment>
+
+<span class='codenum'>6</span>func (g *IDGenerator) <defn>NewID</defn>() string {
+<span class='codenum'>7</span><span class="em">   g.mu.Lock()
+<span class='codenum'>8</span>   defer g.mu.Unlock()</span>
+<span class='codenum'>9</span>   g.num++
+<span class='codenum'>10</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, g.num)
+<span class='codenum'>11</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<p><code>num</code> must be synchronized to make <code>NewID</code> concurrency-safe</p>
+<p><code>prefix</code> is written <em>before</em> all calls to <code>NewID</code></p>
+<p>The &quot;mutex hat&quot; convention: declare the mutex field
+above the fields it protects</p>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>24</span>
+</article>
+
+<!-- slide 25 -->
+<article>
+  <h1>Atomics</h1>
+  <div class="flex"><div>
+  <div class='text'>
+<p>Package <code>sync/atomic</code> exposes CPU atomic operations</p>
+<p>&quot;These functions require great care to be used correctly.&quot;</p>
+<p>Faster than mutexes, but much more dangerous.</p>
+<ul>
+<li>Limited operations</li>
+<li>Sequences of atomics are <em>not</em> atomic</li>
+</ul>
+<br/>
+<p>Recommendation: use only for counters</p>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span>   prefix string
+<span class='codenum'>3</span><span class="em">   num    atomic.Int64</span>
+<span class='codenum'>4</span>}
+
+<comment>// NewIDGenerator is the same.</comment>
+
+<span class='codenum'>5</span>func (g *IDGenerator) <defn>NewID</defn>() string {
+<span class='codenum'>6</span><span class="em">   n := g.num.Add(1)</span>
+<span class='codenum'>7</span>   return fmt.Sprintf(&#34;%s%d&#34;, g.prefix, n)
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>25</span>
+</article>
+
+<!-- slide 26 -->
+<article class='title-slide'>
+  <div class='title-text'>Using atomics is like riding a bicycle in Manhattan.</div>
+  <span class='pagenumber'>26</span>
+</article>
+
+<!-- slide 27 -->
+<article>
+  <h1>IDGenerator with a map</h1>
+  <div class='code bad'><pre>
+<comment>// IDGenerator generates unique IDs with different prefixes.</comment>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span><span class="em">   nums map[string]int <comment>// prefix to next ID</span></comment>
+<span class='codenum'>3</span>}
+
+<span class='codenum'>4</span>func <defn>NewIDGenerator</defn>() *IDGenerator {
+<span class='codenum'>5</span>   return &amp;IDGenerator{nums: map[string]int{}}
+<span class='codenum'>6</span>}
+
+<span class='codenum'>7</span>func (g *IDGenerator) <defn>NewID</defn>(<span class="em">prefix string</span>) string {
+<span class='codenum'>8</span>   n := g.nums[prefix]
+<span class='codenum'>9</span>   n++
+<span class='codenum'>10</span>   g.nums[prefix] = n
+<span class='codenum'>11</span>   return fmt.Sprintf(&#34;%s%d&#34;, prefix, n)
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>27</span>
+</article>
+
+<!-- slide 28 -->
+<article>
+  <h1>Mutexes and maps, safely</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>IDGenerator</defn> struct {
+<span class='codenum'>2</span><span class="em">   mu   sync.Mutex</span>
+<span class='codenum'>3</span>   nums map[string]int
+<span class='codenum'>4</span>}
+
+<comment>// NewIDGenerator is the same.</comment>
+
+<span class='codenum'>5</span>func (g *IDGenerator) <defn>NewID</defn>(prefix string) string {
+<span class='codenum'>6</span><span class="em">   g.mu.Lock()</span>
+<span class='codenum'>7</span>   n := g.nums[prefix]
+<span class='codenum'>8</span>   n++
+<span class='codenum'>9</span>   g.nums[prefix] = n
+<span class='codenum'>10</span><span class="em">   g.mu.Unlock()</span>
+<span class='codenum'>11</span>   return fmt.Sprintf(&#34;%s%d&#34;, prefix, n)
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div style="height: 15vw"></div>
+  <details>
+    <summary>
+Concurrency-safe maps wouldn't help here.
+Why not?    </summary>
+    <div class='answer'>
+<p>The read-increment-write section is a transaction.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>28</span>
+</article>
+
+<!-- slide 29 -->
+<article>
+  <h1>Optimizations</h1>
+  <div class='text'>
+<p>Atomics, as we've seen.</p>
+<p><code>sync.RWMutex</code> if there are many more reads than writes.</p>
+<p><code>sync.Map</code> if there are very few writes (often just one).</p>
+  </div>
+  <span class='pagenumber'>29</span>
+</article>
+
+<!-- slide 30 -->
+<article>
+  <h1>sync.Map example</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>userTypeInfo</defn> struct{} <comment>// fields omitted</comment>
+
+<span class='codenum'>2</span>var userTypeCache <span class="em">sync.Map</span> <comment>// map[reflect.Type]*userTypeInfo</comment>
+
+<span class='codenum'>3</span>func <defn>validUserType</defn>(rt reflect.Type) (*userTypeInfo, error) {
+<span class='codenum'>4</span>   if ui, ok := userTypeCache.Load(rt); ok {
+<span class='codenum'>5</span>      return ui.(*userTypeInfo), nil
+<span class='codenum'>6</span>   }
+
+<span class='codenum'>7</span>   <comment>// Construct a new userTypeInfo and atomically</comment>
+<span class='codenum'>8</span>   <comment>// add it to the userTypeCache.</comment>
+<span class='codenum'>9</span>   ut := new(userTypeInfo)
+<span class='codenum'>10</span>   <comment>// ...</comment>
+
+<span class='codenum'>11</span>   ui, _ := userTypeCache.LoadOrStore(rt, ut)
+<span class='codenum'>12</span>   return ui.(*userTypeInfo), nil
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<p> </p>
+  </div>
+  <div class='text'>
+<p>From the <a href="https://github.com/golang/go/blob/master/src/encoding/gob/type.go">encoding/gob</a> package.</p>
+  </div>
+  <details>
+    <summary>
+What about the race?    </summary>
+    <div class='answer'>
+<p>&quot;If we lose the race, we'll waste a little CPU and create a little garbage
+but return the existing value anyway.&quot;</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>30</span>
+</article>
+
+<!-- slide 31 -->
+<article>
+  <h1>Some miscellaneous points</h1>
+  <div class='text'>
+<br/>
+  </div>
+  <span class='pagenumber'>31</span>
+</article>
+
+<!-- slide 32 -->
+<article>
+  <h1>Copy defensively</h1>
+  <p style="margin-bottom:0">Copy private mutable data</p>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Server</defn> struct {
+<span class='codenum'>2</span>   mu       sync.Mutex
+<span class='codenum'>3</span>   sessions []*ServerSession
+<span class='codenum'>4</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p><code>Server.sessions</code> is managed by <code>Server</code></p>
+  </div>
+  <p style="margin-bottom:0">It doesn't want anyone else to change it.</p>
+  <div class='code'><pre>
+<comment>// Sessions returns a copy of the server&#39;s sessions.</comment>
+<span class='codenum'>1</span>func (s *Server) <defn>Sessions</defn>() []*ServerSession {
+<span class='codenum'>2</span>   s.mu.Lock()
+<span class='codenum'>3</span>   defer s.mu.Unlock()
+<span class='codenum'>4</span>   return slices.Clone(s.sessions)
+<span class='codenum'>5</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
+  </div>
+  <span class='pagenumber'>32</span>
+</article>
+
+<!-- slide 33 -->
+<article>
+  <h1>Avoid locking during I/O</h1>
+  <div class='text'>
+<p>I/O is slow.</p>
+  </div>
+  <div class='text'>
+<p>Network peers can be <em>arbitrarily</em> slow.</p>
+  </div>
+  <div class='text'>
+<p>Sometimes you have to copy.</p>
+  </div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (s *Server) <defn>notifySessions</defn>(n string) {
+<span class='codenum'>2</span>   s.mu.Lock() <comment>// required to access s.sessions</comment>
+<span class='codenum'>3</span>   sessions := slices.Clone(s.sessions)
+<span class='codenum'>4</span>   <comment>// ...</comment>
+<span class='codenum'>5</span>   s.mu.Unlock()
+<span class='codenum'>6</span>   <comment>// Do I/O with no locks held.</comment>
+<span class='codenum'>7</span>   notifySessions(sessions /* ... */)
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>From The <a href="https://github.com/modelcontextprotocol/go-sdk/blob/4cdbaaf27132e5356ba13973ae50da4edfa876bb/mcp/server.go">Go MCP SDK</a></p>
+  </div>
+  <span class='pagenumber'>33</span>
+</article>
+
+<!-- slide 34 -->
+<article>
+  <h1>Avoid locking during I/O...unless you need it</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Logger</defn> struct {
+<span class='codenum'>2</span>   outMu sync.Mutex
+<span class='codenum'>3</span>   out   io.Writer
+<span class='codenum'>4</span>   <comment>// ...</comment>
+<span class='codenum'>5</span>}
+
+<comment>// Printf prints a lone to the logger.</comment>
+<span class='codenum'>6</span>func (l *Logger) <defn>Printf</defn>(format string, v ...any) {
+<span class='codenum'>7</span>   buf := fmt.Appendf(nil, format, v...)
+<span class='codenum'>8</span>   <comment>// ... add newline if needed</comment>
+<span class='codenum'>9</span>   <comment>// In general, io.Writer.Write is not guaranteed to write its argument atomically.</comment>
+<span class='codenum'>10</span>   <comment>// Put it in a critical section to make sure that log output is not interlevaed.</comment>
+<span class='codenum'>11</span>   l.outMu.Lock()
+<span class='codenum'>12</span>   defer l.outMu.Unlock()
+<span class='codenum'>13</span>   _, _ = l.out.Write(buf)
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>Adapted from the <a href="https://github.com/golang/go/blob/e30e65f7a8bda0351d9def5a6bc91471bddafd3d/src/log/log.go">log package</a></p>
+  </div>
+  <span class='pagenumber'>34</span>
+</article>
+
+<!-- slide 35 -->
+<article>
+  <h1>Beware sharing memory!</h1>
+  <div class='text'>
+<p>Find the bug.</p>
+  </div>
+  <a href="../exercises/logger/logger.go">Code</a>
+  <br/><br/><br/>
+  <a href="../exercises/logger/solution/logger.go">Solution</a>
+  <span class='pagenumber'>35</span>
+</article>
+
+<!-- slide 36 -->
+<article>
+  <h1>And now ...</h1>
+  <img height=500 src="slides/mutexes/deadlock-rebus.png"/>
+  <span class='pagenumber'>36</span>
+</article>
+
+<!-- slide 37 -->
+<article>
+  <h1>Deadlock</h1>
+  <div class='text'>
+<p>Goroutines can't make progress because they block each other.</p>
+  </div>
+  <div class='text'>
+<p>Or a single goroutine blocks itself.</p>
+  </div>
+  <span class='pagenumber'>37</span>
+</article>
+
+<!-- slide 38 -->
+<article>
+  <h1>Self-deadlock: example</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>Deposit</defn>(amount int) {
+<span class='codenum'>2</span>   a.mu.Lock()
+<span class='codenum'>3</span>   defer a.mu.Unlock()
+<span class='codenum'>4</span>   a.balance += amount
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Account) <defn>Withdraw</defn>(amount int) {
+<span class='codenum'>7</span>   a.mu.Lock()
+<span class='codenum'>8</span>   defer a.mu.Unlock()
+<span class='codenum'>9</span>   a.balance -= amount
+<span class='codenum'>10</span>}
+
+<span class='codenum'>11</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>12</span>   <comment>// Must happen atomically.</comment>
+<span class='codenum'>13</span>   a.mu.Lock()
+<span class='codenum'>14</span>   defer a.mu.Unlock()
+<span class='codenum'>15</span>   a.Withdraw(amount)
+<span class='codenum'>16</span>   b.Deposit(amount)
+<span class='codenum'>17</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>G</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>astrid.TransferTo(baxter, 100)</td>
+</tr>
+<tr>
+<td>astrid.mu.Lock()</td>
+</tr>
+<tr>
+<td>astrid.Withdraw(100)</td>
+</tr>
+<tr>
+<td>astrid.mu.Lock()</td>
+</tr>
+<tr>
+<td>DEADLOCK</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>38</span>
+</article>
+
+<!-- slide 39 -->
+<article>
+  <h1>Solution: refactor</h1>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>Deposit</defn>(amount int) {
+<span class='codenum'>2</span>   a.mu.Lock()
+<span class='codenum'>3</span>   defer a.mu.Unlock()
+<span class='codenum'>4</span>   a.changeBalanceLocked(amount)
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Account) <defn>Withdraw</defn>(amount int) {
+<span class='codenum'>7</span>   a.mu.Lock()
+<span class='codenum'>8</span>   defer a.mu.Unlock()
+<span class='codenum'>9</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>10</span>}
+
+<comment>// The caller must hold a.mu.</comment>
+<span class='codenum'>11</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
+<span class='codenum'>12</span>   a.balance += amount
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(
+<span class='codenum'>2</span>   b *Account, amount int) {
+<span class='codenum'>3</span>   <comment>// Must happen atomically.</comment>
+<span class='codenum'>4</span>   a.mu.Lock()
+<span class='codenum'>5</span>   defer a.mu.Unlock()
+<span class='codenum'>6</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>7</span>   b.mu.Lock()
+<span class='codenum'>8</span>   defer b.mu.Unlock()
+<span class='codenum'>9</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>10</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>39</span>
+</article>
+
+<!-- slide 40 -->
+<article>
+  <h1>A real-world example</h1>
+  Modified from net/http/transport.go<br/>
+  <div class="flex"><div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>type <defn>Transport</defn> struct {
+<span class='codenum'>2</span>   idleMu  sync.Mutex
+<span class='codenum'>3</span>   idleLRU connLRU
+<span class='codenum'>4</span>   <comment>// ...</comment>
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConn1</defn>(pconn *pConn) bool {
+<span class='codenum'>7</span><span class="em">   t.idleMu.Lock()</span>
+<span class='codenum'>8</span>   defer t.idleMu.Unlock()
+<span class='codenum'>9</span>   if pconn.idleTimer != nil {
+<span class='codenum'>10</span>      pconn.idleTimer.Stop()
+<span class='codenum'>11</span>   }
+<span class='codenum'>12</span>   <span class="em">t.idleLRU</span>.remove(pconn)
+<span class='codenum'>13</span>   <comment>// ...</comment>
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *pConn) bool {
+<span class='codenum'>2</span>   if pconn.isClientConn {
+<span class='codenum'>3</span>      return true
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span>   return t.<span class="em">removeIdleConn1</span>(pconn)
+<span class='codenum'>6</span>}
+</pre>
+  </div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (pc *pConn) <defn>closeConnIfStillIdle</defn>() {
+<span class='codenum'>2</span>   t := pc.t
+<span class='codenum'>3</span><span class="em">   t.idleMu.Lock()</span>
+<span class='codenum'>4</span>   defer t.idleMu.Unlock()
+<span class='codenum'>5</span>   if _, ok := <span class="em">t.idleLRU</span>.m[pc]; !ok {
+<span class='codenum'>6</span>      return
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span>   t.<span class="em">removeIdleConn1</span>(pc)
+<span class='codenum'>9</span>   pc.close(errIdleConnTimeout)
+<span class='codenum'>10</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>40</span>
+</article>
+
+<!-- slide 41 -->
+<article>
+  <h1>Solution: refactor</h1>
+  Actually from net/http/transport.go<br/>
+  <div class="flex"><div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>type <defn>Transport</defn> struct {
+<span class='codenum'>2</span>   idleMu  sync.Mutex
+<span class='codenum'>3</span>   idleLRU connLRU
+<span class='codenum'>4</span>   <comment>// ...</comment>
+<span class='codenum'>5</span>}
+
+<comment>// t.idleMu must be held.</comment>
+<span class='codenum'>6</span>func (t *Transport) <defn>removeIdleConnLocked</defn>(pconn *pConn) bool {
+<span class='codenum'>7</span>   if pconn.idleTimer != nil {
+<span class='codenum'>8</span>      pconn.idleTimer.Stop()
+<span class='codenum'>9</span>   }
+<span class='codenum'>10</span>   t.idleLRU.remove(pconn)
+<span class='codenum'>11</span>   <comment>// ...</comment>
+<span class='codenum'>12</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (t *Transport) <defn>removeIdleConn</defn>(pconn *pConn) bool {
+<span class='codenum'>2</span>   if pconn.isClientConn {
+<span class='codenum'>3</span>      return true
+<span class='codenum'>4</span>   }
+<span class='codenum'>5</span><span class="em">   t.idleMu.Lock()
+<span class='codenum'>6</span>   defer t.idleMu.Unlock()
+<span class='codenum'>7</span>   return t.removeIdleConnLocked(pconn)</span>
+<span class='codenum'>8</span>}
+</pre>
+  </div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>func (pc *pConn) <defn>closeConnIfStillIdle</defn>() {
+<span class='codenum'>2</span>   t := pc.t
+<span class='codenum'>3</span>   t.idleMu.Lock()
+<span class='codenum'>4</span>   defer t.idleMu.Unlock()
+<span class='codenum'>5</span>   if _, ok := t.idleLRU.m[pc]; !ok {
+<span class='codenum'>6</span>      return
+<span class='codenum'>7</span>   }
+<span class='codenum'>8</span><span class="em">   t.removeIdleConnLocked(pc)</span>
+<span class='codenum'>9</span>   pc.close(errIdleConnTimeout)
+<span class='codenum'>10</span>}
+</pre>
+  </div>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>41</span>
+</article>
+
+<!-- slide 42 -->
+<article>
+  <h1>Multi-goroutine deadlocks</h1>
+  <div class="flex"><div>
+  Reminder:<br/>
+  <div class='code'><pre>
+<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>2</span>   <comment>// Must happen atomically.</comment>
+<span class='codenum'>3</span>   a.mu.Lock()
+<span class='codenum'>4</span>   defer a.mu.Unlock()
+<span class='codenum'>5</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>6</span>   b.mu.Lock()
+<span class='codenum'>7</span>   defer b.mu.Unlock()
+<span class='codenum'>8</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  <br/>
+  Concurrently:<br/>
+  <div class='code nonum'><pre>
+xena.TransferTo(yuri, 100)</pre>
+  </div>
+  <div class='code nonum'><pre>
+yuri.TransferTo(xena, 100)</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='text'>
+<div class="interleave" style="font-size: 70%">
+<table>
+<thead>
+<tr>
+<th>X→Y</th>
+<th>Y→X</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>x.TransferTo(y)</td>
+<td>y.TransferTo(x)</td>
+</tr>
+<tr>
+<td><strong>x</strong>.mu.Lock()</td>
+<td><strong>y</strong>.mu.Lock()</td>
+</tr>
+<tr>
+<td>x.changeBalanceLocked()</td>
+<td>y.changeBalanceLocked()</td>
+</tr>
+<tr>
+<td><strong>y</strong>.mu.Lock()</td>
+<td><strong>x</strong>.mu.Lock()</td>
+</tr>
+<tr>
+<td>DEADLOCK</td>
+<td>DEADLOCK</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <br/>
+  <div class='text'>
+<p>That is only one interleaving!</p>
+  </div>
+  <span class='pagenumber'>42</span>
+</article>
+
+<!-- slide 43 -->
+<article>
+  <h1>Solution 1: coarser granularity</h1>
+  Locks protect larger critical sections.<br/>
+  <div class="flex"><div>
+  <div class='code small'><pre>
+<span class='codenum'>1</span>type <defn>Accounts</defn> struct {
+<span class='codenum'>2</span>   mu       sync.Mutex
+<span class='codenum'>3</span>   balances map[string]int <comment>// account name to balance</comment>
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>func (a *Accounts) <defn>Balance</defn>(name string) int {
+<span class='codenum'>6</span>   a.mu.Lock()
+<span class='codenum'>7</span>   defer a.mu.Unlock()
+<span class='codenum'>8</span>   return a.balances[name]
+<span class='codenum'>9</span>}
+
+<span class='codenum'>10</span>func (a *Accounts) <defn>Deposit</defn>(name string, amount int) {
+<span class='codenum'>11</span>   a.mu.Lock()
+<span class='codenum'>12</span>   defer a.mu.Unlock()
+<span class='codenum'>13</span>   a.changeBalanceLocked(name, amount)
+<span class='codenum'>14</span>}
+
+<span class='codenum'>15</span>func (a *Accounts) <defn>Withdraw</defn>(name string, amount int) {
+<span class='codenum'>16</span>   a.mu.Lock()
+<span class='codenum'>17</span>   defer a.mu.Unlock()
+<span class='codenum'>18</span>   a.changeBalanceLocked(name, -amount)
+<span class='codenum'>19</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code small'><pre>
+
+<span class='codenum'>1</span>func (a *Accounts) <defn>changeBalanceLocked</defn>(name string, amount int) {
+<span class='codenum'>2</span>   a.balances[name] += amount
+<span class='codenum'>3</span>}
+
+<span class='codenum'>4</span>func (a *Accounts) <defn>TransferTo</defn>(fromName, toName string, amount int) {
+<span class='codenum'>5</span>   a.mu.Lock()
+<span class='codenum'>6</span>   defer a.mu.Unlock()
+<span class='codenum'>7</span>   a.changeBalanceLocked(fromName, -amount)
+<span class='codenum'>8</span>   a.changeBalanceLocked(toName, amount)
+<span class='codenum'>9</span>}
+</pre>
+  </div>
+  <div class='text'>
+<p>Either Xena grabs the lock first, or Yuri does.</p>
+  </div>
+  <details>
+    <summary>
+What's the problem with this approach?    </summary>
+    <div class='answer'>
+<p>No concurrency: only one goroutine can work with <em>any</em> account at a time.</p>
+    </div>
+  </details>
+  </div></div> <!-- flex -->
+  <span class='pagenumber'>43</span>
+</article>
+
+<!-- slide 44 -->
+<article>
+  <h1>Solution 2: lock ordering</h1>
+  If all goroutines obtain locks in the same order, deadlock is impossible.<br/>
+  <div class="flex"><div>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Account</defn> struct {
+<span class='codenum'>2</span>   mu      sync.Mutex
+<span class='codenum'>3</span>   balance int
+<span class='codenum'>4</span><span class="em">   id      int <comment>// unique for each account</span></comment>
+<span class='codenum'>5</span>}
+</pre>
+  </div>
+  </div>
+  <div> <!-- next col -->
+  <div class='code'><pre>
+
+<span class='codenum'>1</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>2</span>   <comment>// Acquire locks in ID order.</comment>
+<span class='codenum'>3</span><span class="em">   if a.id &lt; b.id {
+<span class='codenum'>4</span>      a.mu.Lock()
+<span class='codenum'>5</span>      b.mu.Lock()
+<span class='codenum'>6</span>   } else {
+<span class='codenum'>7</span>      b.mu.Lock()
+<span class='codenum'>8</span>      a.mu.Lock()
+<span class='codenum'>9</span>   }</span>
+<span class='codenum'>10</span>   <comment>// Unlock order doesn&#39;t matter.</comment>
+<span class='codenum'>11</span>   defer a.mu.Unlock()
+<span class='codenum'>12</span>   defer b.mu.Unlock()
+
+<span class='codenum'>13</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>14</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>15</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>44</span>
+</article>
+
+<!-- slide 45 -->
+<article>
+  <h1>Checklocks</h1>
+  <div class='text'>
+<p>A tool developed by Google's gvisor team.</p>
+<p>Installation:</p>
+<pre><code>go install gvisor.dev/gvisor/tools/checklocks/cmd/checklocks@go
+</code></pre>
+<p>Use:</p>
+<pre><code>checklocks ./...
+</code></pre>
+  </div>
+  <span class='pagenumber'>45</span>
+</article>
+
+<!-- slide 46 -->
+<article>
+  <h1>Example</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Account</defn> struct {
+<span class='codenum'>2</span>   mu      sync.Mutex
+<span class='codenum'>3</span>   balance int
+<span class='codenum'>4</span>}
+
+<span class='codenum'>5</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
+<span class='codenum'>6</span>   a.balance += amount
+<span class='codenum'>7</span>}
+
+<span class='codenum'>8</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>9</span>   a.mu.Lock()
+<span class='codenum'>10</span>   defer a.mu.Unlock()
+<span class='codenum'>11</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>12</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+  <span class='pagenumber'>46</span>
+</article>
+
+<!-- slide 47 -->
+<article>
+  <h1>Example</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Account</defn> struct {
+<span class='codenum'>2</span>   mu sync.Mutex
+<span class='codenum'>3</span>   <comment>// +checklocks:mu</comment>
+<span class='codenum'>4</span>   balance int
+<span class='codenum'>5</span>}
+
+<span class='codenum'>6</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
+<span class='codenum'>7</span>   a.balance += amount
+<span class='codenum'>8</span>}
+
+<span class='codenum'>9</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>10</span>   a.mu.Lock()
+<span class='codenum'>11</span>   defer a.mu.Unlock()
+<span class='codenum'>12</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>13</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>14</span>}
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+file.go:7:4: invalid field access, mu (&({param:a}.mu)) must be locked when accessing balance
+</pre>
+  </div>
+  <span class='pagenumber'>47</span>
+</article>
+
+<!-- slide 48 -->
+<article>
+  <h1>Example, v2</h1>
+  <div class='code'><pre>
+<span class='codenum'>1</span>type <defn>Account</defn> struct {
+<span class='codenum'>2</span>   mu      sync.Mutex
+<span class='codenum'>3</span>   balance int
+<span class='codenum'>4</span>}
+
+<comment>// +checklocks:a.mu</comment>
+<span class='codenum'>5</span>func (a *Account) <defn>changeBalanceLocked</defn>(amount int) {
+<span class='codenum'>6</span>   a.balance += amount
+<span class='codenum'>7</span>}
+
+<span class='codenum'>8</span>func (a *Account) <defn>TransferTo</defn>(b *Account, amount int) {
+<span class='codenum'>9</span>   a.mu.Lock()
+<span class='codenum'>10</span>   defer a.mu.Unlock()
+<span class='codenum'>11</span>   a.changeBalanceLocked(-amount)
+<span class='codenum'>12</span>   b.changeBalanceLocked(amount)
+<span class='codenum'>13</span>}
+</pre>
+  </div>
+<div></div>
+  <div class='output'><pre>
+file.go:12:23: must hold a.mu exclusively (&({param:b}.mu)) to call changeBalanceLocked, but not held
+</pre>
+  </div>
+  <span class='pagenumber'>48</span>
+</article>
+
+<!-- slide 49 -->
+<article>
+  <h1>The race detector vs. checklocks</h1>
+  <div class='text'>
+<div class="interleave" style="font-size: 100%">
+<table>
+<thead>
+<tr>
+<th>-race</th>
+<th>checklocks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dynamic</td>
+<td>static</td>
+</tr>
+<tr>
+<td>program runs 4x slower</td>
+<td>no effect on runtime speed</td>
+</tr>
+<tr>
+<td>finds all races that happen</td>
+<td>can miss some races (memory sharing)</td>
+</tr>
+<tr>
+<td>no code changes</td>
+<td>needs annotations</td>
+</tr>
+<tr>
+<td>run on any code</td>
+<td>only code you can annotate</td>
+</tr>
+<tr>
+<td>mutexes can be anywhere</td>
+<td>only works for globals and struct fields</td>
+</tr>
+<tr>
+<td>only data races, not transaction races</td>
+<td>only data races, not transaction races</td>
+</tr>
+</tbody>
+</table>
+</div>
+  </div>
+  <span class='pagenumber'>49 and last</span>
+</article>
+
+    <div id="help">
+      Use the left and right arrow keys or click the left and right
+      edges of the page to navigate between slides.<br>
+      (Press 'H' or navigate to hide this message.)
+    </div>
+    <script type="application/javascript" src='static/play.js'></script>
+	<script type="module">
+	   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+	   mermaid.initialize({ startOnLoad: true });
+	</script>
+  </body>
+</html>
