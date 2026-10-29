@@ -4,7 +4,7 @@ package patterns
 // subtitle
 // Demystifying Concurrency
 
-// GopherCon Europe 2026
+// GoLab 2026
 // !subtitle
 
 ////////////////////////////////////
